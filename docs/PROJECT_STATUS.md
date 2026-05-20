@@ -1,15 +1,15 @@
 # Project Status — Sport Motivation App
 
 > **Dernière mise à jour** : 2026-05-19
-> **Phase en cours** : Phase 0 — Setup environnement & projet
-> **Statut global** : 🟡 En cours — initialisation projet
+> **Phase en cours** : Phase 1 — Authentification et profil (à démarrer)
+> **Statut global** : 🟢 Phase 0 terminée, prêt pour Phase 1
 
 ## Vue d'ensemble
 
 | Phase | Statut | Date début | Date fin | % réalisé |
 |---|---|---|---|---|
-| Phase 0 — Setup | 🟡 En cours | 2026-05-19 | — | ~85 % |
-| Phase 1 — Auth & profil | ⚪ À faire | — | — | 0 % |
+| Phase 0 — Setup | ✅ Terminée | 2026-05-19 | 2026-05-19 | 100 % |
+| Phase 1 — Auth & profil | 🟡 À démarrer | — | — | 0 % |
 | Phase 2 — Groupes | ⚪ À faire | — | — | 0 % |
 | Phase 3 — Séances & preuves | ⚪ À faire | — | — | 0 % |
 | Phase 4 — Votes / Excuses / Blâmes | ⚪ À faire | — | — | 0 % |
@@ -64,7 +64,8 @@ Voir [DECISIONS.md](./DECISIONS.md) pour le journal complet.
 
 ## Comptes-rendus de phases
 
-- _Phase 0 Report — à créer en fin de phase_
+- [Phase 0 Report](./phases/PHASE_0_REPORT.md) — ✅ Terminée 2026-05-19
+- [Phase 1 Report](./phases/PHASE_1_REPORT.md) — _à créer en fin de phase_
 
 ## Stack technique (rappel)
 

@@ -98,11 +98,12 @@ supabase/             # Migrations et Edge Functions
 
 ## Documentation à lire avant de coder
 
-1. [docs/PROJECT_STATUS.md](./PROJECT_STATUS.md) — où on en est
-2. [docs/SPECIFICATIONS_MVP.md](./SPECIFICATIONS_MVP.md) — la spec fonctionnelle complète
-3. [docs/DECISIONS.md](./DECISIONS.md) — pourquoi on a fait les choix qu'on a faits
-4. [docs/KNOWN_ISSUES.md](./KNOWN_ISSUES.md) — bugs connus
-5. Le dernier `docs/PHASE_X_REPORT.md` en date — état détaillé de la dernière phase
+1. [PROJECT_STATUS.md](./PROJECT_STATUS.md) — où on en est
+2. [SPECIFICATIONS_MVP.md](./SPECIFICATIONS_MVP.md) — la spec fonctionnelle complète
+3. [DECISIONS.md](./DECISIONS.md) — pourquoi on a fait les choix qu'on a faits
+4. [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) — bugs connus
+5. Le dernier `phases/PHASE_X_REPORT.md` en date — état détaillé de la dernière phase
+6. Les `guides/*.md` pour les setups externes (Google OAuth, Storage policies, etc.)
 
 Pour Claude Code (et tout assistant IA) : lire en premier les 3 skills dans `.claude/` :
 - `PROJECT_SKILL.md`
