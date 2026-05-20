@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
-import { Check } from "lucide-react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { AlertTriangle, Check } from "lucide-react-native";
 
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Button } from "@/components/ui/Button";
 import { Stepper } from "@/components/ui/Stepper";
 import { RulesRecap } from "@/features/groups/RulesRecap";
@@ -14,8 +15,10 @@ export default function JoinConfirmScreen() {
   const router = useRouter();
   const { data: preview, isLoading, error } = useGroupPreview(code);
   const join = useJoinGroup();
+  const { toast } = useFeedback();
 
   const [weeklyTarget, setWeeklyTarget] = useState(3);
+  const [penalty, setPenalty] = useState<number | null>(null);
   const [accepted, setAccepted] = useState(false);
 
   if (isLoading) {
@@ -42,20 +45,28 @@ export default function JoinConfirmScreen() {
   }
 
   const isFull = preview.member_count >= preview.max_members;
+  const effectivePenalty = penalty ?? preview.penalty_amount;
 
   const onJoin = () => {
     join.mutate(
       {
         code: code!,
         weeklyTarget,
+        penaltyAmount: effectivePenalty,
         rulesSnapshot: buildRulesSnapshotFromPreview(preview),
       },
       {
         onSuccess: (groupId) => {
+          toast(`Tu as rejoint « ${preview.name} »`, "success");
           router.replace({ pathname: "/group/[id]", params: { id: groupId } } as never);
         },
         onError: (err) => {
-          Alert.alert("Impossible de rejoindre", err.message);
+          // Déjà membre : on emmène simplement l'utilisateur sur le groupe.
+          if (err.message.includes("déjà partie") && preview) {
+            router.replace({ pathname: "/group/[id]", params: { id: preview.id } } as never);
+            return;
+          }
+          toast(err.message, "error");
         },
       }
     );
@@ -100,9 +111,10 @@ export default function JoinConfirmScreen() {
         <Text className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
           Ton engagement
         </Text>
-        <View className="rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950">
-          <Text className="text-sm text-amber-800 dark:text-amber-200">
-            ⚠ Ton objectif hebdomadaire sera <Text className="font-bold">verrouillé</Text> pour
+        <View className="flex-row items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950">
+          <AlertTriangle size={18} color="#f59e0b" />
+          <Text className="flex-1 text-sm text-amber-800 dark:text-amber-200">
+            Ton objectif hebdomadaire sera <Text className="font-bold">verrouillé</Text> pour
             toute la durée du défi. Impossible de le modifier ensuite.
           </Text>
         </View>
@@ -111,6 +123,17 @@ export default function JoinConfirmScreen() {
             Séances par semaine
           </Text>
           <Stepper value={weeklyTarget} onChange={setWeeklyTarget} min={1} max={14} />
+        </View>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1 pr-4">
+            <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Ta pénalité / séance manquée
+            </Text>
+            <Text className="text-xs text-neutral-400">
+              Défaut du groupe : {preview.penalty_amount} € — libre à toi
+            </Text>
+          </View>
+          <Stepper value={effectivePenalty} onChange={setPenalty} min={0} max={100} suffix="€" />
         </View>
       </View>
 

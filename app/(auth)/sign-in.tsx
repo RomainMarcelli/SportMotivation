@@ -5,16 +5,16 @@ import { Alert, KeyboardAvoidingView, Platform, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Dumbbell } from "lucide-react-native";
 
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
-import { useGoogleAuth } from "@/features/auth/google";
+import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignIn } from "@/features/auth/mutations";
 import { signInSchema, type SignInInput } from "@/features/auth/schemas";
 
 export default function SignInScreen() {
   const router = useRouter();
   const signIn = useSignIn();
-  const google = useGoogleAuth();
 
   const {
     control,
@@ -90,16 +90,7 @@ export default function SignInScreen() {
             <Button onPress={handleSubmit(onSubmit)} loading={signIn.isPending}>
               Se connecter
             </Button>
-            {google.enabled ? (
-              <Button
-                variant="secondary"
-                onPress={google.signIn}
-                disabled={!google.isReady}
-                loading={google.isPending}
-              >
-                Continuer avec Google
-              </Button>
-            ) : null}
+            {isGoogleConfigured ? <GoogleSignInButton /> : null}
             <Button variant="ghost" onPress={() => router.push("/sign-up")}>
               Créer un compte
             </Button>

@@ -55,6 +55,7 @@ export function useCreateGroup() {
         role: "admin",
         weekly_target: input.weeklyTarget,
         target_locked: true,
+        penalty_amount: input.penaltyAmount,
       });
       if (memberError) throw memberError;
 

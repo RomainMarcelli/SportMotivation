@@ -7,6 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
 
+import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { isProfileComplete, useProfile } from "@/hooks/useProfile";
 import { useAuthInitialized, useIsAuthenticated } from "@/lib/auth-store";
@@ -15,7 +16,9 @@ import { queryClient } from "@/lib/query-client";
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RootContent />
+      <FeedbackProvider>
+        <RootContent />
+      </FeedbackProvider>
     </QueryClientProvider>
   );
 }
@@ -52,6 +55,10 @@ function RootContent() {
         <Stack.Protected guard={isAuthenticated && hasCompleteProfile}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="group" />
+          <Stack.Screen
+            name="notifications"
+            options={{ headerShown: true, title: "Notifications" }}
+          />
         </Stack.Protected>
       </Stack>
       <StatusBar style="auto" />

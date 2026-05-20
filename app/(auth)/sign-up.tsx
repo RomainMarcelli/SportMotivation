@@ -4,16 +4,16 @@ import { Controller, useForm } from "react-hook-form";
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
-import { useGoogleAuth } from "@/features/auth/google";
+import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignUp } from "@/features/auth/mutations";
 import { signUpSchema, type SignUpInput } from "@/features/auth/schemas";
 
 export default function SignUpScreen() {
   const router = useRouter();
   const signUp = useSignUp();
-  const google = useGoogleAuth();
 
   const {
     control,
@@ -119,16 +119,7 @@ export default function SignUpScreen() {
             <Button onPress={handleSubmit(onSubmit)} loading={signUp.isPending}>
               Créer mon compte
             </Button>
-            {google.enabled ? (
-              <Button
-                variant="secondary"
-                onPress={google.signIn}
-                disabled={!google.isReady}
-                loading={google.isPending}
-              >
-                Continuer avec Google
-              </Button>
-            ) : null}
+            {isGoogleConfigured ? <GoogleSignInButton /> : null}
             <Button variant="ghost" onPress={() => router.back()}>
               J'ai déjà un compte
             </Button>

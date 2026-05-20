@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-import { Check } from "lucide-react-native";
+import { AlertTriangle, Check } from "lucide-react-native";
 
 import { Button } from "@/components/ui/Button";
 import { Chip, ChipGroup } from "@/components/ui/Chip";
@@ -249,9 +249,10 @@ export default function CreateGroupScreen() {
       </Section>
 
       <Section title="Ton engagement">
-        <View className="rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950">
-          <Text className="text-sm text-amber-800 dark:text-amber-200">
-            ⚠ Ton objectif hebdomadaire sera <Text className="font-bold">verrouillé</Text> pour
+        <View className="flex-row items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950">
+          <AlertTriangle size={18} color="#f59e0b" />
+          <Text className="flex-1 text-sm text-amber-800 dark:text-amber-200">
+            Ton objectif hebdomadaire sera <Text className="font-bold">verrouillé</Text> pour
             toute la durée du défi. Impossible de le modifier ensuite.
           </Text>
         </View>

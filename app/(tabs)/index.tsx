@@ -1,11 +1,12 @@
 import { useRouter } from "expo-router";
 import { Alert, FlatList, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronRight, Plus, Users } from "lucide-react-native";
+import { Bell, ChevronRight, Crown, Plus, Users } from "lucide-react-native";
 
 import { Button } from "@/components/ui/Button";
 import { useSignOut } from "@/features/auth/mutations";
 import { useMyGroups, type MyGroup } from "@/features/groups/queries";
+import { useUnreadCount } from "@/features/notifications/queries";
 import { formatDbDate } from "@/lib/date";
 import { useProfile } from "@/hooks/useProfile";
 
@@ -13,6 +14,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { data: profile } = useProfile();
   const { data: groups, isLoading } = useMyGroups();
+  const unread = useUnreadCount();
   const signOut = useSignOut();
 
   const handleSignOut = () => {
@@ -39,12 +41,23 @@ export default function HomeScreen() {
               <Text className="text-base font-bold text-white">{initials}</Text>
             </View>
           )}
-          <View>
+          <View className="flex-1">
             <Text className="text-xs text-neutral-500 dark:text-neutral-400">Salut,</Text>
             <Text className="text-base font-semibold text-neutral-900 dark:text-white">
               {profile?.first_name ?? "Toi"}
             </Text>
           </View>
+          <Pressable
+            onPress={() => router.push("/notifications" as never)}
+            className="h-11 w-11 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800"
+          >
+            <Bell size={22} color="#3b82f6" />
+            {unread > 0 ? (
+              <View className="absolute right-1 top-1 h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1">
+                <Text className="text-[10px] font-bold text-white">{unread > 9 ? "9+" : unread}</Text>
+              </View>
+            ) : null}
+          </Pressable>
         </View>
 
         {hasGroups ? (
@@ -112,10 +125,12 @@ function GroupListItem({ item, onPress }: { item: MyGroup; onPress: () => void }
       className="flex-row items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 active:opacity-80 dark:border-neutral-700 dark:bg-neutral-800"
     >
       <View className="flex-1">
-        <Text className="text-base font-semibold text-neutral-900 dark:text-white">
-          {group.name}
-          {role === "admin" ? " 👑" : ""}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text className="text-base font-semibold text-neutral-900 dark:text-white">
+            {group.name}
+          </Text>
+          {role === "admin" ? <Crown size={15} color="#f59e0b" /> : null}
+        </View>
         <Text className="text-xs text-neutral-500 dark:text-neutral-400">
           {formatDbDate(group.challenge_start)} → {formatDbDate(group.challenge_end)}
         </Text>

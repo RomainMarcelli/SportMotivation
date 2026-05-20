@@ -39,7 +39,7 @@ export default function JoinGroupScreen() {
           maxLength={6}
         />
 
-        <View className="mt-8">
+        <View className="mt-8 gap-3">
           <Button
             disabled={!valid}
             onPress={() =>
@@ -48,11 +48,17 @@ export default function JoinGroupScreen() {
           >
             Continuer
           </Button>
-        </View>
 
-        <Text className="mt-6 text-center text-xs text-neutral-400">
-          Le scan de QR code et les liens d'invitation arrivent bientôt.
-        </Text>
+          <View className="my-2 flex-row items-center gap-3">
+            <View className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+            <Text className="text-xs text-neutral-400">ou</Text>
+            <View className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+          </View>
+
+          <Button variant="secondary" onPress={() => router.push("/group/scan" as never)}>
+            Scanner un QR code
+          </Button>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );

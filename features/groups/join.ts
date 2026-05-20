@@ -69,6 +69,7 @@ export function useGroupPreview(code: string | undefined) {
 type JoinArgs = {
   code: string;
   weeklyTarget: number;
+  penaltyAmount: number;
   rulesSnapshot: Json;
 };
 
@@ -78,28 +79,40 @@ export function useJoinGroup() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ code, weeklyTarget, rulesSnapshot }: JoinArgs): Promise<string> => {
+    mutationFn: async ({
+      code,
+      weeklyTarget,
+      penaltyAmount,
+      rulesSnapshot,
+    }: JoinArgs): Promise<string> => {
       if (!user) throw new Error("Aucun utilisateur connecté.");
 
       const { data, error } = await supabase.rpc(
         "join_group_by_code" as never,
-        { p_code: code, p_weekly_target: weeklyTarget } as never
+        { p_code: code, p_weekly_target: weeklyTarget, p_penalty_amount: penaltyAmount } as never
       );
       if (error) throw new Error(mapJoinError(error.message));
 
       const groupId = data as unknown as string;
 
-      const { error: acceptanceError } = await supabase.from("rule_acceptances").insert({
-        group_id: groupId,
-        user_id: user.id,
-        rules_snapshot: rulesSnapshot,
-      });
+      // upsert (et non insert) : idempotent si l'utilisateur a déjà une acceptation
+      // (cas d'une réintégration après départ, ou d'un double clic).
+      const { error: acceptanceError } = await supabase.from("rule_acceptances").upsert(
+        {
+          group_id: groupId,
+          user_id: user.id,
+          rules_snapshot: rulesSnapshot,
+        },
+        { onConflict: "group_id,user_id" }
+      );
       if (acceptanceError) throw acceptanceError;
 
       return groupId;
     },
-    onSuccess: () => {
+    onSuccess: (groupId) => {
       queryClient.invalidateQueries({ queryKey: ["my-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["group", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] });
     },
   });
 }

@@ -39,7 +39,13 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "L'app utilise la caméra pour scanner les QR codes d'invitation et prendre les photos de séance."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

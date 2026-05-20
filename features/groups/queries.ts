@@ -6,7 +6,6 @@ import type { Database } from "@/types/database.types";
 
 type GroupRow = Database["public"]["Tables"]["groups"]["Row"];
 type MemberRole = Database["public"]["Enums"]["member_role"];
-
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export type MyGroup = {
@@ -21,13 +20,14 @@ export type GroupMemberWithUser = {
   role: MemberRole;
   weeklyTarget: number;
   targetLocked: boolean;
+  penaltyAmount: number | null;
   joinedAt: string;
   user: UserRow;
 };
 
 /**
- * Liste les groupes dont l'utilisateur courant est membre actif.
- * On passe par `group_members` (RLS : is_group_member) avec embed du groupe.
+ * Liste les groupes de l'utilisateur courant.
+ * Passe par la RPC SECURITY DEFINER `get_my_groups` (évite toute dépendance à la RLS SELECT).
  */
 export function useMyGroups() {
   const user = useCurrentUser();
@@ -35,67 +35,75 @@ export function useMyGroups() {
     queryKey: ["my-groups", user?.id],
     enabled: !!user?.id,
     queryFn: async (): Promise<MyGroup[]> => {
-      const { data, error } = await supabase
-        .from("group_members")
-        .select("id, role, weekly_target, groups(*)")
-        .eq("user_id", user!.id)
-        .is("left_at", null)
-        .order("joined_at", { ascending: false });
+      const { data, error } = await supabase.rpc("get_my_groups" as never);
       if (error) throw error;
-
-      return (data ?? [])
-        .filter((row) => row.groups !== null)
-        .map((row) => ({
-          membershipId: row.id,
-          role: row.role,
-          weeklyTarget: row.weekly_target,
-          group: row.groups as unknown as GroupRow,
-        }));
+      const rows = (data ?? []) as Record<string, unknown>[];
+      return rows.map((r) => ({
+        membershipId: r.membership_id as string,
+        role: r.role as MemberRole,
+        weeklyTarget: r.weekly_target as number,
+        group: {
+          id: r.group_id as string,
+          name: r.name as string,
+          description: (r.description as string | null) ?? null,
+          photo_url: (r.photo_url as string | null) ?? null,
+          challenge_start: r.challenge_start as string,
+          challenge_end: r.challenge_end as string,
+          penalty_amount: r.penalty_amount as number,
+          status: r.status as GroupRow["status"],
+          max_members: r.max_members as number,
+        } as GroupRow,
+      }));
     },
   });
 }
 
-/** Détail d'un groupe. RLS : lisible si membre ou créateur. */
+/** Détail d'un groupe via la RPC `get_group_dashboard` (membre ou créateur). */
 export function useGroup(groupId: string | undefined) {
   return useQuery({
     queryKey: ["group", groupId],
     enabled: !!groupId,
+    retry: false,
     queryFn: async (): Promise<GroupRow> => {
-      const { data, error } = await supabase
-        .from("groups")
-        .select("*")
-        .eq("id", groupId!)
-        .single();
+      const { data, error } = await supabase.rpc(
+        "get_group_dashboard" as never,
+        { p_group_id: groupId } as never
+      );
       if (error) throw error;
-      return data;
+      const rows = (data ?? []) as GroupRow[];
+      if (rows.length === 0) throw new Error("Groupe introuvable ou accès refusé.");
+      return rows[0];
     },
   });
 }
 
-/** Membres actifs d'un groupe avec leur profil. RLS : lisible si membre du groupe. */
+/** Membres actifs d'un groupe avec leur profil, via la RPC `get_group_members`. */
 export function useGroupMembers(groupId: string | undefined) {
   return useQuery({
     queryKey: ["group-members", groupId],
     enabled: !!groupId,
     queryFn: async (): Promise<GroupMemberWithUser[]> => {
-      const { data, error } = await supabase
-        .from("group_members")
-        .select("id, role, weekly_target, target_locked, joined_at, users(*)")
-        .eq("group_id", groupId!)
-        .is("left_at", null)
-        .order("joined_at", { ascending: true });
+      const { data, error } = await supabase.rpc(
+        "get_group_members" as never,
+        { p_group_id: groupId } as never
+      );
       if (error) throw error;
-
-      return (data ?? [])
-        .filter((row) => row.users !== null)
-        .map((row) => ({
-          id: row.id,
-          role: row.role,
-          weeklyTarget: row.weekly_target,
-          targetLocked: row.target_locked,
-          joinedAt: row.joined_at,
-          user: row.users as unknown as UserRow,
-        }));
+      const rows = (data ?? []) as Record<string, unknown>[];
+      return rows.map((r) => ({
+        id: r.id as string,
+        role: r.role as MemberRole,
+        weeklyTarget: r.weekly_target as number,
+        targetLocked: r.target_locked as boolean,
+        penaltyAmount: (r.penalty_amount as number | null) ?? null,
+        joinedAt: r.joined_at as string,
+        user: {
+          id: r.user_id as string,
+          first_name: (r.first_name as string | null) ?? null,
+          last_name: (r.last_name as string | null) ?? null,
+          username: (r.username as string | null) ?? null,
+          avatar_url: (r.avatar_url as string | null) ?? null,
+        } as UserRow,
+      }));
     },
   });
 }

@@ -27,7 +27,8 @@ Guides de configuration pour services externes ou setups spécifiques.
 
 - [`GOOGLE_OAUTH_SETUP.md`](./guides/GOOGLE_OAUTH_SETUP.md) — Activer la connexion Google
 - [`STORAGE_POLICIES.md`](./guides/STORAGE_POLICIES.md) — Policies RLS sur les buckets Supabase Storage
-- _STRAVA_SETUP.md — à venir Phase 3_
+- [`STRAVA_SETUP.md`](./guides/STRAVA_SETUP.md) — Connecter Strava (OAuth + Edge Function)
+- [`ACCOUNT_DELETION.md`](./guides/ACCOUNT_DELETION.md) — Suppression de compte (Edge Function `delete-account`)
 - _EAS_BUILD.md — à venir Phase 7_
 
 ### `archives/`

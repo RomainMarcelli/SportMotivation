@@ -8,10 +8,11 @@ type Props = {
   value: Date | undefined;
   onChange: (date: Date) => void;
   minimumDate?: Date;
+  maximumDate?: Date;
   error?: string;
 };
 
-export function DateField({ label, value, onChange, minimumDate, error }: Props) {
+export function DateField({ label, value, onChange, minimumDate, maximumDate, error }: Props) {
   const [show, setShow] = useState(false);
 
   const formatted = value
@@ -43,6 +44,7 @@ export function DateField({ label, value, onChange, minimumDate, error }: Props)
           value={value ?? minimumDate ?? new Date()}
           mode="date"
           minimumDate={minimumDate}
+          maximumDate={maximumDate}
           onChange={(event, date) => {
             setShow(Platform.OS === "ios");
             if (event.type === "set" && date) onChange(date);
