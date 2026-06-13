@@ -1,9 +1,8 @@
 import * as Clipboard from "expo-clipboard";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -12,8 +11,9 @@ import {
   View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
-import { Check, Copy, Share2, UserPlus } from "lucide-react-native";
+import { Check, Copy, ListChecks, Share2, UserPlus } from "lucide-react-native";
 
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import {
@@ -27,6 +27,8 @@ import { buildInviteLink } from "@/lib/invite-link";
 
 export default function InviteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { toast } = useFeedback();
   const user = useCurrentUser();
   const { data: group, isLoading } = useGroup(id);
   const { data: members } = useGroupMembers(id);
@@ -62,10 +64,16 @@ export default function InviteScreen() {
 
   const onInvite = (u: UserSearchResult) => {
     inviteUser.mutate(u.id, {
-      onSuccess: () => setInvitedIds((prev) => [...prev, u.id]),
-      onError: (e) => Alert.alert("Invitation impossible", e.message),
+      onSuccess: () => {
+        setInvitedIds((prev) => [...prev, u.id]);
+        toast(`Invitation envoyée à ${u.first_name ?? u.username ?? "ce joueur"}`, "success");
+      },
+      onError: (e) => toast(e.message, "error"),
     });
   };
+
+  const goToInvitations = () =>
+    router.push({ pathname: "/group/[id]/invitations", params: { id: id! } } as never);
 
   return (
     <ScrollView
@@ -132,6 +140,16 @@ export default function InviteScreen() {
               </View>
             );
           })}
+
+          <Pressable
+            onPress={goToInvitations}
+            className="mt-1 flex-row items-center gap-2 rounded-2xl border border-neutral-200 p-3 active:opacity-70 dark:border-neutral-700"
+          >
+            <ListChecks size={18} color="#3b82f6" />
+            <Text className="flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200">
+              Voir les invitations envoyées
+            </Text>
+          </Pressable>
 
           <View className="mt-2 flex-row items-center gap-3">
             <View className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />

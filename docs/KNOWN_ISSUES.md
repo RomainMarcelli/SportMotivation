@@ -16,6 +16,36 @@
 
 ---
 
+## 2026-05-21 — « Impossible de rejoindre / charger un groupe » (série RLS + SQL)
+
+- **Description** : rejoindre un groupe échouait en cascade, à mesure que les fichiers SQL étaient appliqués : (1) `join_group_by_code` introuvable (cache PostgREST + double signature), (2) `column penalty_amount does not exist` (le fichier `003` n'avait jamais été appliqué — les `ALTER TYPE … ADD VALUE` faisaient échouer tout le script), (3) RLS `rule_acceptances` bloquant l'upsert, (4) un membre ne pouvait pas **lire** son groupe (RLS SELECT réservée au créateur) → « impossible de charger le groupe » + aucun groupe à l'accueil.
+- **Impact** : bloquant — impossible de rejoindre/voir un groupe.
+- **Workaround / fix** :
+  - SQL `007` (recrée la fonction + reload cache), `008` (colonne + enums, à exécuter SEUL), `010` (RLS rule_acceptances), `011` (RLS lecture), et surtout `012` qui remplace la lecture par des **RPC SECURITY DEFINER** (`get_my_groups`, `get_group_dashboard`, `get_group_members`) → l'app ne dépend plus de la RLS SELECT.
+  - Côté app : `features/groups/errors.ts` (`classifyGroupError`) + logs debug (`lib/log.ts`) pour diagnostiquer (fonction manquante / accès refusé / réseau).
+- **Leçon** : `ALTER TYPE … ADD VALUE` doit être isolé (le SQL Editor exécute tout dans une transaction). Pour la lecture multi-tables avec RLS, préférer des RPC SECURITY DEFINER avec contrôle d'appartenance explicite.
+- **Statut** : ✅ corrigé côté code ; **dépend de l'exécution des SQL `008` + `012`** par Romain (voir `docs/guides/SQL_CHECKLIST.md`).
+
+---
+
+## 2026-05-21 — Fonctionnalités en placeholder (Paramètres)
+
+- **Description** : la page Paramètres expose des options pas encore implémentées, marquées « Bientôt » : changer le mot de passe, changer l'email, notifications push (Phase 6), export de données, CGU/Politique/Support.
+- **Impact** : cosmétique — boutons désactivés explicitement, pas de bouton « mort ».
+- **Plan de résolution** : implémenter au fil des phases (push = Phase 6 ; mot de passe/email = à planifier ; pages légales avant la beta).
+- **Statut** : 🟡 accepté (placeholders assumés).
+
+---
+
+## 2026-05-21 — Strava : callback domain Expo Go uniquement
+
+- **Description** : l'OAuth Strava est configuré avec le callback `auth.expo.io` (proxy Expo Go). En build natif (EAS), il faudra basculer sur le scheme `sportmotiv` côté app Strava et `redirectUri`.
+- **Impact** : faible pour l'instant (dev sur Expo Go).
+- **Plan de résolution** : ajuster en Phase 7 (builds EAS).
+- **Statut** : 🟡 à traiter plus tard.
+
+---
+
 ## 2026-05-19 — `npm install` casse les libs natives Expo
 
 - **Description** : utiliser `npm install <pkg>` pour des libs Expo (`expo-*`, `@react-native-*`) prend la dernière version du registry, souvent incompatible avec le SDK Expo en cours. Au runtime sur Expo Go : `AsyncStorageError: Native module is null` ou erreurs similaires.

@@ -34,19 +34,30 @@ export default function HomeScreen() {
     <SafeAreaView className="flex-1 bg-white dark:bg-neutral-900">
       <View className="flex-1 px-6 pt-4">
         <View className="mb-6 flex-row items-center gap-3">
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} className="h-12 w-12 rounded-full" />
-          ) : (
-            <View className="h-12 w-12 items-center justify-center rounded-full bg-primary-500">
-              <Text className="text-base font-bold text-white">{initials}</Text>
+          <Pressable
+            onPress={() => router.push("/(tabs)/profile" as never)}
+            className="flex-1 flex-row items-center gap-3 active:opacity-70"
+          >
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} className="h-12 w-12 rounded-full" />
+            ) : (
+              <View className="h-12 w-12 items-center justify-center rounded-full bg-primary-500">
+                <Text className="text-base font-bold text-white">{initials}</Text>
+              </View>
+            )}
+            <View className="flex-1">
+              <Text className="text-xs text-neutral-500 dark:text-neutral-400">Salut,</Text>
+              <View className="flex-row items-center gap-1">
+                <Text className="text-base font-semibold text-neutral-900 dark:text-white">
+                  {profile?.first_name ?? "Toi"}
+                </Text>
+                {profile?.username ? (
+                  <Text className="text-sm text-neutral-400">@{profile.username}</Text>
+                ) : null}
+                <ChevronRight size={16} color="#94a3b8" />
+              </View>
             </View>
-          )}
-          <View className="flex-1">
-            <Text className="text-xs text-neutral-500 dark:text-neutral-400">Salut,</Text>
-            <Text className="text-base font-semibold text-neutral-900 dark:text-white">
-              {profile?.first_name ?? "Toi"}
-            </Text>
-          </View>
+          </Pressable>
           <Pressable
             onPress={() => router.push("/notifications" as never)}
             className="h-11 w-11 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800"

@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera, Trash2 } from "lucide-react-native";
+import { Camera, Settings, Trash2 } from "lucide-react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +18,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useCurrentUser } from "@/lib/auth-store";
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const user = useCurrentUser();
   const { data: profile, isLoading } = useProfile();
   const updateProfile = useUpdateProfile();
@@ -110,7 +112,16 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-neutral-900">
       <ScrollView contentContainerClassName="gap-6 p-6 pb-12" keyboardShouldPersistTaps="handled">
-        <Text className="text-2xl font-bold text-neutral-900 dark:text-white">Mon profil</Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-2xl font-bold text-neutral-900 dark:text-white">Mon profil</Text>
+          <Pressable
+            onPress={() => router.push("/settings" as never)}
+            hitSlop={10}
+            className="h-10 w-10 items-center justify-center rounded-full bg-neutral-100 active:opacity-70 dark:bg-neutral-800"
+          >
+            <Settings size={20} color="#3b82f6" />
+          </Pressable>
+        </View>
 
         <View className="items-center gap-3">
           <Pressable onPress={pickAvatar} className="active:opacity-70">

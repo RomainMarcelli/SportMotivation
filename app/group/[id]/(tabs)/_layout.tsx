@@ -12,7 +12,7 @@ export default function GroupTabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        headerShown: true,
+        headerShown: false,
         tabBarButton: HapticTab,
       }}
     >

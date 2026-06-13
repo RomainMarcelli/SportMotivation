@@ -4,6 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
 
@@ -12,8 +13,13 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { isProfileComplete, useProfile } from "@/hooks/useProfile";
 import { useAuthInitialized, useIsAuthenticated } from "@/lib/auth-store";
 import { queryClient } from "@/lib/query-client";
+import { useThemeStore } from "@/lib/theme-store";
 
 export default function RootLayout() {
+  useEffect(() => {
+    useThemeStore.getState().load();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <FeedbackProvider>
@@ -59,6 +65,7 @@ function RootContent() {
             name="notifications"
             options={{ headerShown: true, title: "Notifications" }}
           />
+          <Stack.Screen name="settings" options={{ headerShown: true, title: "Paramètres" }} />
         </Stack.Protected>
       </Stack>
       <StatusBar style="auto" />

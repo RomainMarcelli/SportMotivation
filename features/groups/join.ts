@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useCurrentUser } from "@/lib/auth-store";
 import { isValidInviteCode } from "@/lib/group-code";
+import { debugError } from "@/lib/log";
 import { supabase } from "@/lib/supabase";
 import type { Database, Json } from "@/types/database.types";
 
@@ -38,6 +39,12 @@ export function mapJoinError(message: string): string {
   if (message.includes("ALREADY_MEMBER")) return "Tu fais déjà partie de ce groupe.";
   if (message.includes("GROUP_FULL")) return "Ce groupe est complet (10 membres maximum).";
   if (message.includes("INVALID_TARGET")) return "Objectif hebdomadaire invalide.";
+  if (message.includes("INVALID_PENALTY")) return "Montant de pénalité invalide.";
+  // Fonction/colonne manquante côté base (SQL pas appliqué)
+  if (/could not find the function|schema cache|does not exist/i.test(message))
+    return "Configuration serveur incomplète (fonction ou colonne manquante en base). Contacte l'admin technique.";
+  if (/row-level security|permission/i.test(message))
+    return "Accès refusé par la base de données (RLS).";
   return message;
 }
 
@@ -91,7 +98,10 @@ export function useJoinGroup() {
         "join_group_by_code" as never,
         { p_code: code, p_weekly_target: weeklyTarget, p_penalty_amount: penaltyAmount } as never
       );
-      if (error) throw new Error(mapJoinError(error.message));
+      if (error) {
+        debugError("join_group_by_code", error);
+        throw new Error(mapJoinError(error.message));
+      }
 
       const groupId = data as unknown as string;
 
@@ -105,7 +115,10 @@ export function useJoinGroup() {
         },
         { onConflict: "group_id,user_id" }
       );
-      if (acceptanceError) throw acceptanceError;
+      if (acceptanceError) {
+        debugError("rule_acceptances.upsert", acceptanceError);
+        throw new Error(mapJoinError(acceptanceError.message));
+      }
 
       return groupId;
     },

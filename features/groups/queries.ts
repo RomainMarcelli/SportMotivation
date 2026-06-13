@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useCurrentUser } from "@/lib/auth-store";
+import { debugError } from "@/lib/log";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database.types";
 
@@ -36,7 +37,10 @@ export function useMyGroups() {
     enabled: !!user?.id,
     queryFn: async (): Promise<MyGroup[]> => {
       const { data, error } = await supabase.rpc("get_my_groups" as never);
-      if (error) throw error;
+      if (error) {
+        debugError("get_my_groups", error);
+        throw error;
+      }
       const rows = (data ?? []) as Record<string, unknown>[];
       return rows.map((r) => ({
         membershipId: r.membership_id as string,
@@ -69,7 +73,10 @@ export function useGroup(groupId: string | undefined) {
         "get_group_dashboard" as never,
         { p_group_id: groupId } as never
       );
-      if (error) throw error;
+      if (error) {
+        debugError("get_group_dashboard", error);
+        throw error;
+      }
       const rows = (data ?? []) as GroupRow[];
       if (rows.length === 0) throw new Error("Groupe introuvable ou accès refusé.");
       return rows[0];
@@ -87,7 +94,10 @@ export function useGroupMembers(groupId: string | undefined) {
         "get_group_members" as never,
         { p_group_id: groupId } as never
       );
-      if (error) throw error;
+      if (error) {
+        debugError("get_group_members", error);
+        throw error;
+      }
       const rows = (data ?? []) as Record<string, unknown>[];
       return rows.map((r) => ({
         id: r.id as string,

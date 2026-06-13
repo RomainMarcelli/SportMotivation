@@ -31,6 +31,18 @@ export type GroupPreviewById = {
   member_count: number;
 };
 
+export type GroupInvitation = {
+  id: string;
+  status: "pending" | "accepted" | "refused";
+  created_at: string;
+  resolved_at: string | null;
+  invited_user_id: string;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+};
+
 export function mapInviteError(message: string): string {
   if (message.includes("NOT_ADMIN")) return "Seul un admin peut inviter.";
   if (message.includes("ALREADY_MEMBER")) return "Ce joueur fait déjà partie du groupe.";
@@ -63,6 +75,39 @@ export function useInviteUser(groupId: string) {
         p_group_id: groupId,
         p_user_id: userId,
       });
+      if (error) throw new Error(mapInviteError(error.message));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-invitations", groupId] });
+    },
+  });
+}
+
+/** Liste les invitations d'un groupe (admin uniquement, via RPC SECURITY DEFINER). */
+export function useGroupInvitations(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["group-invitations", groupId],
+    enabled: !!groupId,
+    queryFn: async (): Promise<GroupInvitation[]> => {
+      const { data, error } = await supabase.rpc(
+        "get_group_invitations" as never,
+        { p_group_id: groupId } as never
+      );
+      if (error) throw error;
+      return (data ?? []) as GroupInvitation[];
+    },
+  });
+}
+
+/** Annule (supprime) une invitation en attente (admin). */
+export function useCancelInvitation(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (invitationId: string) => {
+      const { error } = await supabase.rpc(
+        "cancel_invitation" as never,
+        { p_invitation_id: invitationId } as never
+      );
       if (error) throw new Error(mapInviteError(error.message));
     },
     onSuccess: () => {

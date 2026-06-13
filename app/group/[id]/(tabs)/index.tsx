@@ -2,11 +2,21 @@ import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
-import { Check, Copy, CalendarDays, Dumbbell, KeyRound, Users, Wallet } from "lucide-react-native";
+import {
+  AlertCircle,
+  Check,
+  Copy,
+  CalendarDays,
+  Dumbbell,
+  KeyRound,
+  Users,
+  Wallet,
+} from "lucide-react-native";
 
 import { RoleBadge } from "@/components/groups/RoleBadge";
 import { Button } from "@/components/ui/Button";
 import { getActivityLabel } from "@/constants/activities";
+import { classifyGroupError } from "@/features/groups/errors";
 import { useGroup, useGroupMembers } from "@/features/groups/queries";
 import { useCurrentUser } from "@/lib/auth-store";
 import { formatDbDate } from "@/lib/date";
@@ -28,21 +38,26 @@ export default function GroupDashboardScreen() {
   }
 
   if (error || !group) {
+    const classified = classifyGroupError(error);
     return (
       <View className="flex-1 items-center justify-center bg-white p-6 dark:bg-neutral-900">
+        <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
+          <AlertCircle size={28} color="#ef4444" />
+        </View>
         <Text className="mb-2 text-center text-base font-medium text-neutral-700 dark:text-neutral-300">
-          Impossible de charger ce groupe.
+          {classified.message}
         </Text>
-        {error ? (
-          <Text className="mb-6 text-center text-xs text-neutral-400">{error.message}</Text>
+        {classified.technical ? (
+          <Text className="mb-6 text-center text-xs text-neutral-400">{classified.technical}</Text>
         ) : (
-          <Text className="mb-6 text-center text-xs text-neutral-400">
-            Groupe introuvable ou accès refusé.
-          </Text>
+          <View className="mb-6" />
         )}
-        <View className="w-full max-w-xs">
+        <View className="w-full max-w-xs gap-3">
           <Button onPress={() => refetch()} loading={isRefetching}>
             Réessayer
+          </Button>
+          <Button variant="secondary" onPress={() => router.replace("/" as never)}>
+            Retour à l'accueil
           </Button>
         </View>
       </View>

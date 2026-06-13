@@ -18,6 +18,10 @@ Ce dossier contient les scripts SQL à exécuter dans **Supabase Dashboard → S
 | `010_fix_rule_acceptances_rls.sql` | Correctif RLS : autorise l'upsert d'acceptation des règles | ⏳ à exécuter |
 | `011_fix_group_read_rls.sql` | Correctif RLS : un membre peut lire son groupe + ses adhésions | ⏳ à exécuter |
 | `012_group_read_rpcs.sql` | RPC de lecture (get_my_groups / get_group_dashboard / get_group_members) — **requis** | ⏳ à exécuter |
+| `013_group_invitations_admin.sql` | Liste/annulation des invitations (admin) | ⏳ à exécuter |
+| `014_notifications_delete.sql` | Suppression de notifications (RLS delete) | ⏳ à exécuter |
+
+> Voir `docs/guides/SQL_CHECKLIST.md` pour la checklist complète + requêtes de vérification.
 
 **Ordre impératif** : 003 avant 004 et 005 (à cause des valeurs d'enum ajoutées). 006 indépendant, à exécuter après les autres.
 

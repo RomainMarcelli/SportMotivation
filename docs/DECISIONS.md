@@ -6,6 +6,58 @@
 
 ---
 
+## 2026-05-21 — Lecture des groupes via RPC SECURITY DEFINER (et non RLS SELECT directe)
+
+**Contexte** : après avoir rejoint un groupe, un membre ne pouvait pas le lire (RLS SELECT réservée au créateur), d'où « impossible de charger le groupe ». Plusieurs tentatives de correctifs RLS successifs.
+
+**Décision** : exposer des fonctions `SECURITY DEFINER` (`get_my_groups`, `get_group_dashboard`, `get_group_members`) avec contrôle d'appartenance explicite via `auth.uid()`, et faire lire l'app par ces RPC plutôt que par des SELECT directs soumis à la RLS.
+
+**Alternatives écartées** : multiplier les policies SELECT permissives (fragile, difficile à déboguer à l'aveugle sans accès DB).
+
+**Justification** : robustesse et lisibilité du contrôle d'accès ; supprime la dépendance à des policies invisibles ; le contournement est explicite et auditable dans le code de la fonction.
+
+---
+
+## 2026-05-21 — Suppression de compte = anonymisation (soft delete)
+
+**Contexte** : besoin d'une suppression de compte respectant le RGPD sans fausser les cagnottes/historiques des groupes.
+
+**Décision** : Edge Function `delete-account` (service_role) qui anonymise le profil, fait quitter les groupes et bannit le compte auth. Les séances/pénalités restent. Idem pour la suppression de groupe via RPC `delete_group` (admin), qui elle est un hard delete (cascade).
+
+**Justification** : intégrité des données financières du groupe (cagnotte) vs. droit à l'effacement → l'anonymisation concilie les deux.
+
+---
+
+## 2026-05-21 — Suppression de notifications = hard delete
+
+**Contexte** : besoin de vider/supprimer des notifications.
+
+**Décision** : hard delete (RLS `notifications_delete_own`).
+
+**Justification** : les notifications ne sont pas des données critiques ni à conserver pour l'historique ; pas besoin de soft delete.
+
+---
+
+## 2026-05-21 — Système de feedback animé maison (toasts + confirmations)
+
+**Contexte** : les `Alert` natives sont incohérentes et peu esthétiques (surtout Android) ; demande d'animations.
+
+**Décision** : `components/feedback/FeedbackProvider.tsx` (Animated API) exposant `toast()` et `confirm()`, monté à la racine. Remplace progressivement les `Alert`.
+
+**Justification** : UI cohérente cross-plateforme, animée, et confirmations en `Promise<boolean>` faciles à utiliser.
+
+---
+
+## 2026-05-21 — Préférence de thème persistée via NativeWind
+
+**Contexte** : option clair/sombre/auto dans les Paramètres.
+
+**Décision** : store Zustand `lib/theme-store.ts` qui applique le thème via l'API `colorScheme` de NativeWind et le persiste dans AsyncStorage ; restauré au démarrage dans `app/_layout.tsx`.
+
+**Justification** : NativeWind pilote déjà les variantes `dark:` ; réutiliser son API évite un système de thème parallèle.
+
+---
+
 ## 2026-05-19 — Stack technique du MVP
 
 **Contexte** : Démarrage du projet, choix de la stack.
