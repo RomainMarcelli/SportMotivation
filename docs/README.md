@@ -31,6 +31,10 @@ Guides de configuration pour services externes ou setups spécifiques.
 - [`ACCOUNT_DELETION.md`](./guides/ACCOUNT_DELETION.md) — Suppression de compte (Edge Function `delete-account`)
 - [`SQL_CHECKLIST.md`](./guides/SQL_CHECKLIST.md) — Checklist d'exécution des SQL `001`→`014` + requêtes de vérification
 - [`SHARING_EXPO_GO.md`](./guides/SHARING_EXPO_GO.md) — Faire tester l'app à distance via Expo Go (tunnel)
+
+---
+
+> Pour une **présentation complète du projet** (vision, stack, archi, modèle de données, sécurité, flux, roadmap), voir [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md). C'est le fichier à envoyer pour reprendre le contexte rapidement.
 - _EAS_BUILD.md — à venir Phase 7_
 
 ### `archives/`

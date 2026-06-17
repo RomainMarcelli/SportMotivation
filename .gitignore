@@ -66,3 +66,6 @@ work-log/
 # Supabase local (si jamais on installe le CLI)
 supabase/.branches
 supabase/.temp
+
+
+maquette/
