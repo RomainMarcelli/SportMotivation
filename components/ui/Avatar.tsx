@@ -26,14 +26,16 @@ type Props = {
   name?: string;
   /** URL de l'image (prioritaire sur les initiales) */
   uri?: string | null;
-  size?: Size;
+  /** Taille prédéfinie (`sm`/`md`/`lg`) ou diamètre en px. */
+  size?: Size | number;
   /** Index pour choisir la couleur de fond (cyclique sur `avatarPalette`) */
   index?: number;
 };
 
 /** Avatar : image ou initiales sur fond coloré par index. */
 export function Avatar({ name = "", uri, size = "md", index = 0 }: Props) {
-  const { box, font } = dims[size];
+  const { box, font } =
+    typeof size === "number" ? { box: size, font: Math.round(size * 0.38) } : dims[size];
   const radius = box / 2;
 
   if (uri) {

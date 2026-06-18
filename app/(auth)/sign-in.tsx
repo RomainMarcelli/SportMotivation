@@ -1,8 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { Lock, Mail } from "lucide-react-native";
+import { AlertCircle, Lock, Mail } from "lucide-react-native";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { BrandMark } from "@/components/ui/BrandMark";
@@ -10,6 +18,7 @@ import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TextField } from "@/components/ui/TextField";
+import { colors } from "@/constants/colors";
 import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignIn } from "@/features/auth/mutations";
 import { signInSchema, type SignInInput } from "@/features/auth/schemas";
@@ -17,6 +26,21 @@ import { signInSchema, type SignInInput } from "@/features/auth/schemas";
 export default function SignInScreen() {
   const router = useRouter();
   const signIn = useSignIn();
+  const reduceMotion = useReducedMotion();
+
+  const shakeX = useSharedValue(0);
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
+
+  const triggerShake = () => {
+    if (reduceMotion) return;
+    shakeX.value = withSequence(
+      withTiming(-8, { duration: 50 }),
+      withTiming(8, { duration: 50 }),
+      withTiming(-6, { duration: 50 }),
+      withTiming(6, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
 
   const {
     control,
@@ -27,9 +51,19 @@ export default function SignInScreen() {
     defaultValues: { email: "", password: "" },
   });
 
+  // Efface le message d'erreur dès que l'utilisateur re-modifie un champ.
+  const clearError = () => {
+    if (signIn.isError) signIn.reset();
+  };
+
   const onSubmit = (data: SignInInput) => {
     signIn.mutate(data, {
-      onError: (error) => Alert.alert("Connexion impossible", error.message),
+      onError: () => {
+        triggerShake();
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+        }
+      },
     });
   };
 
@@ -68,7 +102,10 @@ export default function SignInScreen() {
                     icon={Mail}
                     value={value}
                     onBlur={onBlur}
-                    onChangeText={onChange}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      clearError();
+                    }}
                     placeholder="ton@email.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -89,7 +126,10 @@ export default function SignInScreen() {
                     icon={Lock}
                     value={value}
                     onBlur={onBlur}
-                    onChangeText={onChange}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      clearError();
+                    }}
                     placeholder="Ton mot de passe"
                     secureTextEntry
                     autoComplete="password"
@@ -106,9 +146,22 @@ export default function SignInScreen() {
           </View>
 
           <Reveal delay={200} className="mt-7 gap-3.5">
-            <GradientButton onPress={handleSubmit(onSubmit)} loading={signIn.isPending}>
-              Se connecter
-            </GradientButton>
+            {signIn.isError ? (
+              <Reveal>
+                <View className="flex-row items-center gap-2 rounded-input border border-red/30 bg-red-soft px-3.5 py-3">
+                  <AlertCircle size={18} color={colors.red} />
+                  <Text className="flex-1 font-body-medium text-[13px] text-red">
+                    E-mail ou mot de passe incorrect.
+                  </Text>
+                </View>
+              </Reveal>
+            ) : null}
+
+            <Animated.View style={shakeStyle}>
+              <GradientButton onPress={handleSubmit(onSubmit)} loading={signIn.isPending}>
+                Se connecter
+              </GradientButton>
+            </Animated.View>
 
             {isGoogleConfigured ? (
               <>

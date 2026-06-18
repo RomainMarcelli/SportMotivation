@@ -223,8 +223,57 @@ tactile vs hover, gardes SSR).
 
 > `tsc` ✅ · `jest` 87/87 ✅. Relancer web avec cache vidé (`-c`) après ces changements de config.
 
+## Sign-up (9e passe) — force du mot de passe + champs non-copiables
+
+**Périmètre : sign-up uniquement. Sign-in inchangé.**
+
+### 1. Indicateur de sécurité
+- `lib/password.ts` → `getPasswordChecks(pwd)` : un booléen par critère (8 caractères, majuscule,
+  chiffre, spécial) + `satisfied` (0–4) + `level` + `label` (Faible/Moyen/Bon/Fort). **Source unique**
+  réutilisée par l'UI ET le schéma.
+- `components/auth/PasswordStrength.tsx` : barre 4 segments (`rounded-full`, 5px), couleur progressive
+  1=`red`, 2-3=`amber`, 4=`mint` + label coloré ; checklist 2 colonnes, chaque ligne = pastille
+  (cercle vide `cream-dim` → `Check` lucide sur `mint`) + texte (`cream-dim`→`cream`), **transition
+  douce** (Reanimated `interpolateColor`, gated reduced-motion). Visible dès focus ou contenu.
+- `signUpSchema` : le mot de passe doit désormais passer `isPasswordStrong` (mêmes règles). La mutation
+  n'est pas cassée, juste plus exigeante. Tests `schemas.test.ts` mis à jour (mot de passe fort + cas
+  faible rejeté).
+- **CTA désactivé tant que le formulaire n'est pas valide** (`useForm({ mode: "onChange" })` +
+  `disabled={!isValid}`) — j'ai choisi cette option (plus claire que l'erreur au submit) ; la checklist
+  montre précisément ce qui manque, donc l'erreur Zod du champ mot de passe n'est pas affichée en
+  doublon (PasswordStrength fait le feedback). Erreurs e-mail/confirmation toujours affichées.
+
+### 2. Champs non-copiables (ressaisie forcée)
+- `TextField` gagne `noCopy` / `noPaste` (rétro-compatibles) : `contextMenuHidden` en natif + handlers
+  DOM `onCopy`/`onCut` (noCopy) / `onPaste` (noPaste) `preventDefault` sur web (transmis par
+  react-native-web). N'impacte pas l'autofill (les gestionnaires écrivent la valeur sans event paste).
+- Mot de passe → `noCopy` ; Confirmation → `noPaste`. Sign-in non touché.
+
+### Tests
+- `lib/__tests__/password.test.ts` : chaque critère + chaque niveau (0→4) + `isPasswordStrong`.
+- `tsc` ✅ · `jest` 93/93 ✅ (19 suites).
+
+> Note web : si une version de react-native-web ne transmettait pas `onCopy/onPaste`, le
+> `contextMenuHidden` couvre le natif et le blocage clavier reste à vérifier sur device. À confirmer
+> visuellement.
+
+## Sign-in (10e passe) — feedback erreur de connexion + animation
+
+Avant : un échec `useSignIn` ne déclenchait qu'une `Alert` (peu visible). UI uniquement, logique
+d'erreur réutilisée (`signIn.isError` / `signIn.reset`).
+1. **Message DA** : à `signIn.isError`, une rangée `bg-red-soft` + bordure `red/30` + `AlertCircle`
+   (`red`) + texte `red` « E-mail ou mot de passe incorrect. » apparaît au-dessus du CTA. Message
+   **générique** (ne dit pas quel champ). Apparition douce via `Reveal`. **Disparaît dès qu'un champ
+   est re-modifié** (`onChangeText` → `signIn.reset()`).
+2. **Shake du CTA** : à chaque échec, translateX amorti (`withSequence` -8→8→-6→6→0, ~250 ms) sur un
+   `Animated.View` enveloppant le `GradientButton` (style animé, pas une layout-animation → gradient
+   OK). `prefers-reduced-motion` → pas de shake (message seul). Haptique `notificationAsync(Error)` en
+   natif (expo-haptics déjà présent), ignorée sur web.
+   Le flash de bordure du champ (optionnel) n'a pas été ajouté (message + shake suffisent).
+- L'`Alert` n'est plus utilisée que pour « Mot de passe oublié ». `tsc` ✅ · `jest` 93/93 ✅.
+
 ## Questions
-1. Décisions 1–4 (1re section) : tu valides ?
-2. Revue web (fond plein, topbar 1 ligne, drag toutes slides, footer aéré, ombre CTA douce) OK ?
+1. CTA désactivé jusqu'à validité (sign-up) : OK ?
+2. Décisions des passes précédentes : tu valides ?
 3. Commit : je te laisse faire. Message proposé :
-   `fix(auth): onboarding web (root ink full-bleed, Reveal layout, drag mémoïsé, glow CTA doux)`
+   `feat(auth): feedback erreur + shake sur sign-in`

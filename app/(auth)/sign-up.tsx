@@ -1,10 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { Lock, Mail, ShieldCheck } from "lucide-react-native";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
@@ -17,15 +19,20 @@ import { signUpSchema, type SignUpInput } from "@/features/auth/schemas";
 export default function SignUpScreen() {
   const router = useRouter();
   const signUp = useSignUp();
+  const [pwdFocused, setPwdFocused] = useState(false);
 
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    watch,
+    formState: { errors, isValid },
   } = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
+    mode: "onChange",
     defaultValues: { email: "", password: "", confirmPassword: "" },
   });
+
+  const passwordValue = watch("password");
 
   const onSubmit = (data: SignUpInput) => {
     signUp.mutate(data, {
@@ -93,14 +100,23 @@ export default function SignUpScreen() {
                     label="Mot de passe"
                     icon={Lock}
                     value={value}
-                    onBlur={onBlur}
+                    onFocus={() => setPwdFocused(true)}
+                    onBlur={() => {
+                      setPwdFocused(false);
+                      onBlur();
+                    }}
                     onChangeText={onChange}
                     placeholder="8 caractères minimum"
                     secureTextEntry
+                    noCopy
                     autoComplete="new-password"
-                    error={errors.password?.message}
                   />
                 )}
+              />
+              {/* Indicateur de force (barre + checklist), synchronisé avec signUpSchema. */}
+              <PasswordStrength
+                password={passwordValue}
+                visible={pwdFocused || passwordValue.length > 0}
               />
             </Reveal>
 
@@ -117,6 +133,7 @@ export default function SignUpScreen() {
                     onChangeText={onChange}
                     placeholder="Saisis-le à nouveau"
                     secureTextEntry
+                    noPaste
                     autoComplete="new-password"
                     error={errors.confirmPassword?.message}
                   />
@@ -126,7 +143,11 @@ export default function SignUpScreen() {
           </View>
 
           <Reveal delay={260} className="mt-7 gap-3.5">
-            <GradientButton onPress={handleSubmit(onSubmit)} loading={signUp.isPending}>
+            <GradientButton
+              onPress={handleSubmit(onSubmit)}
+              loading={signUp.isPending}
+              disabled={!isValid}
+            >
               Créer mon compte
             </GradientButton>
 

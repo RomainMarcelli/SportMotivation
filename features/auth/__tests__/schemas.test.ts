@@ -34,16 +34,29 @@ describe("signInSchema", () => {
 describe("signUpSchema", () => {
   const valid = {
     email: "romain@exemple.com",
-    password: "motdepasse",
-    confirmPassword: "motdepasse",
+    password: "Motdepasse1!",
+    confirmPassword: "Motdepasse1!",
   };
 
-  it("accepte une inscription valide", () => {
+  it("accepte une inscription valide (mot de passe fort)", () => {
     expect(signUpSchema.safeParse(valid).success).toBe(true);
   });
 
+  it("rejette un mot de passe trop faible", () => {
+    const result = signUpSchema.safeParse({
+      email: "a@b.com",
+      password: "motdepasse",
+      confirmPassword: "motdepasse",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const msg = result.error.issues.find((i) => i.path.includes("password"))?.message;
+      expect(msg).toBe("8 caractères, 1 majuscule, 1 chiffre et 1 caractère spécial");
+    }
+  });
+
   it("rejette si les mots de passe diffèrent", () => {
-    const result = signUpSchema.safeParse({ ...valid, confirmPassword: "different" });
+    const result = signUpSchema.safeParse({ ...valid, confirmPassword: "Different1!" });
     expect(result.success).toBe(false);
     if (!result.success) {
       const msg = result.error.issues.find((i) => i.path.includes("confirmPassword"))?.message;
@@ -52,7 +65,7 @@ describe("signUpSchema", () => {
   });
 
   it("rejette un mot de passe de plus de 72 caractères", () => {
-    const long = "a".repeat(73);
+    const long = "A1!".concat("a".repeat(70)); // 73 caractères, fort mais trop long
     const result = signUpSchema.safeParse({
       email: "a@b.com",
       password: long,

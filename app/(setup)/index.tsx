@@ -1,10 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
+import { AtSign, Camera, Plus, User } from "lucide-react-native";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,17 +12,18 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Camera } from "lucide-react-native";
 
+import { Avatar } from "@/components/ui/Avatar";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { Button } from "@/components/ui/Button";
+import { GradientButton } from "@/components/ui/GradientButton";
+import { Reveal } from "@/components/ui/Reveal";
+import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TextField } from "@/components/ui/TextField";
-import { useUpdateProfile } from "@/features/auth/profile-mutations";
-import {
-  completeProfileSchema,
-  type CompleteProfileInput,
-} from "@/features/auth/profile-schemas";
+import { colors } from "@/constants/colors";
 import { useSignOut } from "@/features/auth/mutations";
+import { useUpdateProfile } from "@/features/auth/profile-mutations";
+import { completeProfileSchema, type CompleteProfileInput } from "@/features/auth/profile-schemas";
 
 type PickedImage = {
   uri: string;
@@ -38,12 +39,14 @@ export default function CompleteProfileScreen() {
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
   } = useForm<CompleteProfileInput>({
     resolver: zodResolver(completeProfileSchema),
+    mode: "onChange",
     defaultValues: { firstName: "", lastName: "", username: "" },
   });
 
+  // Logique de picker existante (inchangée).
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -88,103 +91,144 @@ export default function CompleteProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-neutral-900">
+    <ScreenContainer transparent padded={false}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
         <ScrollView
-          contentContainerClassName="flex-grow px-6 py-8"
+          contentContainerClassName="flex-grow px-[24px] py-8"
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View className="mb-6">
-            <Text className="text-3xl font-bold text-neutral-900 dark:text-white">
+          <Reveal delay={0} className="mb-7 items-center">
+            <BrandMark size={56} />
+            <Text className="mt-4 text-center font-display text-[26px] tracking-tighter text-cream">
               Crée ton profil
             </Text>
-            <Text className="mt-2 text-base text-neutral-500 dark:text-neutral-400">
-              Tes amis vont avoir besoin de te reconnaître dans le groupe.
+            <Text className="mt-2 text-center font-body text-[13.5px] text-cream-dim">
+              Tes amis doivent pouvoir te reconnaître dans le groupe.
             </Text>
-          </View>
+          </Reveal>
 
-          <View className="mb-6 items-center">
-            <Pressable onPress={pickImage} className="items-center">
-              {picked ? (
-                <Image
-                  source={{ uri: picked.uri }}
-                  className="h-28 w-28 rounded-full"
-                />
-              ) : (
-                <View className="h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                  <Camera size={32} color="#94a3b8" />
+          {/* Photo de profil (optionnelle) */}
+          <Reveal delay={80} className="mb-7 items-center">
+            <Pressable onPress={pickImage} className="items-center" hitSlop={6}>
+              <View style={{ width: 96, height: 96 }}>
+                {picked ? (
+                  <Avatar uri={picked.uri} size={96} />
+                ) : (
+                  <View
+                    style={{ width: 96, height: 96, borderRadius: 48 }}
+                    className="items-center justify-center border-2 border-dashed border-line-2 bg-surface"
+                  >
+                    <Camera size={28} color={colors.creamDim} />
+                  </View>
+                )}
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    backgroundColor: colors.coral,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 3,
+                    borderColor: colors.ink,
+                  }}
+                >
+                  {picked ? (
+                    <Camera size={14} color={colors.onCoral} strokeWidth={2.6} />
+                  ) : (
+                    <Plus size={16} color={colors.onCoral} strokeWidth={2.8} />
+                  )}
                 </View>
-              )}
-              <Text className="mt-2 text-sm font-medium text-primary-500">
-                {picked ? "Changer la photo" : "Ajouter une photo"}
+              </View>
+              <Text className="mt-2.5 font-body-medium text-[12.5px] text-cream-dim">
+                {picked ? "Changer la photo" : "Photo de profil · optionnel"}
               </Text>
             </Pressable>
+          </Reveal>
+
+          <View className="gap-[18px]">
+            <Reveal delay={140}>
+              <Controller
+                control={control}
+                name="firstName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Prénom"
+                    icon={User}
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    placeholder="Romain"
+                    autoCapitalize="words"
+                    autoComplete="given-name"
+                    error={errors.firstName?.message}
+                  />
+                )}
+              />
+            </Reveal>
+
+            <Reveal delay={180}>
+              <Controller
+                control={control}
+                name="lastName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Nom"
+                    icon={User}
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    placeholder="Martin"
+                    autoCapitalize="words"
+                    autoComplete="family-name"
+                    error={errors.lastName?.message}
+                  />
+                )}
+              />
+            </Reveal>
+
+            <Reveal delay={220}>
+              <Controller
+                control={control}
+                name="username"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Pseudo"
+                    icon={AtSign}
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    placeholder="romz"
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    error={errors.username?.message}
+                  />
+                )}
+              />
+            </Reveal>
           </View>
 
-          <View className="gap-4">
-            <Controller
-              control={control}
-              name="firstName"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextField
-                  label="Prénom"
-                  value={value}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  placeholder="Romain"
-                  autoCapitalize="words"
-                  autoComplete="given-name"
-                  error={errors.firstName?.message}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="lastName"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextField
-                  label="Nom"
-                  value={value}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  placeholder="Martin"
-                  autoCapitalize="words"
-                  autoComplete="family-name"
-                  error={errors.lastName?.message}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="username"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextField
-                  label="Pseudo"
-                  value={value}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  placeholder="romz"
-                  autoCapitalize="none"
-                  autoComplete="username"
-                  error={errors.username?.message}
-                />
-              )}
-            />
-          </View>
-
-          <View className="mt-8 gap-3">
-            <Button onPress={handleSubmit(onSubmit)} loading={updateProfile.isPending}>
+          <Reveal delay={280} className="mt-8 gap-3">
+            <GradientButton
+              onPress={handleSubmit(onSubmit)}
+              loading={updateProfile.isPending}
+              disabled={!isValid}
+            >
               Continuer
-            </Button>
-            <Button variant="ghost" onPress={() => signOut.mutate()}>
+            </GradientButton>
+            <Button variant="ghost" onPress={() => signOut.mutate()} loading={signOut.isPending}>
               Me déconnecter
             </Button>
-          </View>
+          </Reveal>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
