@@ -33,6 +33,8 @@ describe("signInSchema", () => {
 
 describe("signUpSchema", () => {
   const valid = {
+    firstName: "Romain",
+    username: "romz",
     email: "romain@exemple.com",
     password: "Motdepasse1!",
     confirmPassword: "Motdepasse1!",
@@ -42,9 +44,26 @@ describe("signUpSchema", () => {
     expect(signUpSchema.safeParse(valid).success).toBe(true);
   });
 
+  it("rejette un prénom vide", () => {
+    const result = signUpSchema.safeParse({ ...valid, firstName: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const msg = result.error.issues.find((i) => i.path.includes("firstName"))?.message;
+      expect(msg).toBe("Prénom requis");
+    }
+  });
+
+  it("rejette un pseudo invalide", () => {
+    const result = signUpSchema.safeParse({ ...valid, username: "ro mz!" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path.includes("username"))).toBe(true);
+    }
+  });
+
   it("rejette un mot de passe trop faible", () => {
     const result = signUpSchema.safeParse({
-      email: "a@b.com",
+      ...valid,
       password: "motdepasse",
       confirmPassword: "motdepasse",
     });
@@ -66,11 +85,7 @@ describe("signUpSchema", () => {
 
   it("rejette un mot de passe de plus de 72 caractères", () => {
     const long = "A1!".concat("a".repeat(70)); // 73 caractères, fort mais trop long
-    const result = signUpSchema.safeParse({
-      email: "a@b.com",
-      password: long,
-      confirmPassword: long,
-    });
+    const result = signUpSchema.safeParse({ ...valid, password: long, confirmPassword: long });
     expect(result.success).toBe(false);
   });
 });

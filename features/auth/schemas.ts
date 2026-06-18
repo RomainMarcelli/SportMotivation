@@ -11,6 +11,13 @@ export type SignInInput = z.infer<typeof signInSchema>;
 
 export const signUpSchema = z
   .object({
+    firstName: z.string().trim().min(1, "Prénom requis").max(50, "50 caractères max"),
+    username: z
+      .string()
+      .trim()
+      .min(3, "3 caractères minimum")
+      .max(30, "30 caractères max")
+      .regex(/^[a-zA-Z0-9_.-]+$/, "Lettres, chiffres, _ . - uniquement"),
     email: z.string().min(1, "Email requis").email("Email invalide"),
     password: z
       .string()

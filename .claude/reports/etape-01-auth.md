@@ -272,8 +272,54 @@ d'erreur réutilisée (`signIn.isError` / `signIn.reset`).
    Le flash de bordure du champ (optionnel) n'a pas été ajouté (message + shake suffisent).
 - L'`Alert` n'est plus utilisée que pour « Mot de passe oublié ». `tsc` ✅ · `jest` 93/93 ✅.
 
+## Inscription en UN écran (11e passe) — fusion sign-up + profil, suppression de `(setup)`
+
+Objectif : une seule page d'inscription (photo, prénom, pseudo, e-mail, mot de passe, confirmation),
+plus d'étape `(setup)`. UI + schéma/flow, logique Supabase réutilisée.
+
+### Schéma (`features/auth/schemas.ts`)
+`signUpSchema` fusionné : **prénom** (1–50, trim), **pseudo** (3–30, regex `a-zA-Z0-9_.-`), e-mail,
+mot de passe (`isPasswordStrong`), confirmation. **Pas de champ `nom`** (absent de la maquette).
+
+### Choix `lastName` → **optionnel, conservé**
+`last_name` est utilisé ailleurs (initiales avatar `(tabs)/index` & `profile`, noms membres/séances,
+`group/*`, requêtes `sessions/queries`). Donc **non retiré** : il n'est juste pas collecté à
+l'inscription. Il reste dans `completeProfileSchema` (édition du profil dans l'onglet Profil) et
+`useUpdateProfile.lastName` est devenu **optionnel** (écrit seulement si fourni). `isProfileComplete`
+laissé tel quel mais **n'est plus utilisé pour le routage**.
+
+### Flow (un seul submit)
+1. `useSignUp` enrichi : `signUp(email, password, { options: { data: { first_name, username } } })`
+   → métadonnées capturées indépendamment de la session (**compatible confirmation ON** plus tard).
+2. Session active (confirmation OFF aujourd'hui) → `useUpdateProfile` écrit prénom/pseudo + **upload
+   photo** (logique d'upload existante réutilisée).
+3. Redirection : **aucune navigation manuelle** — le root layout bascule sur `(tabs)` dès que la
+   session est active. (Confirmation ON → pas de session → `router.replace("/sign-in")`.)
+- **Photo** : `pickImage` (expo-image-picker) repris de l'ex-`(setup)` ; aperçu rond `Avatar` 88px +
+  badge coral.
+- **Erreurs inline DA** (plus d'`Alert`) : bannière `bg-red-soft` + `AlertCircle` ; **e-mail déjà
+  utilisé** → erreur sur le champ e-mail ; **pseudo déjà pris** (code `23505` / message trigger
+  « Database error saving new user ») → erreur sur le champ pseudo. Échec partiel (compte créé mais
+  profil/photo KO) : l'utilisateur est connecté → routé vers l'accueil (non bloqué), pseudo/nom
+  réglables ensuite dans Profil.
+- Conserve `PasswordStrength`, `noCopy` (mdp) / `noPaste` (confirmation), CTA désactivé tant
+  qu'invalide, DA (`AppBackground`, `BrandMark`, `ScreenContainer`, `Reveal`, `Avatar`), `ScrollView`
+  + clavier sur les 3 plateformes.
+
+### Suppression `(setup)`
+- Dossier `app/(setup)/` **supprimé** (le profil se fait à l'inscription ; le `nom` et la photo
+  restent éditables dans l'onglet Profil → pas de route morte). Gating racine simplifié :
+  `app/_layout.tsx` → `(auth)` si non connecté, sinon `(tabs)` (plus de branche `(setup)` ni de
+  `isProfileComplete`).
+- Choix : **supprimé plutôt que dormant** — la confirmation ON est déjà couverte par les métadonnées
+  signUp (le trigger crée le profil), donc `(setup)` n'a plus d'utilité.
+
+### Tests
+`schemas.test.ts` mis à jour (prénom requis, pseudo invalide, mot de passe fort, 72 car., mismatch).
+`tsc` ✅ · `jest` 95/95 ✅.
+
 ## Questions
-1. CTA désactivé jusqu'à validité (sign-up) : OK ?
-2. Décisions des passes précédentes : tu valides ?
+1. Fusion inscription (un écran) + suppression `(setup)` : OK ?
+2. `lastName` optionnel/conservé (réglé dans Profil) : OK ?
 3. Commit : je te laisse faire. Message proposé :
-   `feat(auth): feedback erreur + shake sur sign-in`
+   `feat(auth): inscription en un écran (profil + photo) + suppression de (setup)`

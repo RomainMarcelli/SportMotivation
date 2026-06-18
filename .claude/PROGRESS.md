@@ -6,8 +6,8 @@ Rapports détaillés par étape dans `.claude/reports/`.
 | # | Étape | Statut | Rapport |
 |---|-------|--------|---------|
 | 0 | Design system | ✅ | [etape-00-setup-da.md](reports/etape-00-setup-da.md) |
-| 1 | Auth (onboarding, sign-in, sign-up) | ✅ | [etape-01-auth.md](reports/etape-01-auth.md) |
-| 2 | Setup profil post-inscription (`(setup)` : prénom, nom, pseudo, photo) | 🔄 *(validation visuelle device)* | [etape-02-setup.md](reports/etape-02-setup.md) |
+| 1 | Auth (onboarding, sign-in, **inscription en un écran** : photo/prénom/pseudo/e-mail/mdp) | ✅ | [etape-01-auth.md](reports/etape-01-auth.md) |
+| 2 | ~~Setup profil post-inscription~~ → **fusionné dans l'inscription (Étape 1)**, `(setup)` supprimé | ✅ | [etape-02-setup.md](reports/etape-02-setup.md) *(superseded)* |
 | 3 | Home (groupes + état vide, planning semaine, jokers) | ⬜ | — |
 | 4 | Création & adhésion (create, join, join-confirm, scan, accept-invite) | ⬜ | — |
 | 5 | Groupe dashboard (Infos/Séances, membres, classement, blâmes) | ⬜ | — |

@@ -49,8 +49,10 @@ lundi→dimanche. UI sombre, premium, sans emoji.
 
 ## Plan des étapes (14)
 0. ✅ Design system
-1. ✅ Auth (onboarding, sign-in, sign-up)
-2. ⬜ Setup profil (post-inscription) — écrans du groupe `(setup)` : prénom, pseudo, photo
+1. ✅ Auth — onboarding, sign-in, **inscription en un seul écran** (photo, prénom, pseudo, e-mail,
+   mot de passe). L'ancienne étape « Setup profil » est **fusionnée ici** ; le groupe `(setup)` a été
+   supprimé (le profil se complète à l'inscription, le `nom` reste réglable dans Profil).
+2. *(libre — ancien « Setup profil », désormais fusionné dans l'Étape 1)*
 3. Home (accueil : liste groupes + état vide, planning semaine, jokers)
 4. Création & adhésion (group/create, join, join-confirm, scan, accept-invite)
 5. Groupe dashboard (Infos/Séances, membres, classement, blâmes)

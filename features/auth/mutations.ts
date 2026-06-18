@@ -20,6 +20,14 @@ export function useSignUp() {
       const { data, error } = await supabase.auth.signUp({
         email: input.email,
         password: input.password,
+        // Prénom + pseudo en métadonnées : capturés indépendamment de la session
+        // (compatibles quand la confirmation d'e-mail sera activée plus tard).
+        options: {
+          data: {
+            first_name: input.firstName,
+            username: input.username,
+          },
+        },
       });
       if (error) throw error;
       return data;

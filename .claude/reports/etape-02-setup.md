@@ -1,6 +1,10 @@
 # Rapport — Étape 2 : Setup profil (post-inscription)
 
-Date : 2026-06-18 · Branche : `feature/refonte` · Statut : 🔄 Livré, en attente de validation visuelle
+> ⚠️ **SUPERSEDED (2026-06-18)** — Le profil est désormais collecté **à l'inscription** (un seul écran).
+> Le groupe `app/(setup)/` a été **supprimé** et le gating « profil incomplet → (setup) » retiré.
+> Détails dans `etape-01-auth.md` (11e passe). Ce rapport reste pour l'historique.
+
+Date : 2026-06-18 · Branche : `feature/refonte` · Statut : ❎ Remplacé par la fusion (cf. etape-01)
 
 ## 1. Reconnaissance (existant)
 - **Écran** : un seul, `app/(setup)/index.tsx` (`CompleteProfileScreen`). `_layout.tsx` = `Stack` nu.

@@ -4,9 +4,11 @@ import { decode as decodeBase64 } from "base64-arraybuffer";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/lib/auth-store";
 
-import type { CompleteProfileInput } from "./profile-schemas";
-
-type UpdateProfileArgs = CompleteProfileInput & {
+type UpdateProfileArgs = {
+  firstName: string;
+  username: string;
+  /** Optionnel : non collecté à l'inscription (absent de la maquette), réglé via le profil. */
+  lastName?: string;
   avatarBase64?: string | null;
   avatarMimeType?: string | null;
 };
@@ -49,8 +51,8 @@ export function useUpdateProfile() {
         .from("users")
         .update({
           first_name: args.firstName,
-          last_name: args.lastName,
           username: args.username,
+          ...(args.lastName !== undefined ? { last_name: args.lastName } : {}),
           ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
           updated_at: new Date().toISOString(),
         })

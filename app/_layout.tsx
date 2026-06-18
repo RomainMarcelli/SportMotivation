@@ -15,7 +15,7 @@ import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
 import { colors } from "@/constants/colors";
 import { fontsToLoad } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { isProfileComplete, useProfile } from "@/hooks/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 import { useAuthInitialized, useIsAuthenticated } from "@/lib/auth-store";
 import { queryClient } from "@/lib/query-client";
 import { useThemeStore } from "@/lib/theme-store";
@@ -76,13 +76,12 @@ function RootContent() {
   const pref = useThemeStore((s) => s.pref);
   const initialized = useAuthInitialized();
   const isAuthenticated = useIsAuthenticated();
-  const { data: profile, isLoading: profileLoading, isFetched: profileFetched } = useProfile();
+  const { isLoading: profileLoading, isFetched: profileFetched } = useProfile();
 
   // Splash : tant que l'auth n'est pas init OU que le profil charge pour un user loggé
   if (!initialized) return <Splash />;
   if (isAuthenticated && !profileFetched && profileLoading) return <Splash />;
 
-  const hasCompleteProfile = isProfileComplete(profile);
   // Dark-first : sombre par défaut, clair seulement si explicitement demandé.
   const isDark = pref === "dark" || (pref === "system" && colorScheme !== "light");
 
@@ -94,10 +93,7 @@ function RootContent() {
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated && !hasCompleteProfile}>
-          <Stack.Screen name="(setup)" />
-        </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated && hasCompleteProfile}>
+        <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="group" />
           <Stack.Screen

@@ -1,51 +1,110 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { Lock, Mail, ShieldCheck } from "lucide-react-native";
+import { AlertCircle, AtSign, Camera, Lock, Mail, Plus, ShieldCheck, User } from "lucide-react-native";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { Avatar } from "@/components/ui/Avatar";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TextField } from "@/components/ui/TextField";
+import { colors } from "@/constants/colors";
 import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignUp } from "@/features/auth/mutations";
+import { useUpdateProfile } from "@/features/auth/profile-mutations";
 import { signUpSchema, type SignUpInput } from "@/features/auth/schemas";
+
+type PickedImage = { uri: string; base64: string; mimeType: string };
 
 export default function SignUpScreen() {
   const router = useRouter();
   const signUp = useSignUp();
+  const updateProfile = useUpdateProfile();
+  const [picked, setPicked] = useState<PickedImage | null>(null);
   const [pwdFocused, setPwdFocused] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     control,
     handleSubmit,
     watch,
+    setError,
+    clearErrors,
     formState: { errors, isValid },
   } = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
     mode: "onChange",
-    defaultValues: { email: "", password: "", confirmPassword: "" },
+    defaultValues: { firstName: "", username: "", email: "", password: "", confirmPassword: "" },
   });
 
   const passwordValue = watch("password");
+  const submitting = signUp.isPending || updateProfile.isPending;
 
-  const onSubmit = (data: SignUpInput) => {
-    signUp.mutate(data, {
-      onSuccess: (result) => {
-        if (result.session) return; // auto-loggé : redirection gérée par le root layout
-        Alert.alert(
-          "Vérifie tes e-mails",
-          "Un e-mail de confirmation vient de t'être envoyé. Clique sur le lien pour activer ton compte.",
-          [{ text: "OK", onPress: () => router.replace("/sign-in") }]
-        );
-      },
-      onError: (error) => Alert.alert("Inscription impossible", error.message),
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setSubmitError("Active l'accès aux photos dans les réglages pour choisir un avatar.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
     });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setPicked({ uri: asset.uri, base64: asset.base64!, mimeType: asset.mimeType ?? "image/jpeg" });
+  };
+
+  const handleError = (e: unknown) => {
+    const err = e as { code?: string; message?: string };
+    const msg = err.message ?? "";
+    if (/already registered|already.*exist|user.*exist/i.test(msg)) {
+      setError("email", { message: "Cet e-mail est déjà utilisé." });
+    } else if (
+      err.code === "23505" ||
+      /username|pseudo|duplicate|unique|database error saving new user/i.test(msg)
+    ) {
+      setError("username", { message: "Ce pseudo est déjà pris." });
+    } else {
+      setSubmitError("Une erreur est survenue. Réessaie.");
+    }
+  };
+
+  const onSubmit = async (data: SignUpInput) => {
+    setSubmitError(null);
+    try {
+      const result = await signUp.mutateAsync(data);
+
+      if (result.session) {
+        // Confirmation d'e-mail OFF : session active → on écrit le profil + la photo.
+        // Échec ici = compte créé + connecté → la racine route vers l'accueil ; non bloquant.
+        await updateProfile.mutateAsync({
+          firstName: data.firstName,
+          username: data.username,
+          avatarBase64: picked?.base64 ?? null,
+          avatarMimeType: picked?.mimeType ?? null,
+        });
+        // Pas de navigation explicite : le root layout bascule sur (tabs) dès que la session est active.
+      } else {
+        // Confirmation ON (plus tard) : pas de session. Métadonnées déjà envoyées via signUp.
+        router.replace("/sign-in");
+      }
+    } catch (e) {
+      handleError(e);
+    }
+  };
+
+  const clearSubmitError = () => {
+    if (submitError) setSubmitError(null);
   };
 
   return (
@@ -59,9 +118,9 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Reveal delay={0} className="mb-8 items-center">
-            <BrandMark size={74} />
-            <Text className="mt-[18px] text-center font-display text-[27px] tracking-tighter text-cream">
+          <Reveal delay={0} className="mb-6 items-center">
+            <BrandMark size={56} />
+            <Text className="mt-4 text-center font-display text-[26px] tracking-tighter text-cream">
               Crée ton compte
             </Text>
             <Text className="mt-2 text-center font-body text-[13.5px] text-cream-dim">
@@ -69,8 +128,97 @@ export default function SignUpScreen() {
             </Text>
           </Reveal>
 
+          {/* Photo de profil (optionnelle) */}
+          <Reveal delay={60} className="mb-6 items-center">
+            <Pressable onPress={pickImage} className="items-center" hitSlop={6}>
+              <View style={{ width: 88, height: 88 }}>
+                {picked ? (
+                  <Avatar uri={picked.uri} size={88} />
+                ) : (
+                  <View
+                    style={{ width: 88, height: 88, borderRadius: 44 }}
+                    className="items-center justify-center border-2 border-dashed border-line-2 bg-surface"
+                  >
+                    <Camera size={26} color={colors.creamDim} />
+                  </View>
+                )}
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: colors.coral,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 3,
+                    borderColor: colors.ink,
+                  }}
+                >
+                  {picked ? (
+                    <Camera size={13} color={colors.onCoral} strokeWidth={2.6} />
+                  ) : (
+                    <Plus size={15} color={colors.onCoral} strokeWidth={2.8} />
+                  )}
+                </View>
+              </View>
+              <Text className="mt-2 font-body-medium text-[12px] text-cream-dim">
+                {picked ? "Changer la photo" : "Photo de profil · optionnel"}
+              </Text>
+            </Pressable>
+          </Reveal>
+
           <View className="gap-[18px]">
-            <Reveal delay={80}>
+            <Reveal delay={100}>
+              <Controller
+                control={control}
+                name="firstName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Prénom"
+                    icon={User}
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={(t) => {
+                      onChange(t);
+                      clearSubmitError();
+                    }}
+                    placeholder="Romain"
+                    autoCapitalize="words"
+                    autoComplete="given-name"
+                    error={errors.firstName?.message}
+                  />
+                )}
+              />
+            </Reveal>
+
+            <Reveal delay={140}>
+              <Controller
+                control={control}
+                name="username"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Pseudo"
+                    icon={AtSign}
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={(t) => {
+                      onChange(t);
+                      clearErrors("username");
+                      clearSubmitError();
+                    }}
+                    placeholder="romz"
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    error={errors.username?.message}
+                  />
+                )}
+              />
+            </Reveal>
+
+            <Reveal delay={180}>
               <Controller
                 control={control}
                 name="email"
@@ -80,7 +228,11 @@ export default function SignUpScreen() {
                     icon={Mail}
                     value={value}
                     onBlur={onBlur}
-                    onChangeText={onChange}
+                    onChangeText={(t) => {
+                      onChange(t);
+                      clearErrors("email");
+                      clearSubmitError();
+                    }}
                     placeholder="ton@email.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -91,7 +243,7 @@ export default function SignUpScreen() {
               />
             </Reveal>
 
-            <Reveal delay={140}>
+            <Reveal delay={220}>
               <Controller
                 control={control}
                 name="password"
@@ -105,7 +257,10 @@ export default function SignUpScreen() {
                       setPwdFocused(false);
                       onBlur();
                     }}
-                    onChangeText={onChange}
+                    onChangeText={(t) => {
+                      onChange(t);
+                      clearSubmitError();
+                    }}
                     placeholder="8 caractères minimum"
                     secureTextEntry
                     noCopy
@@ -113,14 +268,13 @@ export default function SignUpScreen() {
                   />
                 )}
               />
-              {/* Indicateur de force (barre + checklist), synchronisé avec signUpSchema. */}
               <PasswordStrength
                 password={passwordValue}
                 visible={pwdFocused || passwordValue.length > 0}
               />
             </Reveal>
 
-            <Reveal delay={200}>
+            <Reveal delay={260}>
               <Controller
                 control={control}
                 name="confirmPassword"
@@ -130,7 +284,10 @@ export default function SignUpScreen() {
                     icon={ShieldCheck}
                     value={value}
                     onBlur={onBlur}
-                    onChangeText={onChange}
+                    onChangeText={(t) => {
+                      onChange(t);
+                      clearSubmitError();
+                    }}
                     placeholder="Saisis-le à nouveau"
                     secureTextEntry
                     noPaste
@@ -142,10 +299,17 @@ export default function SignUpScreen() {
             </Reveal>
           </View>
 
-          <Reveal delay={260} className="mt-7 gap-3.5">
+          <Reveal delay={300} className="mt-7 gap-3.5">
+            {submitError ? (
+              <View className="flex-row items-center gap-2 rounded-input border border-red/30 bg-red-soft px-3.5 py-3">
+                <AlertCircle size={18} color={colors.red} />
+                <Text className="flex-1 font-body-medium text-[13px] text-red">{submitError}</Text>
+              </View>
+            ) : null}
+
             <GradientButton
               onPress={handleSubmit(onSubmit)}
-              loading={signUp.isPending}
+              loading={submitting}
               disabled={!isValid}
             >
               Créer mon compte
