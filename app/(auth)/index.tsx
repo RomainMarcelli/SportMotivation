@@ -2,6 +2,7 @@ import { Redirect } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { ActivityIndicator, View } from "react-native";
 
+import { colors } from "@/constants/colors";
 import { getOnboardingCompleted } from "@/lib/onboarding-state";
 
 export default function AuthIndex() {
@@ -13,8 +14,8 @@ export default function AuthIndex() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-neutral-900">
-        <ActivityIndicator color="#3b82f6" />
+      <View className="flex-1 items-center justify-center bg-ink">
+        <ActivityIndicator color={colors.coral} />
       </View>
     );
   }

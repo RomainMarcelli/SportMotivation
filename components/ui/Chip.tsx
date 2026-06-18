@@ -1,5 +1,9 @@
-import { Pressable, Text, View } from "react-native";
 import type { LucideIcon } from "lucide-react-native";
+import type { ReactNode } from "react";
+import { Pressable, Text, View } from "react-native";
+
+import { colors } from "@/constants/colors";
+import { fontFamily } from "@/constants/fonts";
 
 type Props = {
   label: string;
@@ -8,23 +12,34 @@ type Props = {
   icon?: LucideIcon;
 };
 
+/**
+ * Puce sélectionnable (toggle) — ex. choix d'activité, presets.
+ * Sélectionnée : fond coral-soft + texte coral + anneau coral.
+ * Pour un statut non interactif, utiliser `Badge`.
+ */
 export function Chip({ label, selected, onPress, icon: Icon }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center gap-2 rounded-full border px-4 py-2 ${
-        selected
-          ? "border-primary-500 bg-primary-50 dark:bg-primary-500/20"
-          : "border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-800"
-      }`}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        paddingHorizontal: 13,
+        paddingVertical: 9,
+        borderRadius: 13,
+        backgroundColor: selected ? colors.coralSoft : colors.surface,
+        borderWidth: 1,
+        borderColor: selected ? "rgba(255,106,69,0.4)" : colors.line,
+      }}
     >
-      {Icon ? (
-        <Icon size={16} color={selected ? "#2563eb" : "#94a3b8"} />
-      ) : null}
+      {Icon ? <Icon size={16} color={selected ? colors.coral : colors.creamDim} /> : null}
       <Text
-        className={`text-sm font-medium ${
-          selected ? "text-primary-700 dark:text-primary-100" : "text-neutral-700 dark:text-neutral-300"
-        }`}
+        style={{
+          fontFamily: fontFamily.bodySemibold,
+          fontSize: 13,
+          color: selected ? colors.coral : colors.creamDim,
+        }}
       >
         {label}
       </Text>
@@ -33,6 +48,6 @@ export function Chip({ label, selected, onPress, icon: Icon }: Props) {
 }
 
 /** Conteneur flex-wrap pour aligner des chips. */
-export function ChipGroup({ children }: { children: React.ReactNode }) {
-  return <View className="flex-row flex-wrap gap-2">{children}</View>;
+export function ChipGroup({ children }: { children: ReactNode }) {
+  return <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{children}</View>;
 }

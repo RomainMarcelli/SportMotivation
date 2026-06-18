@@ -1,12 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
+import { Lock, Mail } from "lucide-react-native";
 import { Controller, useForm } from "react-hook-form";
-import { Alert, KeyboardAvoidingView, Platform, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Dumbbell } from "lucide-react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
-import { Button } from "@/components/ui/Button";
+import { BrandMark } from "@/components/ui/BrandMark";
+import { GradientButton } from "@/components/ui/GradientButton";
+import { Reveal } from "@/components/ui/Reveal";
+import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TextField } from "@/components/ui/TextField";
 import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignIn } from "@/features/auth/mutations";
@@ -27,76 +29,108 @@ export default function SignInScreen() {
 
   const onSubmit = (data: SignInInput) => {
     signIn.mutate(data, {
-      onError: (error) => {
-        Alert.alert("Connexion impossible", error.message);
-      },
+      onError: (error) => Alert.alert("Connexion impossible", error.message),
     });
   };
 
+  const forgotPassword = () =>
+    Alert.alert("Bientôt", "La réinitialisation du mot de passe arrive prochainement.");
+
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-neutral-900">
+    <ScreenContainer transparent padded={false}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
-        <View className="flex-1 justify-center px-6">
-          <View className="mb-8 items-center">
-            <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-primary-500">
-              <Dumbbell size={32} color="#ffffff" />
-            </View>
-            <Text className="text-3xl font-bold text-neutral-900 dark:text-white">Bon retour</Text>
-            <Text className="mt-2 text-center text-base text-neutral-500 dark:text-neutral-400">
-              Connecte-toi pour rejoindre tes défis sportifs.
+        <ScrollView
+          contentContainerClassName="flex-grow justify-center px-[24px] py-8"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Reveal delay={0} className="mb-8 items-center">
+            <BrandMark size={74} />
+            <Text className="mt-[18px] text-center font-display text-[27px] tracking-tighter text-cream">
+              Content de te revoir
             </Text>
+            <Text className="mt-2 text-center font-body text-[13.5px] text-cream-dim">
+              Reprends le défi avec tes potes.
+            </Text>
+          </Reveal>
+
+          <View className="gap-[18px]">
+            <Reveal delay={80}>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Adresse e-mail"
+                    icon={Mail}
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    placeholder="ton@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    error={errors.email?.message}
+                  />
+                )}
+              />
+            </Reveal>
+
+            <Reveal delay={140}>
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField
+                    label="Mot de passe"
+                    icon={Lock}
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    placeholder="Ton mot de passe"
+                    secureTextEntry
+                    autoComplete="password"
+                    error={errors.password?.message}
+                  />
+                )}
+              />
+              <Pressable onPress={forgotPassword} className="mt-2.5 self-end" hitSlop={8}>
+                <Text className="font-body-bold text-[12.5px] text-coral">
+                  Mot de passe oublié ?
+                </Text>
+              </Pressable>
+            </Reveal>
           </View>
 
-          <View className="gap-4">
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextField
-                  label="Email"
-                  value={value}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  placeholder="toi@exemple.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  error={errors.email?.message}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextField
-                  label="Mot de passe"
-                  value={value}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  placeholder="Au moins 8 caractères"
-                  secureTextEntry
-                  autoComplete="password"
-                  error={errors.password?.message}
-                />
-              )}
-            />
-          </View>
-
-          <View className="mt-8 gap-3">
-            <Button onPress={handleSubmit(onSubmit)} loading={signIn.isPending}>
+          <Reveal delay={200} className="mt-7 gap-3.5">
+            <GradientButton onPress={handleSubmit(onSubmit)} loading={signIn.isPending}>
               Se connecter
-            </Button>
-            {isGoogleConfigured ? <GoogleSignInButton /> : null}
-            <Button variant="ghost" onPress={() => router.push("/sign-up")}>
-              Créer un compte
-            </Button>
-          </View>
+            </GradientButton>
+
+            {isGoogleConfigured ? (
+              <>
+                <View className="flex-row items-center gap-3">
+                  <View className="h-px flex-1 bg-line" />
+                  <Text className="font-body text-[12px] text-cream-dim">ou</Text>
+                  <View className="h-px flex-1 bg-line" />
+                </View>
+                <GoogleSignInButton />
+              </>
+            ) : null}
+          </Reveal>
+        </ScrollView>
+
+        <View className="items-center px-[24px] pb-4 pt-2">
+          <Pressable onPress={() => router.push("/sign-up")} hitSlop={8}>
+            <Text className="font-body text-[13px] text-cream-dim">
+              Pas encore de compte ? <Text className="font-body-bold text-coral">S'inscrire</Text>
+            </Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
