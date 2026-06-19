@@ -5,33 +5,18 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { AppHeader } from "@/components/home/AppHeader";
 import { EmptyGroups } from "@/components/home/EmptyGroups";
 import { GroupCard } from "@/components/home/GroupCard";
-import { WeekPlanner } from "@/components/home/WeekPlanner";
 import { AppBackground } from "@/components/ui/AppBackground";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TopFade } from "@/components/ui/TopFade";
 import { colors } from "@/constants/colors";
-import { useMyGroups, type MyGroup } from "@/features/groups/queries";
-import { useProfile } from "@/hooks/useProfile";
+import { useMyGroups } from "@/features/groups/queries";
 
-export default function HomeScreen() {
+export default function GroupsScreen() {
   const router = useRouter();
-  const { data: profile } = useProfile();
   const { data: groups, isLoading } = useMyGroups();
-
-  const firstName = profile?.first_name ?? "toi";
-
   const hasGroups = (groups?.length ?? 0) > 0;
-  const activeGroup: MyGroup | undefined =
-    groups?.find((g) => g.group.status === "active") ?? groups?.[0];
-  const activeCount = groups?.filter((g) => g.group.status === "active").length ?? 0;
-
-  const subtitle = hasGroups
-    ? activeCount > 0
-      ? `${activeCount} défi${activeCount > 1 ? "s" : ""} en cours. Tiens ton rythme.`
-      : "Tes défis t'attendent."
-    : "Lance ton premier défi avec tes amis.";
 
   return (
     <View className="flex-1">
@@ -42,30 +27,25 @@ export default function HomeScreen() {
           contentContainerClassName="grow px-[18px] pb-8 pt-5"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <Reveal delay={0}>
             <AppHeader />
-
             <View className="mt-5">
               <Text className="font-display text-[23px] tracking-tighter text-cream">
-                Salut {firstName}
+                Mes groupes
               </Text>
-              <Text className="mt-1 font-body text-[13px] text-cream-dim">{subtitle}</Text>
+              <Text className="mt-1 font-body text-[13px] text-cream-dim">
+                {hasGroups
+                  ? "Tes défis et les groupes que tu as rejoints."
+                  : "Crée ou rejoins un groupe pour commencer."}
+              </Text>
             </View>
           </Reveal>
 
           {hasGroups ? (
             <>
-              <Reveal delay={80} className="mb-2 mt-6 flex-row items-baseline justify-between">
-                <Text className="font-display text-[16px] text-cream">Mes défis</Text>
-                <Text className="font-body-semibold text-[12px] text-cream-dim">
-                  {groups?.length}
-                </Text>
-              </Reveal>
-
-              <View className="gap-3">
+              <View className="mt-6 gap-3">
                 {groups?.map((item, i) => (
-                  <Reveal key={item.membershipId} delay={120 + i * 50}>
+                  <Reveal key={item.membershipId} delay={80 + i * 50}>
                     <GroupCard
                       item={item}
                       onPress={() =>
@@ -79,16 +59,7 @@ export default function HomeScreen() {
                 ))}
               </View>
 
-              {activeGroup ? (
-                <Reveal delay={120 + (groups?.length ?? 0) * 50 + 40} className="mt-3">
-                  <WeekPlanner
-                    groupId={activeGroup.group.id}
-                    weeklyTarget={activeGroup.weeklyTarget}
-                  />
-                </Reveal>
-              ) : null}
-
-              <Reveal delay={120 + (groups?.length ?? 0) * 50 + 90} className="mt-6 gap-3">
+              <Reveal delay={120 + (groups?.length ?? 0) * 50} className="mt-6 gap-3">
                 <GradientButton icon={Plus} onPress={() => router.push("/group/create" as never)}>
                   Créer un défi
                 </GradientButton>
@@ -102,14 +73,12 @@ export default function HomeScreen() {
               </Reveal>
             </>
           ) : (
-            // `grow` sur le contentContainer + `flex-1` ici = l'état vide se centre
-            // verticalement dans l'espace dispo (web inclus, où le ScrollView ne prenait
-            // pas la hauteur). Le header reste en haut, l'état vide occupe le reste.
-            <View className="flex-1 justify-center">
+            <View className="flex-1 justify-center pb-12">
               <EmptyGroups
                 loading={isLoading}
                 onCreate={() => router.push("/group/create" as never)}
                 onJoin={() => router.push("/group/join" as never)}
+                subtitle="Lance ton défi sportif et invite tes amis, ou rejoins le leur avec un code."
               />
             </View>
           )}

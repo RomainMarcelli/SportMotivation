@@ -10,7 +10,7 @@ export function AppBackground() {
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       <Defs>
-        <RadialGradient id="appCoral" cx="18%" cy="6%" r="100%">
+        <RadialGradient id="appCoral" cx="10%" cy="-8%" r="95%">
           {CORAL_FALLOFF.map(([offset, opacity], i) => (
             <Stop key={i} offset={offset} stopColor="#FF6A45" stopOpacity={opacity} />
           ))}
@@ -28,13 +28,18 @@ export function AppBackground() {
   );
 }
 
+// Pics abaissés + cœur décalé hors-champ (cx/cy) + ramp dense : derrière le header le halo
+// est quasi plat → pas de bord dur ni de banding « en carrés » sur web (limite 8 bits des
+// dégradés SVG navigateur), tout en gardant la chaleur en haut-gauche.
 const CORAL_FALLOFF: readonly [number, number][] = [
-  [0, 0.18],
-  [0.15, 0.14],
-  [0.3, 0.1],
-  [0.45, 0.06],
-  [0.6, 0.03],
-  [0.75, 0.01],
+  [0, 0.12],
+  [0.12, 0.1],
+  [0.24, 0.08],
+  [0.36, 0.06],
+  [0.48, 0.04],
+  [0.6, 0.025],
+  [0.72, 0.013],
+  [0.85, 0.005],
   [1, 0],
 ];
 

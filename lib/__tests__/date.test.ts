@@ -1,4 +1,4 @@
-import { startOfWeekMonday, toDateOnly, weekStartString } from "../date";
+import { daysUntil, startOfWeekMonday, toDateOnly, weekStartString } from "../date";
 
 describe("toDateOnly", () => {
   it("formate en YYYY-MM-DD avec les composantes locales", () => {
@@ -34,5 +34,21 @@ describe("startOfWeekMonday", () => {
 describe("weekStartString", () => {
   it("combine startOfWeekMonday et toDateOnly", () => {
     expect(weekStartString(new Date(2026, 4, 22))).toBe("2026-05-18");
+  });
+});
+
+describe("daysUntil", () => {
+  const from = new Date(2026, 5, 15, 22, 0); // 15 juin 2026, soir
+
+  it("0 le jour même (ignore l'heure)", () => {
+    expect(daysUntil("2026-06-15", from)).toBe(0);
+  });
+
+  it("positif dans le futur", () => {
+    expect(daysUntil("2026-08-01", from)).toBe(47);
+  });
+
+  it("négatif dans le passé", () => {
+    expect(daysUntil("2026-06-10", from)).toBe(-5);
   });
 });

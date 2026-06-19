@@ -39,6 +39,17 @@ export function formatDateRange(start: Date, end: Date): string {
   return `${fmt.format(start)} → ${fmtFull.format(end)}`;
 }
 
+/**
+ * Nombre de jours (entier) entre `from` (minuit local) et une date DB `YYYY-MM-DD`.
+ * Positif = dans le futur, 0 = aujourd'hui, négatif = passé. Sert au compte à rebours (J-XX).
+ */
+export function daysUntil(dateStr: string, from: Date): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const target = new Date(y, m - 1, d).getTime();
+  const base = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+  return Math.round((target - base) / 86_400_000);
+}
+
 /** Formate une date `YYYY-MM-DD` (string DB) pour affichage court : "1 juin 2026". */
 export function formatDbDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);

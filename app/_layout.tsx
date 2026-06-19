@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import "react-native-reanimated";
 
 import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
@@ -54,11 +55,13 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.ink }}>
-      <QueryClientProvider client={queryClient}>
-        <FeedbackProvider>
-          <RootContent />
-        </FeedbackProvider>
-      </QueryClientProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <QueryClientProvider client={queryClient}>
+          <FeedbackProvider>
+            <RootContent />
+          </FeedbackProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
