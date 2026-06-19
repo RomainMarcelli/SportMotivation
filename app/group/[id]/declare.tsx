@@ -161,7 +161,7 @@ export default function DeclareSessionScreen() {
         onSuccess: () => {
           toast("Séance publiée", "success");
           if (router.canGoBack()) router.back();
-          else router.replace({ pathname: "/group/[id]/sessions", params: { id: id! } } as never);
+          else router.replace({ pathname: "/group/[id]", params: { id: id! } } as never);
         },
         onError: (e) => toast(mapSessionError(e.message), "error"),
       }

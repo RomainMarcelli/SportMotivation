@@ -84,6 +84,56 @@ export function useGroup(groupId: string | undefined) {
   });
 }
 
+/**
+ * Cagnotte du groupe (montant total). Lecture directe de `pots` (best-effort : si la RLS bloque
+ * la lecture directe, on dégrade à `null` plutôt que d'échouer l'écran).
+ */
+export function usePot(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["pot", groupId],
+    enabled: !!groupId,
+    queryFn: async (): Promise<number | null> => {
+      const { data, error } = await supabase
+        .from("pots")
+        .select("total_amount")
+        .eq("group_id", groupId!)
+        .maybeSingle();
+      if (error) {
+        debugError("pots.select", error);
+        return null;
+      }
+      return data?.total_amount ?? null;
+    },
+  });
+}
+
+export type MemberBlames = { userId: string; count: number };
+
+/**
+ * Blâmes non réglés par membre (vue `v_member_unsettled_blames`). Best-effort : dégrade à `[]`
+ * si la lecture est refusée (RLS).
+ */
+export function useUnsettledBlames(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["blames", groupId],
+    enabled: !!groupId,
+    queryFn: async (): Promise<MemberBlames[]> => {
+      const { data, error } = await supabase
+        .from("v_member_unsettled_blames")
+        .select("user_id, unsettled_blame_count")
+        .eq("group_id", groupId!);
+      if (error) {
+        debugError("v_member_unsettled_blames.select", error);
+        return [];
+      }
+      return (data ?? []).map((r) => ({
+        userId: r.user_id as string,
+        count: (r.unsettled_blame_count as number | null) ?? 0,
+      }));
+    },
+  });
+}
+
 /** Membres actifs d'un groupe avec leur profil, via la RPC `get_group_members`. */
 export function useGroupMembers(groupId: string | undefined) {
   return useQuery({

@@ -1,27 +1,23 @@
-import { Stack, useRouter } from "expo-router";
-import { Pressable } from "react-native";
-import { ChevronLeft } from "lucide-react-native";
+import { Stack } from "expo-router";
 
-function BackToHome() {
-  const router = useRouter();
-  return (
-    <Pressable
-      onPress={() => (router.canGoBack() ? router.back() : router.replace("/" as never))}
-      hitSlop={12}
-      className="active:opacity-60"
-    >
-      <ChevronLeft size={26} color="#3b82f6" />
-    </Pressable>
-  );
-}
+import { colors } from "@/constants/colors";
+import { fontFamily } from "@/constants/fonts";
 
 export default function GroupDetailLayout() {
   return (
-    <Stack screenOptions={{ headerShown: true, headerBackTitle: "Retour" }}>
-      <Stack.Screen
-        name="(tabs)"
-        options={{ title: "Groupe", headerLeft: () => <BackToHome /> }}
-      />
+    <Stack
+      screenOptions={{
+        headerShown: true,
+        headerStyle: { backgroundColor: colors.ink },
+        headerShadowVisible: false,
+        headerTintColor: colors.cream,
+        headerTitleStyle: { fontFamily: fontFamily.displayExtrabold, fontSize: 17 },
+        headerBackButtonDisplayMode: "minimal",
+        contentStyle: { backgroundColor: colors.ink },
+      }}
+    >
+      {/* Dashboard : header custom dans l'écran */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="invite" options={{ title: "Inviter" }} />
       <Stack.Screen name="invitations" options={{ title: "Invitations envoyées" }} />
       <Stack.Screen name="members" options={{ title: "Membres" }} />
