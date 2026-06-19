@@ -119,5 +119,22 @@ libellés `font-body-semibold` 11px, icônes lucide `House`/`User` (22). `Haptic
 
 `npx tsc --noEmit` ✅ · `jest` 107/107 ✅.
 
+## 9. Restructuration onglets (Accueil / Groupes)
+Répartition du contenu entre les deux onglets de la tab bar.
+- **Accueil** (`app/(tabs)/index.tsx`) recentré : header + salutation + **« Ma semaine »** du groupe
+  actif. **Liste des défis et actions Créer/Rejoindre retirées** (déplacées dans Groupes). Si **aucun
+  défi** → invite légère `NoChallengeInvite` (Card « Tu n'as pas encore de défi » + CTA Créer/Rejoindre)
+  à la place de « Ma semaine ».
+- **Onglet Groupes** (`app/(tabs)/groups.tsx`) **adaptatif** via `groupsView(useMyGroups)` :
+  - **0** → état vide `EmptyGroups` (flamme + CTA), centré ;
+  - **1** → `Redirect` (replace) direct vers `group/[id]` (pas de pile empilée) ;
+  - **2+** → liste `GroupCard` (`Reveal`) + actions Créer/Rejoindre.
+- Nouveau helper pur **`features/groups/selectors.ts`** (`pickActiveGroup`, `groupsView`) + test
+  `features/groups/__tests__/selectors.test.ts` (6 cas).
+- ⚠ Le détail `group/[id]` reste au **style template** → DA à l'**Étape 5** (ici : structure/navigation
+  seulement).
+
+`npx tsc --noEmit` ✅ · `jest` 113/113 ✅ (22 suites).
+
 ## Commit proposé
 `feat(home): accueil à la DA (défis, état vide, Ma semaine/weekly_plans, tab bar)`

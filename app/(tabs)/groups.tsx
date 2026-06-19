@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { Plus, Users } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
@@ -12,11 +12,20 @@ import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TopFade } from "@/components/ui/TopFade";
 import { colors } from "@/constants/colors";
 import { useMyGroups } from "@/features/groups/queries";
+import { groupsView } from "@/features/groups/selectors";
 
 export default function GroupsScreen() {
   const router = useRouter();
   const { data: groups, isLoading } = useMyGroups();
-  const hasGroups = (groups?.length ?? 0) > 0;
+  const view = groupsView(groups);
+
+  // 1 seul défi → on va droit à son détail (route existante). `Redirect` = replace : pas de
+  // pile qui s'empile. (Le détail passera à la DA à l'Étape 5.)
+  if (!isLoading && view.kind === "single") {
+    return <Redirect href={{ pathname: "/group/[id]", params: { id: view.groupId } }} />;
+  }
+
+  const isList = view.kind === "list";
 
   return (
     <View className="flex-1">
@@ -34,14 +43,14 @@ export default function GroupsScreen() {
                 Mes groupes
               </Text>
               <Text className="mt-1 font-body text-[13px] text-cream-dim">
-                {hasGroups
+                {isList
                   ? "Tes défis et les groupes que tu as rejoints."
                   : "Crée ou rejoins un groupe pour commencer."}
               </Text>
             </View>
           </Reveal>
 
-          {hasGroups ? (
+          {isList ? (
             <>
               <View className="mt-6 gap-3">
                 {groups?.map((item, i) => (
@@ -73,6 +82,7 @@ export default function GroupsScreen() {
               </Reveal>
             </>
           ) : (
+            // 0 défi (ou chargement) → état vide centré (identique à l'ancien état vide de l'accueil).
             <View className="flex-1 justify-center pb-12">
               <EmptyGroups
                 loading={isLoading}

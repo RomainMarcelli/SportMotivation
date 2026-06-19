@@ -3,12 +3,11 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { Trash2 } from "lucide-react-native";
 
+import { ActivityPicker } from "@/components/groups/ActivityPicker";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Button } from "@/components/ui/Button";
-import { Chip, ChipGroup } from "@/components/ui/Chip";
 import { Stepper } from "@/components/ui/Stepper";
 import { TextField } from "@/components/ui/TextField";
-import { ACTIVITY_OPTIONS } from "@/constants/activities";
 import {
   useDeleteGroup,
   useProposePenaltyChange,
@@ -155,24 +154,7 @@ function EditForm({
           <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
             Activités acceptées
           </Text>
-          <ChipGroup>
-            {ACTIVITY_OPTIONS.map((a) => {
-              const selected = activities.includes(a.id);
-              return (
-                <Chip
-                  key={a.id}
-                  label={a.label}
-                  icon={a.icon}
-                  selected={selected}
-                  onPress={() =>
-                    setActivities((prev) =>
-                      selected ? prev.filter((x) => x !== a.id) : [...prev, a.id]
-                    )
-                  }
-                />
-              );
-            })}
-          </ChipGroup>
+          <ActivityPicker value={activities} onChange={setActivities} />
         </View>
         <Button onPress={onSave} loading={update.isPending}>
           Enregistrer les réglages

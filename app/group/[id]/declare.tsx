@@ -15,7 +15,8 @@ import { DateField } from "@/components/ui/DateField";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Stepper } from "@/components/ui/Stepper";
 import { TextField } from "@/components/ui/TextField";
-import { ACTIVITY_OPTIONS } from "@/constants/activities";
+import { getActivityLabel } from "@/constants/activities";
+import { getSportIcon } from "@/lib/sports";
 import { useDeclareSession } from "@/features/sessions/mutations";
 import { mapSessionError } from "@/features/sessions/proof";
 import { buildDeclareSessionSchema, type DeclareSessionInput } from "@/features/sessions/schemas";
@@ -126,10 +127,11 @@ export default function DeclareSessionScreen() {
     setStrava({ id: String(activity.id), data });
     setValue("stravaActivityId", String(activity.id), { shouldValidate: true });
     setValue("stravaData", data);
-    // Pré-remplit l'activité et la durée à partir de Strava
-    const mappedActivity = stravaTypeToActivityId(activity.sport_type ?? activity.type);
-    if (acceptedActivities.includes(mappedActivity)) {
-      setValue("activityType", mappedActivity, { shouldValidate: true });
+    // Pré-remplit l'activité et la durée à partir de Strava.
+    // `acceptedActivities` stocke des noms libres → on traduit l'id Strava en nom (best-effort).
+    const mappedName = getActivityLabel(stravaTypeToActivityId(activity.sport_type ?? activity.type));
+    if (acceptedActivities.includes(mappedName)) {
+      setValue("activityType", mappedName, { shouldValidate: true });
     }
     setValue("durationMin", Math.max(minDuration, stravaDurationToMinutes(activity.moving_time)), {
       shouldValidate: true,
@@ -185,13 +187,13 @@ export default function DeclareSessionScreen() {
           name="activityType"
           render={({ field: { onChange, value } }) => (
             <ChipGroup>
-              {ACTIVITY_OPTIONS.filter((a) => acceptedActivities.includes(a.id)).map((activity) => (
+              {acceptedActivities.map((name) => (
                 <Chip
-                  key={activity.id}
-                  label={activity.label}
-                  icon={activity.icon}
-                  selected={value === activity.id}
-                  onPress={() => onChange(activity.id)}
+                  key={name}
+                  label={name}
+                  icon={getSportIcon(name)}
+                  selected={value === name}
+                  onPress={() => onChange(name)}
                 />
               ))}
             </ChipGroup>

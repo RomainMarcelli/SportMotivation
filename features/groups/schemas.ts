@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DEFAULT_SPORTS } from "@/lib/sports";
+
 export const DEADLINE_VALUES = ["same_day", "end_of_week"] as const;
 
 const baseShape = {
@@ -15,7 +17,7 @@ const baseShape = {
   minDurationMin: z
     .number({ message: "Durée requise" })
     .int("Nombre entier")
-    .min(1, "Au moins 1 minute")
+    .min(0, "Minimum positif") // 0 = aucun minimum
     .max(600, "600 minutes max"),
   publicationDeadline: z.enum(DEADLINE_VALUES),
   voteDeadline: z.enum(DEADLINE_VALUES),
@@ -61,12 +63,12 @@ export const createGroupDefaults = {
   name: "",
   description: "",
   penaltyAmount: 5,
-  acceptedActivities: [] as string[],
-  minDurationMin: 30,
+  acceptedActivities: [...DEFAULT_SPORTS] as string[],
+  minDurationMin: 20,
   publicationDeadline: "same_day" as const,
   voteDeadline: "end_of_week" as const,
   blameThreshold: 3,
   maxExcuses: null,
-  weeklyTarget: 3,
+  weeklyTarget: 4,
   acceptRules: false as boolean,
 };

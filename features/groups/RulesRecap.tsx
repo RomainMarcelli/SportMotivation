@@ -1,5 +1,15 @@
-import { Text, View } from "react-native";
+import {
+  CalendarDays,
+  Clock,
+  Coins,
+  ShieldCheck,
+  Tag,
+  Timer,
+  TriangleAlert,
+  Upload,
+} from "lucide-react-native";
 
+import { RecapCard, RecapRow } from "@/components/ui/RecapRow";
 import { getActivityLabel } from "@/constants/activities";
 import { formatDbDate } from "@/lib/date";
 
@@ -18,40 +28,42 @@ export type RulesRecapProps = {
 };
 
 const deadlineLabel = (value: string) =>
-  value === "same_day" ? "le jour même (23h59)" : "jusqu'au dimanche 23h59";
+  value === "same_day" ? "Le jour même" : "Jusqu'à dimanche";
 
-function Line({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row items-start justify-between gap-4 py-1.5">
-      <Text className="flex-1 text-sm text-neutral-500 dark:text-neutral-400">{label}</Text>
-      <Text className="flex-1 text-right text-sm font-medium text-neutral-900 dark:text-white">
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-/** Récapitulatif lisible des règles d'un défi (utilisé avant acceptation). */
+/** Récapitulatif lisible des règles d'un défi (DA), utilisé avant acceptation. */
 export function RulesRecap(props: RulesRecapProps) {
+  const activitiesLabel =
+    props.acceptedActivities.length <= 2
+      ? props.acceptedActivities.map(getActivityLabel).join(", ") || "—"
+      : `${props.acceptedActivities.length} activités`;
+
   return (
-    <View className="gap-1 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-      <Line
-        label="Défi"
+    <RecapCard>
+      <RecapRow
+        icon={CalendarDays}
+        label="Période"
         value={`${formatDbDate(props.challengeStart)} → ${formatDbDate(props.challengeEnd)}`}
       />
-      <Line label="Pénalité / séance manquée" value={`${props.penaltyAmount} €`} />
-      <Line
-        label="Activités acceptées"
-        value={props.acceptedActivities.map(getActivityLabel).join(", ")}
+      <RecapRow icon={Coins} label="Pénalité / séance" value={`${props.penaltyAmount} €`} />
+      <RecapRow icon={Tag} label="Activités" value={activitiesLabel} />
+      <RecapRow icon={Clock} label="Durée minimum" value={`${props.minDurationMin} min`} />
+      <RecapRow
+        icon={Upload}
+        label="Publication"
+        value={deadlineLabel(props.publicationDeadline)}
       />
-      <Line label="Durée min. d'une séance" value={`${props.minDurationMin} min`} />
-      <Line label="Publication d'une séance" value={deadlineLabel(props.publicationDeadline)} />
-      <Line label="Délai de vote" value={deadlineLabel(props.voteDeadline)} />
-      <Line label="Seuil de blâmes" value={`${props.blameThreshold} séances rejetées`} />
-      <Line
-        label="Excuses autorisées"
-        value={props.maxExcuses === null ? "illimitées" : String(props.maxExcuses)}
+      <RecapRow icon={Timer} label="Délai de vote" value={deadlineLabel(props.voteDeadline)} />
+      <RecapRow
+        icon={TriangleAlert}
+        label="Seuil de blâmes"
+        value={`${props.blameThreshold} blâmes`}
       />
-    </View>
+      <RecapRow
+        icon={ShieldCheck}
+        label="Excuses"
+        value={props.maxExcuses === null ? "Illimitées" : String(props.maxExcuses)}
+        last
+      />
+    </RecapCard>
   );
 }

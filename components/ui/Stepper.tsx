@@ -1,5 +1,9 @@
-import { Pressable, Text, View } from "react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { Minus, Plus } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
+
+import { colors } from "@/constants/colors";
+import { stepValue } from "@/lib/stepper";
 
 type Props = {
   value: number;
@@ -7,49 +11,77 @@ type Props = {
   min?: number;
   max?: number;
   step?: number;
+  /** Suffixe collé à la valeur (ex. `€`). */
   suffix?: string;
+  /** Libellé sous la valeur (ex. `séances / semaine`). */
+  unit?: string;
+  /** Texte affiché à la place de la valeur quand `value === 0` (ex. `Aucun minimum`). */
+  zeroLabel?: string;
 };
 
-export function Stepper({ value, onChange, min = 0, max = 999, step = 1, suffix }: Props) {
-  const decrement = () => onChange(Math.max(min, value - step));
-  const increment = () => onChange(Math.min(max, value + step));
-
+/**
+ * Stepper DA pleine largeur : carte `surface`, boutons −/+ `surface-2`, grande valeur `display`
+ * (+ suffixe inline et/ou unité dessous). Réutilisé pour objectif, pénalité, durée, seuil…
+ */
+export function Stepper({
+  value,
+  onChange,
+  min = 0,
+  max = 999,
+  step = 1,
+  suffix,
+  unit,
+  zeroLabel,
+}: Props) {
+  const showZero = value === 0 && !!zeroLabel;
   return (
-    <View className="flex-row items-center gap-3">
-      <StepperButton onPress={decrement} disabled={value <= min}>
-        <Minus size={18} color="#3b82f6" />
-      </StepperButton>
-      <View className="min-w-[64px] items-center">
-        <Text className="text-lg font-semibold text-neutral-900 dark:text-white">
-          {value}
-          {suffix ? <Text className="text-sm text-neutral-500"> {suffix}</Text> : null}
-        </Text>
+    <View className="flex-row items-center justify-between rounded-[16px] border border-line bg-surface p-2.5">
+      <StepButton
+        icon={Minus}
+        onPress={() => onChange(stepValue(value, "dec", { min, max, step }))}
+        disabled={value <= min}
+      />
+      <View className="items-center">
+        {showZero ? (
+          <Text className="font-display text-[19px] tracking-tight text-cream">{zeroLabel}</Text>
+        ) : (
+          <Text className="font-display text-[26px] tracking-tighter text-cream">
+            {value}
+            {suffix ? <Text className="text-[18px] text-cream-dim"> {suffix}</Text> : null}
+          </Text>
+        )}
+        {unit && !showZero ? (
+          <Text className="mt-1 font-body-medium text-[12px] text-cream-dim">{unit}</Text>
+        ) : null}
       </View>
-      <StepperButton onPress={increment} disabled={value >= max}>
-        <Plus size={18} color="#3b82f6" />
-      </StepperButton>
+      <StepButton
+        icon={Plus}
+        onPress={() => onChange(stepValue(value, "inc", { min, max, step }))}
+        disabled={value >= max}
+      />
     </View>
   );
 }
 
-function StepperButton({
+function StepButton({
+  icon: Icon,
   onPress,
   disabled,
-  children,
 }: {
+  icon: LucideIcon;
   onPress: () => void;
   disabled?: boolean;
-  children: React.ReactNode;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className={`h-10 w-10 items-center justify-center rounded-full border border-neutral-300 dark:border-neutral-700 ${
-        disabled ? "opacity-30" : "active:bg-neutral-100 dark:active:bg-neutral-800"
+      hitSlop={4}
+      className={`h-[42px] w-[42px] items-center justify-center rounded-xl bg-surface-2 active:opacity-80 ${
+        disabled ? "opacity-30" : ""
       }`}
     >
-      {children}
+      <Icon size={20} color={colors.cream} strokeWidth={2.6} />
     </Pressable>
   );
 }

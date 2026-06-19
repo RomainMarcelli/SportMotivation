@@ -8,8 +8,8 @@ Rapports détaillés par étape dans `.claude/reports/`.
 | 0 | Design system | ✅ | [etape-00-setup-da.md](reports/etape-00-setup-da.md) |
 | 1 | Auth (onboarding, sign-in, **inscription en un écran** : photo/prénom/pseudo/e-mail/mdp) | ✅ | [etape-01-auth.md](reports/etape-01-auth.md) |
 | 2 | ~~Setup profil post-inscription~~ → **fusionné dans l'inscription (Étape 1)**, `(setup)` supprimé | ✅ | [etape-02-setup.md](reports/etape-02-setup.md) *(superseded)* |
-| 3 | Home (groupes + état vide, planning semaine, jokers) | ✅ | [etape-03-accueil.md](reports/etape-03-accueil.md) |
-| 4 | Création & adhésion (create, join, join-confirm, scan, accept-invite) | ⬜ | — |
+| 3 | Home (accueil = salutation + **Ma semaine**) + onglet **Groupes** adaptatif (0/1/2+) | ✅ | [etape-03-accueil.md](reports/etape-03-accueil.md) |
+| 4 | Création & adhésion (create, join, join-confirm, scan, accept-invite) | ✅ | [etape-04-creation-adhesion.md](reports/etape-04-creation-adhesion.md) |
 | 5 | Groupe dashboard (Infos/Séances, membres, classement, blâmes) | ⬜ | — |
 | 6 | Déclarer une séance | ⬜ | — |
 | 7 | Voter | ⬜ | — |
