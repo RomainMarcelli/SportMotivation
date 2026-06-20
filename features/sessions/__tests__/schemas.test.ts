@@ -1,4 +1,5 @@
 import { buildDeclareSessionSchema, isValidUrl } from "../schemas";
+import { startOfWeekMonday } from "@/lib/date";
 
 const schema = buildDeclareSessionSchema({
   minDuration: 30,
@@ -8,7 +9,7 @@ const schema = buildDeclareSessionSchema({
 const base = {
   activityType: "running",
   durationMin: 45,
-  performedAt: new Date(Date.now() - 60 * 60 * 1000), // il y a 1h
+  performedAt: new Date(), // aujourd'hui = toujours dans la semaine en cours
   proofType: "photo" as const,
   photoUri: "file:///tmp/p.jpg",
 };
@@ -18,9 +19,13 @@ describe("buildDeclareSessionSchema", () => {
     expect(schema.safeParse(base).success).toBe(true);
   });
 
-  it("refuse une activité non autorisée", () => {
+  it("accepte une activité hors liste (le warning est géré par l'écran, pas bloquant)", () => {
     const r = schema.safeParse({ ...base, activityType: "swimming" });
-    expect(r.success).toBe(false);
+    expect(r.success).toBe(true);
+  });
+
+  it("refuse une activité vide", () => {
+    expect(schema.safeParse({ ...base, activityType: "" }).success).toBe(false);
   });
 
   it("refuse une durée sous le minimum du groupe", () => {
@@ -36,8 +41,22 @@ describe("buildDeclareSessionSchema", () => {
     expect(r.success).toBe(false);
   });
 
+  it("refuse une date hors de la semaine en cours (semaine précédente)", () => {
+    const lastWeek = new Date(startOfWeekMonday(new Date()).getTime() - 2 * 24 * 60 * 60 * 1000);
+    const r = schema.safeParse({ ...base, performedAt: lastWeek });
+    expect(r.success).toBe(false);
+  });
+
   it("exige une photo pour une preuve photo", () => {
     const r = schema.safeParse({ ...base, photoUri: undefined });
+    expect(r.success).toBe(false);
+  });
+
+  it("refuse une photo de galerie dont la date ne correspond pas au jour déclaré", () => {
+    const r = schema.safeParse({
+      ...base,
+      photoTakenAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // il y a 1 mois
+    });
     expect(r.success).toBe(false);
   });
 
@@ -71,6 +90,17 @@ describe("buildDeclareSessionSchema", () => {
       stravaActivityId: "12345",
     });
     expect(ok.success).toBe(true);
+  });
+
+  it("refuse une activité Strava qui ne date pas du jour déclaré", () => {
+    const r = schema.safeParse({
+      ...base,
+      proofType: "strava",
+      photoUri: undefined,
+      stravaActivityId: "12345",
+      stravaActivityDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    });
+    expect(r.success).toBe(false);
   });
 });
 

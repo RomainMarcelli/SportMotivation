@@ -9,7 +9,6 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { AppBackground } from "@/components/ui/AppBackground";
@@ -47,7 +46,6 @@ function memberName(m: GroupMemberWithUser, meId: string | undefined): string {
 export default function GroupDashboardScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const me = useCurrentUser();
 
   const { data: group, isLoading, error, refetch, isRefetching } = useGroup(id);
@@ -58,7 +56,9 @@ export default function GroupDashboardScreen() {
 
   const [view, setView] = useState<"infos" | "seances">("infos");
 
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace("/" as never));
+  // Retour : on revient à l'écran précédent (liste des groupes), sinon repli sur l'onglet Groupes.
+  const goBack = () =>
+    router.canGoBack() ? router.back() : router.navigate("/groups" as never);
 
   if (isLoading) {
     return (
@@ -156,7 +156,7 @@ export default function GroupDashboardScreen() {
 
         <ScrollView
           contentContainerClassName="gap-4 px-[18px] pt-2"
-          contentContainerStyle={{ paddingBottom: 92 + insets.bottom }}
+          contentContainerStyle={{ paddingBottom: 96 }}
           showsVerticalScrollIndicator={false}
         >
           {/* Hero */}
@@ -274,19 +274,27 @@ export default function GroupDashboardScreen() {
           )}
         </ScrollView>
 
-        {/* Footer CTA */}
+        {/* Footer CTA (la tab bar est fournie par le layout group, juste en dessous) */}
         <View
-          pointerEvents="box-none"
-          style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: colors.ink,
+            borderTopColor: colors.line,
+            borderTopWidth: 1,
+            paddingHorizontal: 18,
+            paddingTop: 10,
+            paddingBottom: 12,
+          }}
         >
-          <View style={{ paddingHorizontal: 18, paddingTop: 10, paddingBottom: 14 + insets.bottom }}>
-            <GradientButton
-              icon={Plus}
-              onPress={() => router.push({ pathname: "/group/[id]/declare", params: { id: id! } } as never)}
-            >
-              Déclarer une séance
-            </GradientButton>
-          </View>
+          <GradientButton
+            icon={Plus}
+            onPress={() => router.push({ pathname: "/group/[id]/declare", params: { id: id! } } as never)}
+          >
+            Déclarer une séance
+          </GradientButton>
         </View>
       </ScreenContainer>
     </View>

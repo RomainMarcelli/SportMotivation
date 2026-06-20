@@ -13,6 +13,7 @@ import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-c
 import "react-native-reanimated";
 
 import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { colors } from "@/constants/colors";
 import { fontsToLoad } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -92,20 +93,27 @@ function RootContent() {
     <ThemeProvider value={isDark ? NavDarkTheme : DefaultTheme}>
       {/* Fond `ink` plein écran, HORS de toute SafeAreaView (couvre la zone status bar/notch). */}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.ink }]} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.ink } }}>
-        <Stack.Protected guard={!isAuthenticated}>
-          <Stack.Screen name="(auth)" />
-        </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="group" />
-          <Stack.Screen
-            name="notifications"
-            options={{ headerShown: true, title: "Notifications" }}
-          />
-          <Stack.Screen name="settings" options={{ headerShown: true, title: "Paramètres" }} />
-        </Stack.Protected>
-      </Stack>
+      {/* Footer UNIQUE de l'app : la pile remplit l'espace au-dessus, la BottomNav (montée une
+          seule fois) reste collée en bas sur TOUS les écrans authentifiés (onglets + poussés). */}
+      <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.ink } }}>
+            <Stack.Protected guard={!isAuthenticated}>
+              <Stack.Screen name="(auth)" />
+            </Stack.Protected>
+            <Stack.Protected guard={isAuthenticated}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="group" />
+              <Stack.Screen
+                name="notifications"
+                options={{ headerShown: true, title: "Notifications" }}
+              />
+              <Stack.Screen name="settings" options={{ headerShown: true, title: "Paramètres" }} />
+            </Stack.Protected>
+          </Stack>
+        </View>
+        {isAuthenticated ? <BottomNav /> : null}
+      </View>
       <StatusBar style={isDark ? "light" : "dark"} />
     </ThemeProvider>
   );

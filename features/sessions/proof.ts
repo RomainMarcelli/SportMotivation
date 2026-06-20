@@ -15,6 +15,7 @@ const SESSION_ERROR_MESSAGES: Record<string, string> = {
   GROUP_NOT_FOUND: "Groupe introuvable.",
   GROUP_NOT_ACTIVE: "Le défi de ce groupe n'est pas en cours.",
   ACTIVITY_NOT_ALLOWED: "Cette activité n'est pas autorisée par le groupe.",
+  ACTIVITY_REQUIRED: "Précise l'activité de ta séance.",
   DURATION_TOO_SHORT: "La durée est inférieure au minimum du groupe.",
   DATE_IN_FUTURE: "La séance ne peut pas être dans le futur.",
   PUBLICATION_TOO_LATE: "Ce groupe n'accepte les séances que le jour même.",

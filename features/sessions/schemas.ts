@@ -1,30 +1,27 @@
 import { z } from "zod";
 
+import { isDeclarableDate, isSameLocalDay } from "./dates";
+
 export const PROOF_TYPE_VALUES = ["photo", "strava", "external_link"] as const;
 export type ProofType = (typeof PROOF_TYPE_VALUES)[number];
 
 export type DeclareSessionSchemaOptions = {
   /** Durée minimale autorisée par le groupe (min). */
   minDuration: number;
-  /** Liste des activités acceptées par le groupe. */
+  /** Liste des activités acceptées (sert au warning côté écran, plus à bloquer la validation). */
   acceptedActivities: string[];
 };
 
 /**
- * Construit le schéma de déclaration d'une séance. Les bornes (durée mini, activités
- * autorisées) dépendent de la config du groupe, d'où la fabrique. La validation finale
- * (membre actif, fenêtre de publication) reste faite côté serveur par `declare_session`.
+ * Construit le schéma de déclaration d'une séance. La durée mini dépend de la config du
+ * groupe, d'où la fabrique. L'activité « hors liste » n'est PLUS bloquante ici (l'écran
+ * affiche un avertissement avec choix de continuer) ; la validation finale (membre actif,
+ * fenêtre de publication) reste faite côté serveur par `declare_session`.
  */
-export function buildDeclareSessionSchema({
-  minDuration,
-  acceptedActivities,
-}: DeclareSessionSchemaOptions) {
+export function buildDeclareSessionSchema({ minDuration }: DeclareSessionSchemaOptions) {
   return z
     .object({
-      activityType: z
-        .string()
-        .min(1, "Choisis une activité")
-        .refine((v) => acceptedActivities.includes(v), "Activité non autorisée par le groupe"),
+      activityType: z.string().min(1, "Choisis une activité"),
       durationMin: z
         .number({ message: "Durée requise" })
         .int("Nombre entier")
@@ -35,6 +32,8 @@ export function buildDeclareSessionSchema({
       proofType: z.enum(PROOF_TYPE_VALUES),
       // Preuve photo : chemin local du fichier capturé (uploadé ensuite vers Storage)
       photoUri: z.string().optional(),
+      /** Date EXIF d'une photo issue de la galerie (anti-fraude ; absente pour une capture caméra). */
+      photoTakenAt: z.date().nullable().optional(),
       latitude: z.number().nullable().optional(),
       longitude: z.number().nullable().optional(),
       // Preuve lien externe
@@ -43,22 +42,37 @@ export function buildDeclareSessionSchema({
       // Preuve Strava
       stravaActivityId: z.string().optional(),
       stravaData: z.unknown().optional(),
+      /** Date de l'activité Strava sélectionnée (anti-fraude). */
+      stravaActivityDate: z.date().nullable().optional(),
     })
     .superRefine((data, ctx) => {
-      if (data.performedAt > endOfToday()) {
+      // Date : semaine en cours (lundi→dimanche), jamais dans le futur.
+      if (!isDeclarableDate(data.performedAt, new Date())) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "La date ne peut pas être dans le futur",
+          message: "Choisis une date de cette semaine (sans aller dans le futur)",
           path: ["performedAt"],
         });
       }
-      if (data.proofType === "photo" && !data.photoUri) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Prends une photo via la caméra",
-          path: ["photoUri"],
-        });
+
+      if (data.proofType === "photo") {
+        if (!data.photoUri) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Ajoute une photo (caméra ou galerie)",
+            path: ["photoUri"],
+          });
+        }
+        // Photo de galerie : sa date doit correspondre au jour déclaré.
+        if (data.photoTakenAt && !isSameLocalDay(data.photoTakenAt, data.performedAt)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "La photo ne date pas du jour déclaré",
+            path: ["photoUri"],
+          });
+        }
       }
+
       if (data.proofType === "external_link") {
         if (!isValidUrl(data.externalUrl)) {
           ctx.addIssue({
@@ -82,23 +96,28 @@ export function buildDeclareSessionSchema({
           });
         }
       }
-      if (data.proofType === "strava" && !data.stravaActivityId) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Sélectionne une activité Strava",
-          path: ["stravaActivityId"],
-        });
+
+      if (data.proofType === "strava") {
+        if (!data.stravaActivityId) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Sélectionne une activité Strava",
+            path: ["stravaActivityId"],
+          });
+        }
+        // L'activité Strava doit correspondre au jour déclaré.
+        if (data.stravaActivityDate && !isSameLocalDay(data.stravaActivityDate, data.performedAt)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Cette activité Strava ne date pas du jour déclaré",
+            path: ["stravaActivityId"],
+          });
+        }
       }
     });
 }
 
 export type DeclareSessionInput = z.infer<ReturnType<typeof buildDeclareSessionSchema>>;
-
-function endOfToday(): Date {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
 
 export function isValidUrl(value: string | undefined): boolean {
   if (!value) return false;

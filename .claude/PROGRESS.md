@@ -11,7 +11,7 @@ Rapports détaillés par étape dans `.claude/reports/`.
 | 3 | Home (accueil = salutation + **Ma semaine**) + onglet **Groupes** adaptatif (0/1/2+) | ✅ | [etape-03-accueil.md](reports/etape-03-accueil.md) |
 | 4 | Création & adhésion (create, join, join-confirm, scan, accept-invite) | ✅ | [etape-04-creation-adhesion.md](reports/etape-04-creation-adhesion.md) |
 | 5 | Groupe dashboard (Infos/Séances, membres, classement, blâmes) | ✅ | [etape-05-groupe.md](reports/etape-05-groupe.md) |
-| 6 | Déclarer une séance | ⬜ | — |
+| 6 | Déclarer une séance | ✅ | [etape-06-declarer.md](reports/etape-06-declarer.md) |
 | 7 | Voter | ⬜ | — |
 | 8 | Excuses | ⬜ | — |
 | 9 | Cagnotte (trésorier) | ⬜ | — |

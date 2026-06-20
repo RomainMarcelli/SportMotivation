@@ -1,4 +1,4 @@
-import { Redirect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { Plus, Users } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
@@ -19,13 +19,9 @@ export default function GroupsScreen() {
   const { data: groups, isLoading } = useMyGroups();
   const view = groupsView(groups);
 
-  // 1 seul défi → on va droit à son détail (route existante). `Redirect` = replace : pas de
-  // pile qui s'empile. (Le détail passera à la DA à l'Étape 5.)
-  if (!isLoading && view.kind === "single") {
-    return <Redirect href={{ pathname: "/group/[id]", params: { id: view.groupId } }} />;
-  }
-
-  const isList = view.kind === "list";
+  // L'onglet Groupes liste TOUJOURS les défis (1 ou plusieurs). Plus de redirection auto vers
+  // le détail : elle cassait la navigation du footer (l'onglet renvoyait sans cesse au groupe).
+  const isList = view.kind === "list" || view.kind === "single";
 
   return (
     <View className="flex-1">

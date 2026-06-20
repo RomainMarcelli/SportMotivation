@@ -1,10 +1,12 @@
 import {
   formatStravaActivity,
+  stravaActivityDate,
   stravaDurationToMinutes,
   stravaTypeToActivityId,
   toStravaProofData,
   type StravaActivity,
 } from "../strava";
+import { isSameLocalDay } from "../dates";
 
 const activity: StravaActivity = {
   id: 999,
@@ -55,5 +57,26 @@ describe("toStravaProofData", () => {
 describe("formatStravaActivity", () => {
   it("affiche nom, distance et durée", () => {
     expect(formatStravaActivity(activity)).toBe("Sortie longue — 10.3 km · 52 min");
+  });
+});
+
+describe("stravaActivityDate", () => {
+  it("parse start_date_local en Date", () => {
+    const d = stravaActivityDate({ ...activity, start_date_local: "2026-06-13T07:00:00" });
+    expect(d).not.toBeNull();
+    expect(d!.getFullYear()).toBe(2026);
+    expect(d!.getMonth()).toBe(5);
+    expect(d!.getDate()).toBe(13);
+  });
+
+  it("null si date absente/illisible", () => {
+    expect(stravaActivityDate({ ...activity, start_date_local: "" })).toBeNull();
+    expect(stravaActivityDate({ ...activity, start_date_local: "xxx" })).toBeNull();
+  });
+
+  it("permet de vérifier la correspondance avec la date déclarée", () => {
+    const sameDay = stravaActivityDate({ ...activity, start_date_local: "2026-06-13T07:00:00" })!;
+    expect(isSameLocalDay(sameDay, new Date(2026, 5, 13, 20, 0))).toBe(true);
+    expect(isSameLocalDay(sameDay, new Date(2026, 5, 12, 20, 0))).toBe(false);
   });
 });

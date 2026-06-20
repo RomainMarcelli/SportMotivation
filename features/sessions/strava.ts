@@ -68,6 +68,18 @@ export function toStravaProofData(activity: StravaActivity): StravaProofData {
   };
 }
 
+/**
+ * Date de début d'une activité Strava (heure locale du sportif).
+ * `start_date_local` est ISO sans fuseau → interprété en heure locale par `Date`.
+ * Sert à vérifier que l'activité correspond bien au jour déclaré (anti-fraude).
+ */
+export function stravaActivityDate(activity: StravaActivity): Date | null {
+  const raw = activity.start_date_local;
+  if (!raw) return null;
+  const t = Date.parse(raw);
+  return Number.isNaN(t) ? null : new Date(t);
+}
+
 /** Libellé court pour afficher une activité Strava dans une liste. */
 export function formatStravaActivity(activity: StravaActivity): string {
   const km = (activity.distance / 1000).toFixed(1);

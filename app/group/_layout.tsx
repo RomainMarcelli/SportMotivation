@@ -3,6 +3,10 @@ import { Stack } from "expo-router";
 import { colors } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
 
+/**
+ * Écrans « groupe » poussés hors des onglets. Le footer (BottomNav) est global
+ * (`app/_layout.tsx`) : il reste visible sous cette pile, rien à monter ici.
+ */
 export default function GroupLayout() {
   return (
     <Stack
