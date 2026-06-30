@@ -2,10 +2,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   AlertCircle,
   ChevronLeft,
+  ChevronRight,
   MoreVertical,
   Plus,
   TriangleAlert,
   UserPlus,
+  Vote,
 } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
@@ -20,6 +22,7 @@ import { GradientButton } from "@/components/ui/GradientButton";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Reveal } from "@/components/ui/Reveal";
 import { GroupTabs } from "@/components/groups/GroupTabs";
+import { InviteBlock } from "@/components/groups/InviteBlock";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TopFade } from "@/components/ui/TopFade";
 import { getActivityLabel } from "@/constants/activities";
@@ -34,6 +37,8 @@ import {
   type GroupMemberWithUser,
 } from "@/features/groups/queries";
 import { useGroupSessions, type SessionWithAuthor } from "@/features/sessions/queries";
+import { useVotableSessions } from "@/features/votes/queries";
+import { useVotableExcuses } from "@/features/excuses/queries";
 import { useCurrentUser } from "@/lib/auth-store";
 import { daysUntil, formatDbDate } from "@/lib/date";
 import { groupWeeklyProgress, memberStats, type MemberStat } from "@/lib/group-stats";
@@ -53,6 +58,8 @@ export default function GroupDashboardScreen() {
   const { data: sessions } = useGroupSessions(id);
   const { data: pot } = usePot(id);
   const { data: blames } = useUnsettledBlames(id);
+  const { data: votable } = useVotableSessions(id, me?.id);
+  const { data: votableExcuses } = useVotableExcuses(id, me?.id);
 
   const [view, setView] = useState<"infos" | "seances">("infos");
 
@@ -87,11 +94,14 @@ export default function GroupDashboardScreen() {
               {classified.message}
             </Text>
             <View className="w-full max-w-[280px] gap-3">
-              <GradientButton onPress={() => refetch()} loading={isRefetching}>
+              <GradientButton onPress={() => refetch()} loading={isRefetching || isLoading}>
                 Réessayer
               </GradientButton>
-              <Button variant="secondary" onPress={() => router.replace("/" as never)}>
-                Retour à l'accueil
+              <Button
+                variant="secondary"
+                onPress={() => router.navigate("/groups" as never)}
+              >
+                Retour aux groupes
               </Button>
             </View>
           </View>
@@ -115,8 +125,11 @@ export default function GroupDashboardScreen() {
     .map((m) => ({ m, count: blameByUser.get(m.user.id) ?? 0 }))
     .filter((b) => b.count > 0);
 
-  const pending = sessionList.filter((s) => s.status === "pending_vote");
-  const recent = sessionList.filter((s) => s.status !== "pending_vote");
+  // Onglet « Séances » = MES séances uniquement (les séances des autres se votent via la
+  // bannière « à valider » → écran de vote). On filtre donc sur l'auteur courant.
+  const mySessions = sessionList.filter((s) => s.author.id === me?.id);
+  const pending = mySessions.filter((s) => s.status === "pending_vote");
+  const recent = mySessions.filter((s) => s.status !== "pending_vote");
 
   const goInvite = () => router.push({ pathname: "/group/[id]/invite", params: { id: id! } } as never);
 
@@ -262,15 +275,29 @@ export default function GroupDashboardScreen() {
               onChange={setView}
               tabs={[
                 { value: "infos", label: "Infos" },
-                { value: "seances", label: "Séances", count: sessionList.length },
+                { value: "seances", label: "Séances", count: mySessions.length },
               ]}
             />
           </Reveal>
 
           {view === "infos" ? (
-            <InfosPanel group={group} stats={stats} blamed={blamed} meId={me?.id} />
+            <InfosPanel
+              group={group}
+              stats={stats}
+              blamed={blamed}
+              meId={me?.id}
+              isAdmin={isAdmin}
+            />
           ) : (
-            <SeancesPanel pending={pending} recent={recent} meId={me?.id} />
+            <SeancesPanel
+              pending={pending}
+              recent={recent}
+              meId={me?.id}
+              votableCount={(votable?.length ?? 0) + (votableExcuses?.length ?? 0)}
+              onVote={() =>
+                router.push({ pathname: "/group/[id]/vote", params: { id: id! } } as never)
+              }
+            />
           )}
         </ScrollView>
 
@@ -319,11 +346,13 @@ function InfosPanel({
   stats,
   blamed,
   meId,
+  isAdmin,
 }: {
   group: ReturnType<typeof useGroup>["data"] & {};
   stats: Stat[];
   blamed: { m: GroupMemberWithUser; count: number }[];
   meId: string | undefined;
+  isAdmin: boolean;
 }) {
   const activities = Array.isArray(group.accepted_activities)
     ? (group.accepted_activities as string[])
@@ -425,6 +454,16 @@ function InfosPanel({
           />
         </View>
       </Reveal>
+
+      {/* Inviter au groupe — admin uniquement, tout en bas de l'onglet Infos */}
+      {isAdmin ? (
+        <Reveal delay={140}>
+          <SecHead title="Inviter au groupe" />
+          <View className="mt-2">
+            <InviteBlock inviteCode={group.invite_code} groupName={group.name} />
+          </View>
+        </Reveal>
+      ) : null}
     </View>
   );
 }
@@ -470,27 +509,57 @@ function SeancesPanel({
   pending,
   recent,
   meId,
+  votableCount,
+  onVote,
 }: {
   pending: SessionWithAuthor[];
   recent: SessionWithAuthor[];
   meId: string | undefined;
+  votableCount: number;
+  onVote: () => void;
 }) {
+  const banner =
+    votableCount > 0 ? (
+      <Pressable
+        onPress={onVote}
+        className="flex-row items-center gap-3 rounded-[16px] border p-3.5 active:opacity-80"
+        style={{ backgroundColor: colors.coralSoft, borderColor: "rgba(255,106,69,0.4)" }}
+      >
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface">
+          <Vote size={20} color={colors.coral} />
+        </View>
+        <View className="flex-1">
+          <Text className="font-display text-[15px] tracking-tight text-cream">
+            {votableCount} à valider
+          </Text>
+          <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+            Séances et excuses · donne ton vote
+          </Text>
+        </View>
+        <ChevronRight size={20} color={colors.coral} />
+      </Pressable>
+    ) : null;
+
   if (pending.length === 0 && recent.length === 0) {
     return (
-      <View className="mt-10 items-center">
-        <Text className="font-body text-[14px] text-cream-dim">
-          Aucune séance déclarée pour l'instant.
-        </Text>
+      <View className="gap-3">
+        {banner}
+        <View className="mt-6 items-center">
+          <Text className="font-body text-[14px] text-cream-dim">
+            Tu n'as pas encore déclaré de séance.
+          </Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View className="gap-2.5">
+      {banner}
       {pending.length > 0 ? (
         <>
           <View className="mt-1 flex-row items-center gap-2 px-0.5">
-            <Text className="font-display text-[13px] text-cream-dim">À valider</Text>
+            <Text className="font-display text-[13px] text-cream-dim">En attente de vote</Text>
             <Text className="rounded-full bg-amber-soft px-2 py-0.5 font-body-bold text-[10.5px] text-amber">
               {pending.length}
             </Text>

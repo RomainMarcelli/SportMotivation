@@ -1,20 +1,10 @@
-import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  Share,
-  Text,
-  View,
-} from "react-native";
-import QRCode from "react-native-qrcode-svg";
-import { Check, Copy, ListChecks, Share2, UserPlus } from "lucide-react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Check, ListChecks, UserPlus } from "lucide-react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
-import { Button } from "@/components/ui/Button";
+import { InviteBlock } from "@/components/groups/InviteBlock";
 import { TextField } from "@/components/ui/TextField";
 import {
   useInviteUser,
@@ -23,7 +13,6 @@ import {
 } from "@/features/groups/invitations";
 import { useGroup, useGroupMembers } from "@/features/groups/queries";
 import { useCurrentUser } from "@/lib/auth-store";
-import { buildInviteLink } from "@/lib/invite-link";
 
 export default function InviteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,7 +21,6 @@ export default function InviteScreen() {
   const user = useCurrentUser();
   const { data: group, isLoading } = useGroup(id);
   const { data: members } = useGroupMembers(id);
-  const [copied, setCopied] = useState(false);
   const [query, setQuery] = useState("");
   const { data: results, isFetching } = useSearchUsers(query);
   const inviteUser = useInviteUser(id!);
@@ -48,19 +36,6 @@ export default function InviteScreen() {
 
   const isAdmin = members?.some((m) => m.user.id === user?.id && m.role === "admin") ?? false;
   const memberIds = new Set(members?.map((m) => m.user.id) ?? []);
-  const link = buildInviteLink(group.invite_code);
-
-  const copyCode = async () => {
-    await Clipboard.setStringAsync(group.invite_code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  const onShare = async () => {
-    await Share.share({
-      message: `Rejoins mon défi sportif "${group.name}" sur Sport Motiv !\n\nCode : ${group.invite_code}\nLien : ${link}`,
-    });
-  };
 
   const onInvite = (u: UserSearchResult) => {
     inviteUser.mutate(u.id, {
@@ -159,30 +134,7 @@ export default function InviteScreen() {
         </View>
       ) : null}
 
-      <View className="items-center">
-        <View className="mb-6 rounded-3xl bg-white p-6 shadow-sm">
-          <QRCode value={link} size={180} backgroundColor="#ffffff" color="#0f172a" />
-        </View>
-
-        <Text className="text-xs uppercase tracking-wide text-neutral-400">Code d'invitation</Text>
-        <Pressable onPress={copyCode} className="mb-1 flex-row items-center gap-3 active:opacity-70">
-          <Text className="text-4xl font-bold tracking-[8px] text-neutral-900 dark:text-white">
-            {group.invite_code}
-          </Text>
-          {copied ? <Check size={22} color="#16a34a" /> : <Copy size={22} color="#94a3b8" />}
-        </Pressable>
-        <Text className="mb-6 text-xs text-neutral-400">
-          {copied ? "Code copié !" : "Appuie pour copier"}
-        </Text>
-
-        <View className="w-full max-w-sm">
-          <Button onPress={onShare}>Partager l'invitation</Button>
-        </View>
-        <View className="mt-4 flex-row items-center gap-2">
-          <Share2 size={14} color="#94a3b8" />
-          <Text className="text-xs text-neutral-400">SMS, WhatsApp, email…</Text>
-        </View>
-      </View>
+      <InviteBlock inviteCode={group.invite_code} groupName={group.name} />
     </ScrollView>
   );
 }

@@ -1,11 +1,14 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Check } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Check, HeartCrack, Ticket } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Card } from "@/components/ui/Card";
 import { CountUp } from "@/components/ui/CountUp";
 import { colors, gradients } from "@/constants/colors";
+import { mapJokerError, useMonthlyJoker, useUseJoker } from "@/features/jokers/queries";
 import { useToggleWeeklyPlanDay, useWeeklyPlan } from "@/features/plans/queries";
 import { WEEKDAY_LABELS, todayWeekdayIndex } from "@/features/plans/plan";
 
@@ -25,8 +28,12 @@ type Props = {
  * encore — le vrai système de jokers/excuses arrive à l'Étape 8 (`excuses`). TODO Étape 8.
  */
 export function WeekPlanner({ groupId, weeklyTarget }: Props) {
+  const router = useRouter();
+  const { toast, confirm } = useFeedback();
   const { data: plannedDays } = useWeeklyPlan(groupId);
   const toggleDay = useToggleWeeklyPlanDay(groupId);
+  const { data: jokerUsed } = useMonthlyJoker(groupId);
+  const useJoker = useUseJoker(groupId);
 
   // Miroir local pour un compteur réactif immédiat (la mutation persiste en arrière-plan).
   const [days, setDays] = useState<number[]>(plannedDays ?? []);
@@ -34,9 +41,21 @@ export function WeekPlanner({ groupId, weeklyTarget }: Props) {
     if (plannedDays) setDays(plannedDays);
   }, [plannedDays]);
 
-  // TODO Étape 8 — joker masqué jusqu'au système d'excuses (table `excuses`). Réactiver le chip
-  // ci-dessous une fois branché sur l'état réel (placeholder non persistant pour l'instant).
-  // const [jokerUsed, setJokerUsed] = useState(false);
+  const onJoker = async () => {
+    if (jokerUsed || useJoker.isPending) return;
+    const ok = await confirm({
+      title: "Utiliser ton joker ?",
+      message:
+        "1 joker par mois : il annule une séance manquée sans pénalité ni vote. Action définitive.",
+      confirmLabel: "Utiliser",
+      cancelLabel: "Annuler",
+    });
+    if (!ok) return;
+    useJoker.mutate(undefined, {
+      onSuccess: () => toast("Joker utilisé pour ce mois-ci.", "success"),
+      onError: (e) => toast(mapJokerError(e.message), "error"),
+    });
+  };
 
   const today = todayWeekdayIndex(new Date());
 
@@ -54,10 +73,9 @@ export function WeekPlanner({ groupId, weeklyTarget }: Props) {
       <View className="mb-3.5 flex-row items-center justify-between">
         <Text className="font-display text-[16px] text-cream">Ma semaine</Text>
 
-        {/* TODO Étape 8 — chip joker masqué (placeholder non persistant). À rebrancher sur
-            le système d'excuses :
         <Pressable
-          onPress={() => setJokerUsed((v) => !v)}
+          onPress={onJoker}
+          disabled={jokerUsed || useJoker.isPending}
           hitSlop={6}
           style={{
             flexDirection: "row",
@@ -80,7 +98,6 @@ export function WeekPlanner({ groupId, weeklyTarget }: Props) {
             {jokerUsed ? "Joker utilisé" : "1 joker"}
           </Text>
         </Pressable>
-        */}
       </View>
 
       <View className="flex-row justify-between">
@@ -162,6 +179,19 @@ export function WeekPlanner({ groupId, weeklyTarget }: Props) {
           objectif <Text className="font-display text-[13px] text-cream">{weeklyTarget}</Text>
         </Text>
       </View>
+
+      {/* Entrée « M'excuser » : justifier une semaine au vote du groupe. */}
+      <Pressable
+        onPress={() =>
+          router.push({ pathname: "/group/[id]/excuse", params: { id: groupId } } as never)
+        }
+        className="mt-3 flex-row items-center justify-center gap-2 rounded-input border border-line-2 bg-surface-2 py-3 active:opacity-80"
+      >
+        <HeartCrack size={15} color={colors.creamDim} />
+        <Text className="font-body-semibold text-[13px] text-cream">
+          M'excuser cette semaine
+        </Text>
+      </Pressable>
     </Card>
   );
 }

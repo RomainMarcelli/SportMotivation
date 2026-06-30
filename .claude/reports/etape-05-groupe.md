@@ -72,3 +72,21 @@ La maquette est un **écran unique** avec bascule Infos/Séances (pas des bottom
 
 ## Commit proposé
 `feat(group): dashboard détail à la DA (hero cagnotte, Infos/Séances, classement, blâmes)`
+
+---
+
+## Ajout (2026-06-21) — Bloc d'invitation sur le détail du groupe (admin)
+- **Extraction DRY** : le bloc QR + code + lien + partage (auparavant inline et en **template clair**
+  dans `app/group/[id]/invite.tsx`) est désormais un composant **DA réutilisable**
+  [components/groups/InviteBlock.tsx](../../components/groups/InviteBlock.tsx) : QR (fond clair scannable),
+  code à 6 chiffres copiable, bouton **Partager** (`Share`), lien copiable (`Clipboard`). Logique
+  inchangée (`buildInviteLink`, `group.invite_code`).
+- **Réutilisé aux deux endroits** :
+  1. `invite.tsx` : remplace le bloc inline → **DA** (la partie « inviter par pseudo » reste inchangée).
+  2. **Dashboard** [app/group/[id]/index.tsx](../../app/group/[id]/index.tsx), onglet **Infos**, **tout en
+     bas sous « Règles du défi »**, section « Inviter au groupe ». `Reveal` sur l'entrée.
+- **Admin uniquement** : rendu seulement si `isAdmin` (rôle `admin` dans `group_members`) — un membre
+  non-admin ne voit **rien** (pas de bloc, pas d'espace vide).
+- Décision : le bloc source n'était pas DA → je l'ai **passé en DA** pour qu'il s'intègre dans l'onglet
+  Infos (sombre) ; même composant aux deux endroits (DRY). `tsc` ✅ · `jest` **165/165** ✅.
+- Commit proposé : `feat(group): bloc d'invitation (QR/code/lien) réutilisable sous les règles (admin)`

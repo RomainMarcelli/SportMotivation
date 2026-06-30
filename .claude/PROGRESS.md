@@ -12,8 +12,8 @@ Rapports détaillés par étape dans `.claude/reports/`.
 | 4 | Création & adhésion (create, join, join-confirm, scan, accept-invite) | ✅ | [etape-04-creation-adhesion.md](reports/etape-04-creation-adhesion.md) |
 | 5 | Groupe dashboard (Infos/Séances, membres, classement, blâmes) | ✅ | [etape-05-groupe.md](reports/etape-05-groupe.md) |
 | 6 | Déclarer une séance | ✅ | [etape-06-declarer.md](reports/etape-06-declarer.md) |
-| 7 | Voter | ⬜ | — |
-| 8 | Excuses | ⬜ | — |
+| 7 | Voter (scrutin séances : deck, vote, résolution) | ✅ | [etape-07-voter.md](reports/etape-07-voter.md) |
+| 8 | Excuses (déclaration au vote du groupe + joker mensuel) | ✅ | [etape-08-excuses.md](reports/etape-08-excuses.md) |
 | 9 | Cagnotte (trésorier) | ⬜ | — |
 | 10 | Gestion des invitations (statuts, renvoyer/annuler) | ⬜ | — |
 | 11 | Notifications | ⬜ | — |

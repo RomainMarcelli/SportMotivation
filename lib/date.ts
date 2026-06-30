@@ -50,10 +50,16 @@ export function daysUntil(dateStr: string, from: Date): number {
   return Math.round((target - base) / 86_400_000);
 }
 
-/** Formate une date `YYYY-MM-DD` (string DB) pour affichage court : "1 juin 2026". */
-export function formatDbDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
+/**
+ * Formate une date `YYYY-MM-DD` (string DB) pour affichage court : "1 juin 2026".
+ * Tolère une valeur vide ou un timestamp (`YYYY-MM-DDTHH:mm…`) et ne lève jamais
+ * « Invalid time value » : renvoie `""` si la date est inexploitable.
+ */
+export function formatDbDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+  const date = new Date(y, (m || 1) - 1, d || 1);
+  if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "long",

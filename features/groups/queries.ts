@@ -67,7 +67,10 @@ export function useGroup(groupId: string | undefined) {
   return useQuery({
     queryKey: ["group", groupId],
     enabled: !!groupId,
-    retry: false,
+    // Juste après un join, l'adhésion peut ne pas être visible immédiatement (lag lecture/écriture)
+    // → la RPC renvoie 0 ligne. On réessaie quelques fois avant d'afficher « introuvable ».
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1500, 400 * (attempt + 1)),
     queryFn: async (): Promise<GroupRow> => {
       const { data, error } = await supabase.rpc(
         "get_group_dashboard" as never,

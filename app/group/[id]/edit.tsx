@@ -75,7 +75,8 @@ function EditForm({
     deleteGroup.mutate(undefined, {
       onSuccess: () => {
         toast("Groupe supprimé", "success");
-        router.replace("/" as never);
+        // Le groupe n'existe plus → on renvoie direct sur l'onglet Groupes.
+        router.replace("/groups" as never);
       },
       onError: (e) => toast(e.message, "error"),
     });

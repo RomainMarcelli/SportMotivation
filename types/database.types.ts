@@ -117,6 +117,38 @@ export type Database = {
           },
         ]
       }
+      jokers: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          month_start: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          month_start: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          month_start?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jokers_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           group_id: string
@@ -877,6 +909,24 @@ export type Database = {
           vote_deadline: Database["public"]["Enums"]["deadline_type"]
         }[]
       }
+      cast_vote: {
+        Args: { p_session_id: string; p_value: boolean; p_comment?: string | null }
+        Returns: string
+      }
+      cast_excuse_vote: {
+        Args: { p_excuse_id: string; p_value: boolean; p_comment?: string | null }
+        Returns: string
+      }
+      submit_excuse: {
+        Args: {
+          p_group_id: string
+          p_excuse_type: Database["public"]["Enums"]["excuse_type"]
+          p_reason: string
+          p_justification_url?: string | null
+        }
+        Returns: string
+      }
+      use_joker: { Args: { p_group_id: string }; Returns: string }
       is_group_admin: { Args: { p_group_id: string }; Returns: boolean }
       is_group_member: { Args: { p_group_id: string }; Returns: boolean }
       join_group_by_code: {

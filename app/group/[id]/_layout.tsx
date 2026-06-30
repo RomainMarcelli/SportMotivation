@@ -23,6 +23,8 @@ export default function GroupDetailLayout() {
       <Stack.Screen name="members" options={{ title: "Membres" }} />
       <Stack.Screen name="edit" options={{ title: "Modifier le groupe" }} />
       <Stack.Screen name="declare" options={{ title: "Déclarer une séance" }} />
+      <Stack.Screen name="excuse" options={{ title: "Déclarer une excuse" }} />
+      <Stack.Screen name="vote" options={{ headerShown: false }} />
     </Stack>
   );
 }
