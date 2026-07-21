@@ -165,6 +165,8 @@ export function useGroupMembers(groupId: string | undefined) {
           last_name: (r.last_name as string | null) ?? null,
           username: (r.username as string | null) ?? null,
           avatar_url: (r.avatar_url as string | null) ?? null,
+          avatar_color: (r.avatar_color as string | null) ?? null,
+          avatar_icon: (r.avatar_icon as string | null) ?? null,
         } as UserRow,
       }));
     },

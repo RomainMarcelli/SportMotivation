@@ -8,7 +8,10 @@ type SessionProofRow = Database["public"]["Tables"]["session_proofs"]["Row"];
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export type SessionWithAuthor = SessionRow & {
-  author: Pick<UserRow, "id" | "first_name" | "last_name" | "username" | "avatar_url">;
+  author: Pick<
+    UserRow,
+    "id" | "first_name" | "last_name" | "username" | "avatar_url" | "avatar_color" | "avatar_icon"
+  >;
   proofs: SessionProofRow[];
 };
 
@@ -21,7 +24,7 @@ export function useGroupSessions(groupId: string | undefined) {
       const { data, error } = await supabase
         .from("sessions")
         .select(
-          "*, author:users(id, first_name, last_name, username, avatar_url), proofs:session_proofs(*)"
+          "*, author:users(id, first_name, last_name, username, avatar_url, avatar_color, avatar_icon), proofs:session_proofs(*)"
         )
         .eq("group_id", groupId!)
         .order("performed_at", { ascending: false })

@@ -702,6 +702,8 @@ export type Database = {
       }
       users: {
         Row: {
+          avatar_color: string | null
+          avatar_icon: string | null
           avatar_url: string | null
           created_at: string
           email: string
@@ -713,6 +715,8 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          avatar_color?: string | null
+          avatar_icon?: string | null
           avatar_url?: string | null
           created_at?: string
           email: string
@@ -724,6 +728,8 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          avatar_color?: string | null
+          avatar_icon?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
@@ -927,6 +933,50 @@ export type Database = {
         Returns: string
       }
       use_joker: { Args: { p_group_id: string }; Returns: string }
+      leave_group: { Args: { p_group_id: string }; Returns: string | null }
+      transfer_admin: {
+        Args: { p_group_id: string; p_new_admin_id: string }
+        Returns: string
+      }
+      upsert_my_profile: {
+        Args: {
+          p_first_name?: string | null
+          p_last_name?: string | null
+          p_username?: string | null
+          p_avatar_url?: string | null
+          p_avatar_color?: string | null
+          p_avatar_icon?: string | null
+          p_clear_avatar_url?: boolean
+          p_clear_avatar_icon?: boolean
+        }
+        Returns: undefined
+      }
+      /** 'deleted' (effacement réel) | 'anonymized' (argent engagé) — cf. 031. */
+      delete_my_account: { Args: Record<string, never>; Returns: string }
+      get_my_profile_stats: {
+        Args: Record<string, never>
+        Returns: {
+          sessions_done: number
+          streak_weeks: number
+          target_rate: number
+          penalties_paid: number
+          groups_count: number
+        }[]
+      }
+      get_my_profile_groups: {
+        Args: Record<string, never>
+        Returns: {
+          group_id: string
+          name: string
+          role: Database["public"]["Enums"]["member_role"]
+          weekly_target: number
+          penalty_amount: number
+          pot_total: number
+          members_count: number
+        }[]
+      }
+      /** Outil de test — à supprimer avant la prod (voir 027_dev_reset_excuse_joker.sql). */
+      dev_reset_excuse_joker: { Args: { p_group_id: string }; Returns: string }
       is_group_admin: { Args: { p_group_id: string }; Returns: boolean }
       is_group_member: { Args: { p_group_id: string }; Returns: boolean }
       join_group_by_code: {
@@ -941,6 +991,8 @@ export type Database = {
           first_name: string | null
           last_name: string | null
           avatar_url: string | null
+          avatar_color: string | null
+          avatar_icon: string | null
         }[]
       }
       invite_user_to_group: {
@@ -1006,6 +1058,8 @@ export type Database = {
         | "weekly_recap"
         | "vote_pending_session"
         | "vote_pending_excuse"
+        | "excuse_accepted"
+        | "excuse_rejected"
         | "blame_received"
         | "penalty_applied"
         | "member_joined"
@@ -1015,6 +1069,7 @@ export type Database = {
         | "session_rejected"
         | "group_invitation"
         | "penalty_change_request"
+        | "admin_transferred"
       penalty_type: "missed_session" | "blame_threshold"
       proof_type: "photo" | "strava" | "external_link"
       session_status: "pending_vote" | "validated" | "rejected" | "expired"
@@ -1160,6 +1215,8 @@ export const Constants = {
         "weekly_recap",
         "vote_pending_session",
         "vote_pending_excuse",
+        "excuse_accepted",
+        "excuse_rejected",
         "blame_received",
         "penalty_applied",
         "member_joined",
@@ -1169,6 +1226,7 @@ export const Constants = {
         "session_rejected",
         "group_invitation",
         "penalty_change_request",
+        "admin_transferred",
       ],
       penalty_type: ["missed_session", "blame_threshold"],
       proof_type: ["photo", "strava", "external_link"],

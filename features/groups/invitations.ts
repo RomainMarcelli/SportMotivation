@@ -10,6 +10,8 @@ export type UserSearchResult = {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
+  avatar_color: string | null;
+  avatar_icon: string | null;
 };
 
 type DeadlineType = Database["public"]["Enums"]["deadline_type"];
@@ -41,6 +43,8 @@ export type GroupInvitation = {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
+  avatar_color: string | null;
+  avatar_icon: string | null;
 };
 
 export function mapInviteError(message: string): string {

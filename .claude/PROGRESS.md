@@ -18,9 +18,10 @@ Rapports détaillés par étape dans `.claude/reports/`.
 | 10 | Gestion des invitations (statuts, renvoyer/annuler) | ⬜ | — |
 | 11 | Notifications | ⬜ | — |
 | 12 | Fin de défi / Clôture | ⬜ | — |
-| 13 | Profil & Paramètres (thème verrouillé sur Sombre) | ⬜ | — |
+| 13 | Profil (avatars, stats, mes groupes) ✅ · **Paramètres** encore pré-DA | 🔄 | [etape-08e-avatars-profil-suppression.md](reports/etape-08e-avatars-profil-suppression.md) |
 
 ## Notes transverses
 - Convention rapports : un fichier par étape `.claude/reports/etape-NN-nom.md`.
 - Vérifs avant clôture d'étape : `npx tsc --noEmit` ✅ + `jest` ✅.
 - Commits faits par Romain (jamais en automatique).
+- **SQL à jour attendu côté Supabase : jusqu'à `031_delete_account.sql`.**

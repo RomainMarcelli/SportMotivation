@@ -16,11 +16,15 @@ const ITEMS: Item[] = [
   { key: "profile", label: "Profil", icon: User, href: "/profile" },
 ];
 
-/** Onglet actif déduit du chemin courant (groupe → onglet Groupes, réglages → Profil). */
-function activeFromPath(pathname: string): TabKey | null {
+/**
+ * Onglet actif déduit du chemin courant (groupe → onglet Groupes, réglages → Profil).
+ * Exporté pour les tests.
+ */
+export function activeFromPath(pathname: string): TabKey | null {
   if (pathname === "/") return "index";
   if (pathname.startsWith("/group")) return "groups"; // /groups ET /group/[id]/...
   if (pathname.startsWith("/profile") || pathname.startsWith("/settings")) return "profile";
+  // /notifications : aucun onglet du footer ne correspond.
   return null;
 }
 
@@ -29,9 +33,10 @@ function activeFromPath(pathname: string): TabKey | null {
  * fois au-dessus de toute la pile (cf. `app/_layout.tsx`). Remplace la tab bar native des
  * `(tabs)` (masquée) pour avoir un footer **identique partout**, onglets comme écrans poussés.
  *
- * Navigation : `router.navigate(href)` rejoint l'onglet cible et dépile au passage les écrans
- * poussés (groupe, déclarer…) — fiable depuis n'importe où. (On ne fait PAS de `dismissAll`
- * d'abord : ça laissait l'onglet Groupes repasser au premier plan et écraser la navigation.)
+ * Navigation : on **dépile d'abord** la pile racine (`dismissAll`) puis on rejoint l'onglet.
+ * `navigate` seul suffisait depuis un écran poussé simple, mais PAS quand plusieurs écrans sont
+ * empilés (ex. Accueil → Notifications → Groupe) : la cible « / » était alors ignorée et seul
+ * l'onglet Profil répondait. Dépiler d'abord rend la navigation fiable depuis n'importe où.
  */
 export function BottomNav() {
   const insets = useSafeAreaInsets();
@@ -40,6 +45,13 @@ export function BottomNav() {
   const bottomPad = Math.max(insets.bottom, Platform.OS === "web" ? 22 : 14);
 
   const go = (href: Href) => {
+    // Depuis un écran poussé (Notifications → Groupe → …), `navigate` seul ne ramène pas
+    // toujours à la pile d'onglets : on vide la pile racine avant de rejoindre l'onglet.
+    try {
+      if (router.canDismiss()) router.dismissAll();
+    } catch {
+      // canDismiss/dismissAll indisponible selon le contexte de navigation : on ignore.
+    }
     router.navigate(href);
   };
 

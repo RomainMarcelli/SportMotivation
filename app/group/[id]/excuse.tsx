@@ -1,8 +1,9 @@
-import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowRight,
   Check,
+  ChevronLeft,
+  FileText,
   HeartPulse,
   Info,
   Minus,
@@ -13,6 +14,7 @@ import {
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -22,19 +24,21 @@ import {
 } from "react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { JustificationViewer } from "@/components/excuses/JustificationViewer";
 import { AppBackground } from "@/components/ui/AppBackground";
 import { Avatar } from "@/components/ui/Avatar";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { colors } from "@/constants/colors";
+import { formatFileSize, type Justification } from "@/features/excuses/attachment";
+import { pickJustification } from "@/features/excuses/pick-justification";
 import { EXCUSE_MOTIFS, EXCUSE_TYPES, type ExcuseType } from "@/features/excuses/excuse-logic";
 import { useMyWeekExcuse } from "@/features/excuses/queries";
 import { mapExcuseError, useSubmitExcuse } from "@/features/excuses/mutations";
 import { useGroup, useGroupMembers } from "@/features/groups/queries";
 import { useCurrentUser } from "@/lib/auth-store";
-
-type Attachment = { uri: string; base64: string; mime: string };
+import { startOfWeekMonday } from "@/lib/date";
 
 const TYPE_ICONS: Record<ExcuseType, typeof Umbrella> = {
   standard: Umbrella,
@@ -62,7 +66,8 @@ export default function ExcuseScreen() {
 
   const [type, setType] = useState<ExcuseType>("standard");
   const [reason, setReason] = useState("");
-  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [justification, setJustification] = useState<Justification | null>(null);
+  const [viewer, setViewer] = useState(false);
 
   const motifs = EXCUSE_MOTIFS[type];
   const otherMembers = useMemo(
@@ -73,20 +78,10 @@ export default function ExcuseScreen() {
   const goBack = () =>
     router.canGoBack() ? router.back() : router.navigate("/groups" as never);
 
-  const pickJustification = async () => {
+  const pick = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.6,
-        base64: true,
-      });
-      if (result.canceled || !result.assets[0]?.base64) return;
-      const asset = result.assets[0];
-      setAttachment({
-        uri: asset.uri,
-        base64: asset.base64!,
-        mime: asset.mimeType ?? "image/jpeg",
-      });
+      const picked = await pickJustification();
+      if (picked) setJustification(picked);
     } catch {
       toast("Impossible d'ajouter le justificatif.", "error");
     }
@@ -98,8 +93,7 @@ export default function ExcuseScreen() {
         groupId: id!,
         excuseType: type,
         reason: reason.trim(),
-        justificationBase64: attachment?.base64 ?? null,
-        justificationMime: attachment?.mime ?? null,
+        justification,
       },
       {
         onSuccess: () => {
@@ -111,11 +105,36 @@ export default function ExcuseScreen() {
     );
   };
 
+  /* En-tête maquette : toujours visible (hors ScrollView), bouton retour sans bordure,
+     contexte « groupe · semaine en cours » juste sous le titre. */
+  const header = (
+    <View className="flex-row items-center gap-3 px-4 pb-2.5 pt-1">
+      <Pressable
+        onPress={goBack}
+        hitSlop={8}
+        accessibilityLabel="Retour"
+        className="h-10 w-10 items-center justify-center rounded-[13px] active:opacity-80"
+        style={{ backgroundColor: colors.surface }}
+      >
+        <ChevronLeft size={20} color={colors.cream} />
+      </Pressable>
+      <View className="flex-1">
+        <Text className="font-display text-[18px] tracking-tight text-cream">
+          Déclarer une excuse
+        </Text>
+        <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+          {group?.name ? `${group.name} · ` : ""}semaine en cours
+        </Text>
+      </View>
+    </View>
+  );
+
   if (isLoading || !group || loadingExisting) {
     return (
       <View className="flex-1">
         <AppBackground />
-        <ScreenContainer transparent>
+        <ScreenContainer transparent padded={false} edges={["top"]}>
+          {header}
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator color={colors.coral} />
           </View>
@@ -126,14 +145,23 @@ export default function ExcuseScreen() {
 
   // Déjà une excuse cette semaine (anti-doublon côté UI).
   if (existing) {
+    // Règle : 1 excuse (non refusée) par semaine → prochaine demande = lundi prochain 00h00.
+    const nextMonday = startOfWeekMonday(new Date());
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    const nextLabel = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(
+      nextMonday
+    );
     return (
       <View className="flex-1">
         <AppBackground />
-        <ScreenContainer transparent>
+        <ScreenContainer transparent padded={false} edges={["top"]}>
+          {header}
           <View className="flex-1 items-center justify-center gap-4 px-8">
             <View
               className="h-[72px] w-[72px] items-center justify-center rounded-full"
-              style={{ backgroundColor: existing.status === "accepted" ? colors.mintSoft : colors.amberSoft }}
+              style={{
+                backgroundColor: existing.status === "accepted" ? colors.mintSoft : colors.amberSoft,
+              }}
             >
               {existing.status === "accepted" ? (
                 <Check size={34} color={colors.mint} strokeWidth={2.6} />
@@ -148,9 +176,19 @@ export default function ExcuseScreen() {
             </Text>
             <Text className="text-center font-body text-[13px] leading-[1.5] text-cream-dim">
               {existing.status === "accepted"
-                ? "Le groupe a validé ton excuse pour cette semaine."
-                : "Le groupe vote actuellement ton excuse. Reviens la semaine prochaine pour une nouvelle."}
+                ? "Le groupe a validé ton excuse : ta semaine est ajustée en conséquence."
+                : "Le groupe vote actuellement ta demande — tu recevras une notification dès que c'est tranché."}
             </Text>
+            <View
+              className="flex-row items-center gap-2 rounded-full border px-3.5 py-2"
+              style={{ backgroundColor: colors.surface, borderColor: colors.line2 }}
+            >
+              <Info size={13} color={colors.creamDim} />
+              <Text className="font-body text-[12px] text-cream-dim">
+                Une excuse par semaine · prochaine demande possible{" "}
+                <Text className="font-body-semibold text-cream">lundi {nextLabel}</Text>
+              </Text>
+            </View>
             <Pressable
               onPress={goBack}
               className="mt-1 rounded-full border border-line-2 bg-surface px-6 py-3 active:opacity-80"
@@ -164,25 +202,20 @@ export default function ExcuseScreen() {
   }
 
   const canSubmit = reason.trim().length > 0;
+  const voterCount = otherMembers.length;
 
   return (
     <View className="flex-1">
       <AppBackground />
-      <ScreenContainer transparent padded={false} edges={[]}>
+      <ScreenContainer transparent padded={false} edges={["top"]}>
+        {header}
+
         <ScrollView
-          contentContainerClassName="gap-[18px] px-[18px] pt-2"
+          contentContainerClassName="gap-[18px] px-[18px] pt-1"
           contentContainerStyle={{ paddingBottom: 124 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Contexte groupe */}
-          <View className="flex-row items-center gap-2">
-            <View style={{ width: 8, height: 8, borderRadius: 3, backgroundColor: colors.amber }} />
-            <Text className="font-body text-[12px] text-cream-dim">
-              {group.name} · semaine en cours
-            </Text>
-          </View>
-
           {/* Type d'excuse */}
           <Reveal delay={40}>
             <FieldLabel>Type d'excuse</FieldLabel>
@@ -310,33 +343,15 @@ export default function ExcuseScreen() {
               </Text>
             </View>
 
-            {attachment ? (
-              <View
-                className="mt-3 flex-row items-center gap-3 rounded-[14px] border bg-surface p-3"
-                style={{ borderColor: colors.line2 }}
-              >
-                <View
-                  className="h-[42px] w-[42px] items-center justify-center rounded-[10px]"
-                  style={{ backgroundColor: colors.mintSoft }}
-                >
-                  <Check size={20} color={colors.mint} strokeWidth={2.4} />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-body-semibold text-[13px] text-cream">Justificatif ajouté</Text>
-                  <Text className="mt-0.5 font-body text-[11px] text-cream-dim">Prêt à envoyer</Text>
-                </View>
-                <Pressable
-                  onPress={() => setAttachment(null)}
-                  hitSlop={6}
-                  className="h-8 w-8 items-center justify-center rounded-[9px] active:opacity-80"
-                  style={{ backgroundColor: colors.surface2 }}
-                >
-                  <X size={15} color={colors.creamDim} strokeWidth={2.4} />
-                </Pressable>
-              </View>
+            {justification ? (
+              <JustificationPreview
+                justification={justification}
+                onOpen={() => setViewer(true)}
+                onRemove={() => setJustification(null)}
+              />
             ) : (
               <Pressable
-                onPress={pickJustification}
+                onPress={pick}
                 className="mt-3 items-center gap-2.5 rounded-2xl border-[1.5px] border-dashed px-4 py-6 active:opacity-90"
                 style={{ borderColor: colors.line2, backgroundColor: "rgba(255,238,221,0.02)" }}
               >
@@ -347,11 +362,9 @@ export default function ExcuseScreen() {
                   <Paperclip size={22} color={colors.cream} strokeWidth={2} />
                 </View>
                 <Text className="font-display text-[13.5px] text-cream">
-                  Ajouter une photo
+                  Ajouter une photo ou un document
                 </Text>
-                <Text className="font-body text-[11px] text-cream-dim">
-                  {Platform.OS === "web" ? "JPG ou PNG" : "Depuis ta galerie"}
-                </Text>
+                <Text className="font-body text-[11px] text-cream-dim">JPG, PNG ou PDF</Text>
               </Pressable>
             )}
           </Reveal>
@@ -370,30 +383,39 @@ export default function ExcuseScreen() {
                   la majorité simple. Tu ne votes pas sur ta propre excuse.
                 </Text>
               </View>
-              {otherMembers.length > 0 ? (
-                <View
-                  className="mt-3 flex-row items-center gap-3 border-t pt-3"
-                  style={{ borderTopColor: colors.line }}
-                >
-                  <View className="flex-row">
-                    {otherMembers.slice(0, 5).map((m, i) => (
-                      <View key={m.id} style={{ marginLeft: i === 0 ? 0 : -9 }}>
-                        <Avatar
-                          uri={m.user.avatar_url}
-                          name={`${m.user.first_name ?? ""} ${m.user.last_name ?? ""}`.trim()}
-                          size={30}
-                        />
-                      </View>
-                    ))}
-                  </View>
-                  <Text className="font-body text-[12px] text-cream-dim">
-                    <Text className="font-body-semibold text-cream">
-                      {otherMembers.length} membre{otherMembers.length > 1 ? "s" : ""}
-                    </Text>{" "}
-                    voteront
+
+              <View
+                className="mt-3 flex-row items-center gap-3 border-t pt-3"
+                style={{ borderTopColor: colors.line }}
+              >
+                {voterCount > 0 ? (
+                  <>
+                    <View className="flex-row">
+                      {otherMembers.slice(0, 5).map((m, i) => (
+                        <View key={m.id} style={{ marginLeft: i === 0 ? 0 : -9 }}>
+                          <Avatar
+                            uri={m.user.avatar_url}
+                            color={m.user.avatar_color}
+                            icon={m.user.avatar_icon}
+                            name={`${m.user.first_name ?? ""} ${m.user.last_name ?? ""}`.trim()}
+                            size={30}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                    <Text className="flex-1 font-body text-[12px] text-cream-dim">
+                      <Text className="font-body-semibold text-cream">
+                        {voterCount} {voterCount === 1 ? "membre" : "membres"}
+                      </Text>{" "}
+                      {voterCount === 1 ? "votera" : "voteront"}
+                    </Text>
+                  </>
+                ) : (
+                  <Text className="flex-1 font-body text-[12px] text-cream-dim">
+                    Tu es seul dans ce groupe : personne ne peut encore voter ton excuse.
                   </Text>
-                </View>
-              ) : null}
+                )}
+              </View>
             </View>
           </Reveal>
         </ScrollView>
@@ -426,6 +448,78 @@ export default function ExcuseScreen() {
           </Text>
         </View>
       </ScreenContainer>
+
+      {justification ? (
+        <JustificationViewer
+          visible={viewer}
+          onClose={() => setViewer(false)}
+          uri={justification.uri}
+          kind={justification.kind}
+          name={justification.name}
+          onReplace={() => {
+            setViewer(false);
+            pick();
+          }}
+          onRemove={() => {
+            setViewer(false);
+            setJustification(null);
+          }}
+        />
+      ) : null}
     </View>
+  );
+}
+
+/* ---------- Aperçu du justificatif joint ---------- */
+
+function JustificationPreview({
+  justification,
+  onOpen,
+  onRemove,
+}: {
+  justification: Justification;
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
+  const size = formatFileSize(justification.size);
+  const meta = size ? `${size} · appuie pour agrandir` : "Appuie pour agrandir";
+
+  return (
+    <Pressable
+      onPress={onOpen}
+      accessibilityLabel="Voir le justificatif en plein écran"
+      className="mt-3 overflow-hidden rounded-[14px] border active:opacity-90"
+      style={{ borderColor: colors.line2, backgroundColor: colors.surface }}
+    >
+      {justification.kind === "image" ? (
+        <Image source={{ uri: justification.uri }} style={{ height: 150, width: "100%" }} />
+      ) : (
+        <View
+          className="h-[150px] items-center justify-center gap-2"
+          style={{ backgroundColor: colors.surface2 }}
+        >
+          <FileText size={40} color={colors.coral} strokeWidth={1.8} />
+          <Text className="font-body-semibold text-[12px] text-cream-dim">Document PDF</Text>
+        </View>
+      )}
+
+      <View className="flex-row items-center gap-3 px-3.5 py-3">
+        <View className="flex-1">
+          <Text className="font-body-semibold text-[13px] text-cream" numberOfLines={1}>
+            {justification.name}
+          </Text>
+          <Text className="mt-0.5 font-body text-[11px] text-cream-dim">{meta}</Text>
+        </View>
+        <Pressable
+          onPress={onRemove}
+          hitSlop={8}
+          accessibilityLabel="Retirer le justificatif"
+          className="h-8 w-8 items-center justify-center rounded-[9px] active:opacity-80"
+          style={{ backgroundColor: colors.surface2 }}
+        >
+          <X size={15} color={colors.creamDim} strokeWidth={2.4} />
+        </Pressable>
+      </View>
+    </Pressable>
   );
 }

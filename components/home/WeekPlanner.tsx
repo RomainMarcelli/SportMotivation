@@ -24,8 +24,9 @@ type Props = {
  * en cours). Jour prévu = pastille dégradée + check ; jour libre = pastille pointillée amber ;
  * aujourd'hui = anneau coral. Compteur live (jours prévus / objectif).
  *
- * Le chip « joker » est un PLACEHOLDER local non persistant : aucune table `jokers` n'existe
- * encore — le vrai système de jokers/excuses arrive à l'Étape 8 (`excuses`). TODO Étape 8.
+ * Chip « joker » branché sur la table `jokers` (1 par membre et par mois, consommation
+ * irréversible via la RPC `use_joker`) + entrée « M'excuser cette semaine » vers l'écran
+ * d'excuse. L'EFFET du joker/de l'excuse sur les pénalités = Étape 9.
  */
 export function WeekPlanner({ groupId, weeklyTarget }: Props) {
   const router = useRouter();

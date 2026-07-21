@@ -7,7 +7,10 @@ import type { Database } from "@/types/database.types";
 
 type ExcuseRow = Database["public"]["Tables"]["excuses"]["Row"];
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
-type ExcuseAuthor = Pick<UserRow, "id" | "first_name" | "last_name" | "username" | "avatar_url">;
+type ExcuseAuthor = Pick<
+  UserRow,
+  "id" | "first_name" | "last_name" | "username" | "avatar_url" | "avatar_color" | "avatar_icon"
+>;
 
 export type ExcuseWithAuthor = ExcuseRow & { author: ExcuseAuthor };
 
@@ -56,7 +59,9 @@ export function useVotableExcuses(groupId: string | undefined, meId: string | un
     queryFn: async (): Promise<VotableExcuse[]> => {
       const { data: rows, error } = await supabase
         .from("excuses")
-        .select("*, author:users(id, first_name, last_name, username, avatar_url)")
+        .select(
+          "*, author:users(id, first_name, last_name, username, avatar_url, avatar_color, avatar_icon)"
+        )
         .eq("group_id", groupId!)
         .eq("status", "pending_vote")
         .neq("user_id", meId!)

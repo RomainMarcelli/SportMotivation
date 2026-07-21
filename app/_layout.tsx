@@ -109,6 +109,8 @@ function RootContent() {
                 options={{ headerShown: true, title: "Notifications" }}
               />
               <Stack.Screen name="settings" options={{ headerShown: true, title: "Paramètres" }} />
+              {/* Écran plein (entête maison) : le header natif ferait doublon. */}
+              <Stack.Screen name="profile-edit" />
             </Stack.Protected>
           </Stack>
         </View>

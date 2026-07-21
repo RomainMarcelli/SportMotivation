@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 
 import { AppHeader } from "@/components/home/AppHeader";
+import { DevResetTools } from "@/components/home/DevResetTools";
 import { EmptyGroups } from "@/components/home/EmptyGroups";
 import { WeekPlanner } from "@/components/home/WeekPlanner";
 import { AppBackground } from "@/components/ui/AppBackground";
@@ -48,6 +49,7 @@ export default function HomeScreen() {
           {activeGroup ? (
             <Reveal delay={90} className="mt-6">
               <WeekPlanner groupId={activeGroup.group.id} weeklyTarget={activeGroup.weeklyTarget} />
+              <DevResetTools groupId={activeGroup.group.id} />
             </Reveal>
           ) : (
             // Aucun défi : bloc complet (flamme + titre + sous-titre + CTA) centré verticalement.

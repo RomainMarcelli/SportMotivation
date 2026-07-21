@@ -1,32 +1,38 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { AlertCircle, AtSign, Camera, Lock, Mail, Plus, ShieldCheck, User } from "lucide-react-native";
+import { AlertCircle, AtSign, Lock, Mail, Palette, ShieldCheck, User } from "lucide-react-native";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { AvatarPicker, type AvatarSelection } from "@/components/profile/AvatarPicker";
 import { Avatar } from "@/components/ui/Avatar";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TextField } from "@/components/ui/TextField";
+import { AVATAR_COLORS } from "@/constants/avatars";
 import { colors } from "@/constants/colors";
 import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignUp } from "@/features/auth/mutations";
 import { useUpdateProfile } from "@/features/auth/profile-mutations";
 import { signUpSchema, type SignUpInput } from "@/features/auth/schemas";
 
-type PickedImage = { uri: string; base64: string; mimeType: string };
-
 export default function SignUpScreen() {
   const router = useRouter();
   const signUp = useSignUp();
   const updateProfile = useUpdateProfile();
-  const [picked, setPicked] = useState<PickedImage | null>(null);
+  const [avatar, setAvatar] = useState<AvatarSelection>({
+    color: AVATAR_COLORS[0],
+    icon: null,
+    photo: null,
+    generatedUrl: null,
+    clearImage: true,
+  });
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [pwdFocused, setPwdFocused] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -44,25 +50,11 @@ export default function SignUpScreen() {
   });
 
   const passwordValue = watch("password");
+  const firstNameValue = watch("firstName");
+  const usernameValue = watch("username");
   const submitting = signUp.isPending || updateProfile.isPending;
 
-  const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setSubmitError("Active l'accès aux photos dans les réglages pour choisir un avatar.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-      base64: true,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setPicked({ uri: asset.uri, base64: asset.base64!, mimeType: asset.mimeType ?? "image/jpeg" });
-  };
+  const avatarPreviewUri = avatar.photo?.uri ?? avatar.generatedUrl;
 
   const handleError = (e: unknown) => {
     const err = e as { code?: string; message?: string };
@@ -74,6 +66,10 @@ export default function SignUpScreen() {
       /username|pseudo|duplicate|unique|database error saving new user/i.test(msg)
     ) {
       setError("username", { message: "Ce pseudo est déjà pris." });
+    } else if (msg) {
+      // On affiche le VRAI message : c'est ici que se cachait « SQL non exécuté »,
+      // masqué jusqu'ici derrière un « une erreur est survenue » inutile.
+      setSubmitError(msg);
     } else {
       setSubmitError("Une erreur est survenue. Réessaie.");
     }
@@ -85,13 +81,16 @@ export default function SignUpScreen() {
       const result = await signUp.mutateAsync(data);
 
       if (result.session) {
-        // Confirmation d'e-mail OFF : session active → on écrit le profil + la photo.
-        // Échec ici = compte créé + connecté → la racine route vers l'accueil ; non bloquant.
+        // Confirmation d'e-mail OFF : session active → on écrit le profil + l'avatar.
         await updateProfile.mutateAsync({
           firstName: data.firstName,
           username: data.username,
-          avatarBase64: picked?.base64 ?? null,
-          avatarMimeType: picked?.mimeType ?? null,
+          avatarBase64: avatar.photo?.base64 ?? null,
+          avatarMimeType: avatar.photo?.mime ?? null,
+          generatedAvatarUrl: avatar.generatedUrl,
+          avatarColor: avatar.color,
+          avatarIcon: avatar.icon,
+          clearAvatarIcon: avatar.icon === null,
         });
         // Pas de navigation explicite : le root layout bascule sur (tabs) dès que la session est active.
       } else {
@@ -128,20 +127,17 @@ export default function SignUpScreen() {
             </Text>
           </Reveal>
 
-          {/* Photo de profil (optionnelle) */}
+          {/* Avatar : couleur, icône, avatar rigolo ou photo */}
           <Reveal delay={60} className="mb-6 items-center">
-            <Pressable onPress={pickImage} className="items-center" hitSlop={6}>
+            <Pressable onPress={() => setPickerOpen(true)} className="items-center" hitSlop={6}>
               <View style={{ width: 88, height: 88 }}>
-                {picked ? (
-                  <Avatar uri={picked.uri} size={88} />
-                ) : (
-                  <View
-                    style={{ width: 88, height: 88, borderRadius: 44 }}
-                    className="items-center justify-center border-2 border-dashed border-line-2 bg-surface"
-                  >
-                    <Camera size={26} color={colors.creamDim} />
-                  </View>
-                )}
+                <Avatar
+                  uri={avatarPreviewUri}
+                  color={avatar.color}
+                  icon={avatarPreviewUri ? null : avatar.icon}
+                  name={firstNameValue}
+                  size={88}
+                />
                 <View
                   style={{
                     position: "absolute",
@@ -157,15 +153,11 @@ export default function SignUpScreen() {
                     borderColor: colors.ink,
                   }}
                 >
-                  {picked ? (
-                    <Camera size={13} color={colors.onCoral} strokeWidth={2.6} />
-                  ) : (
-                    <Plus size={15} color={colors.onCoral} strokeWidth={2.8} />
-                  )}
+                  <Palette size={13} color={colors.onCoral} strokeWidth={2.6} />
                 </View>
               </View>
               <Text className="mt-2 font-body-medium text-[12px] text-cream-dim">
-                {picked ? "Changer la photo" : "Photo de profil · optionnel"}
+                Personnaliser mon avatar
               </Text>
             </Pressable>
           </Reveal>
@@ -341,6 +333,20 @@ export default function SignUpScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <AvatarPicker
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={setAvatar}
+        value={{
+          color: avatar.color,
+          icon: avatar.icon,
+          url: avatar.generatedUrl,
+          photo: avatar.photo,
+          name: firstNameValue,
+          seed: usernameValue || firstNameValue,
+        }}
+      />
     </ScreenContainer>
   );
 }

@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowRight, Check, Lock } from "lucide-react-native";
+import { ArrowRight, Check, Lock, Users } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
@@ -15,6 +15,7 @@ import { Stepper } from "@/components/ui/Stepper";
 import { colors } from "@/constants/colors";
 import { GroupPreviewCard } from "@/features/groups/GroupPreviewCard";
 import { useGroupPreview, useJoinGroup } from "@/features/groups/join";
+import { useMyGroups } from "@/features/groups/queries";
 import { RulesRecap } from "@/features/groups/RulesRecap";
 import { buildRulesSnapshotFromPreview } from "@/features/groups/rules-snapshot";
 
@@ -30,8 +31,13 @@ export default function JoinConfirmScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const router = useRouter();
   const { data: preview, isLoading, error } = useGroupPreview(code);
+  const { data: myGroups } = useMyGroups();
   const join = useJoinGroup();
   const { toast } = useFeedback();
+
+  // Déjà membre ? On bloque AVANT le formulaire (le serveur refuse aussi, ceinture + bretelles).
+  const alreadyMember =
+    !!preview && (myGroups ?? []).some((g) => g.group.id === preview.id);
 
   const [weeklyTarget, setWeeklyTarget] = useState(3);
   const [penalty, setPenalty] = useState<number | null>(null);
@@ -62,6 +68,44 @@ export default function JoinConfirmScreen() {
             <View className="w-full max-w-[280px]">
               <Button variant="secondary" onPress={() => router.back()}>
                 Réessayer
+              </Button>
+            </View>
+          </View>
+        </ScreenContainer>
+      </View>
+    );
+  }
+
+  if (alreadyMember) {
+    return (
+      <View className="flex-1">
+        <AppBackground />
+        <ScreenContainer transparent>
+          <View className="flex-1 items-center justify-center gap-4 px-6">
+            <View
+              className="h-[72px] w-[72px] items-center justify-center rounded-full"
+              style={{ backgroundColor: colors.amberSoft }}
+            >
+              <Users size={34} color={colors.amber} strokeWidth={2} />
+            </View>
+            <Text className="text-center font-display text-[20px] tracking-tight text-cream">
+              Tu es déjà membre
+            </Text>
+            <Text className="text-center font-body text-[13px] leading-[1.5] text-cream-dim">
+              Tu fais déjà partie de « {preview.name} » — impossible de le rejoindre une deuxième
+              fois.
+            </Text>
+            <View className="mt-1 w-full max-w-[300px] gap-2.5">
+              <GradientButton
+                iconRight={ArrowRight}
+                onPress={() =>
+                  router.replace({ pathname: "/group/[id]", params: { id: preview.id } } as never)
+                }
+              >
+                Ouvrir le groupe
+              </GradientButton>
+              <Button variant="secondary" onPress={() => router.back()}>
+                Retour
               </Button>
             </View>
           </View>

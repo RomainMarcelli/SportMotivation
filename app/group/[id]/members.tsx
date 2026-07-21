@@ -1,9 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { MoreVertical } from "lucide-react-native";
 
 import { roleLabel, type MemberRole } from "@/constants/roles";
 import { RoleBadge } from "@/components/groups/RoleBadge";
+import { Avatar } from "@/components/ui/Avatar";
 import { useRemoveMember, useUpdateMemberRole } from "@/features/groups/member-mutations";
 import { useGroupMembers, type GroupMemberWithUser } from "@/features/groups/queries";
 import { useCurrentUser } from "@/lib/auth-store";
@@ -85,15 +86,13 @@ export default function MembersScreen() {
             disabled={!isAdmin || isSelf}
             className="flex-row items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
           >
-            {member.user.avatar_url ? (
-              <Image source={{ uri: member.user.avatar_url }} className="h-11 w-11 rounded-full" />
-            ) : (
-              <View className="h-11 w-11 items-center justify-center rounded-full bg-primary-500">
-                <Text className="text-sm font-bold text-white">
-                  {(member.user.first_name?.[0] ?? "") + (member.user.last_name?.[0] ?? "")}
-                </Text>
-              </View>
-            )}
+            <Avatar
+              uri={member.user.avatar_url}
+              color={member.user.avatar_color}
+              icon={member.user.avatar_icon}
+              name={`${member.user.first_name ?? ""} ${member.user.last_name ?? ""}`.trim()}
+              size={44}
+            />
             <View className="flex-1">
               <View className="flex-row items-center gap-1.5">
                 <Text className="text-base font-semibold text-neutral-900 dark:text-white">

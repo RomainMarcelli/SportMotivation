@@ -36,11 +36,13 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { JustificationViewer } from "@/components/excuses/JustificationViewer";
 import { AppBackground } from "@/components/ui/AppBackground";
 import { Avatar } from "@/components/ui/Avatar";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { colors, gradients } from "@/constants/colors";
+import { kindFromMime } from "@/features/excuses/attachment";
 import { EXCUSE_TYPES } from "@/features/excuses/excuse-logic";
 import {
   useJustificationSignedUrl,
@@ -527,6 +529,8 @@ function VoteCard({
         <View className="flex-row items-center gap-3">
           <Avatar
             uri={session.author.avatar_url}
+            color={session.author.avatar_color}
+            icon={session.author.avatar_icon}
             name={`${session.author.first_name ?? ""} ${session.author.last_name ?? ""}`.trim()}
             size={42}
           />
@@ -569,6 +573,8 @@ function ExcuseVoteCard({ item, threshold }: { item: VotableExcuse; threshold: n
   const [zoom, setZoom] = useState(false);
   const typeInfo = EXCUSE_TYPES.find((t) => t.value === excuse.excuse_type) ?? EXCUSE_TYPES[0];
   const { data: justUrl } = useJustificationSignedUrl(excuse.justification_url);
+  // Le type est déduit de l'extension du chemin stocké (`…/xxx.pdf` vs image).
+  const justKind = kindFromMime(null, excuse.justification_url ?? "");
   const name = excuse.author.first_name || excuse.author.username || "Membre";
 
   return (
@@ -576,11 +582,22 @@ function ExcuseVoteCard({ item, threshold }: { item: VotableExcuse; threshold: n
       className="overflow-hidden rounded-[24px] border bg-surface"
       style={{ borderColor: colors.line2 }}
     >
-      {/* Bandeau : justificatif si présent, sinon dégradé + icône */}
+      {/* Bandeau : justificatif si présent (image ou PDF), sinon dégradé + icône */}
       <View style={{ height: justUrl ? 196 : 120 }}>
-        {justUrl ? (
+        {justUrl && justKind === "image" ? (
           <Pressable onPress={() => setZoom(true)} className="h-full w-full active:opacity-90">
             <Image source={{ uri: justUrl }} style={{ width: "100%", height: "100%" }} />
+          </Pressable>
+        ) : justUrl ? (
+          <Pressable
+            onPress={() => setZoom(true)}
+            className="h-full w-full items-center justify-center gap-2 active:opacity-90"
+            style={{ backgroundColor: colors.surface2 }}
+          >
+            <FileText size={38} color={colors.coral} strokeWidth={1.8} />
+            <Text className="font-body-semibold text-[12px] text-cream">
+              Justificatif PDF · appuie pour l'ouvrir
+            </Text>
           </Pressable>
         ) : (
           <LinearGradient
@@ -605,6 +622,8 @@ function ExcuseVoteCard({ item, threshold }: { item: VotableExcuse; threshold: n
         <View className="flex-row items-center gap-3">
           <Avatar
             uri={excuse.author.avatar_url}
+            color={excuse.author.avatar_color}
+            icon={excuse.author.avatar_icon}
             name={`${excuse.author.first_name ?? ""} ${excuse.author.last_name ?? ""}`.trim()}
             size={42}
           />
@@ -634,7 +653,13 @@ function ExcuseVoteCard({ item, threshold }: { item: VotableExcuse; threshold: n
       </View>
 
       {justUrl ? (
-        <FullscreenImage uri={justUrl} visible={zoom} onClose={() => setZoom(false)} />
+        <JustificationViewer
+          visible={zoom}
+          onClose={() => setZoom(false)}
+          uri={justUrl}
+          kind={justKind}
+          name={`Justificatif de ${name}`}
+        />
       ) : null}
     </View>
   );

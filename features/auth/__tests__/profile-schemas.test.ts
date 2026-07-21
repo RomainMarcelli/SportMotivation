@@ -37,4 +37,28 @@ describe("completeProfileSchema", () => {
       expect(result.data.firstName).toBe("Romain");
     }
   });
+
+  // Le nom n'est JAMAIS demandé à l'inscription : l'exiger bloquait l'écran Profil
+  // sur une information que l'utilisateur n'a jamais saisie.
+  describe("nom (optionnel)", () => {
+    it("accepte un profil sans nom", () => {
+      const { lastName: _omit, ...sansNom } = valid;
+      expect(completeProfileSchema.safeParse(sansNom).success).toBe(true);
+    });
+
+    it("accepte un nom vide", () => {
+      expect(completeProfileSchema.safeParse({ ...valid, lastName: "" }).success).toBe(true);
+    });
+
+    it("rejette encore un nom trop long", () => {
+      const result = completeProfileSchema.safeParse({ ...valid, lastName: "a".repeat(51) });
+      expect(result.success).toBe(false);
+    });
+
+    it("conserve le nom quand il est fourni", () => {
+      const result = completeProfileSchema.safeParse({ ...valid, lastName: "  Martin  " });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.lastName).toBe("Martin");
+    });
+  });
 });

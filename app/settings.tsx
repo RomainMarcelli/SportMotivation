@@ -83,7 +83,7 @@ const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { confirm, toast } = useFeedback();
+  const { alert, confirm, toast } = useFeedback();
   const signOut = useSignOut();
   const deleteAccount = useDeleteAccount();
   const { pref, setPref } = useThemeStore();
@@ -94,12 +94,26 @@ export default function SettingsScreen() {
     const ok = await confirm({
       title: "Supprimer mon compte",
       message:
-        "Cette action est irréversible. Tu ne pourras plus te connecter et ton historique dans les groupes sera anonymisé.",
+        "Cette action est irréversible. Tes séances, tes excuses et tes groupes seront effacés, " +
+        "et tu ne pourras plus te connecter avec cette adresse.",
       confirmLabel: "Supprimer",
       destructive: true,
     });
     if (!ok) return;
-    deleteAccount.mutate(undefined, { onError: (e) => toast(e.message, "error") });
+    deleteAccount.mutate(undefined, {
+      onSuccess: (mode) =>
+        alert({
+          title: "Compte supprimé",
+          tone: "success",
+          message:
+            mode === "deleted"
+              ? "Ton compte et toutes tes données ont été supprimés. À bientôt !"
+              : "Ton compte a été fermé. Comme de l'argent est engagé dans une cagnotte, " +
+                "ton historique reste anonymisé pour ne pas fausser les comptes du groupe.",
+          confirmLabel: "Fermer",
+        }),
+      onError: (e) => toast(e.message, "error"),
+    });
   };
 
   const onSignOut = async () => {

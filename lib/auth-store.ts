@@ -34,6 +34,12 @@ supabase.auth.onAuthStateChange((_event, session) => {
     session,
     user: session?.user ?? null,
   });
+  // DEV : mémorise la session pour la bascule rapide entre comptes (no-op en prod).
+  if (session) {
+    import("@/features/auth/dev-accounts")
+      .then((m) => m.rememberDevAccount(session))
+      .catch(() => {});
+  }
 });
 
 export const useIsAuthenticated = () => useAuthStore((s) => !!s.session);

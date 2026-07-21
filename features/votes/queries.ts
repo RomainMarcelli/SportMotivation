@@ -26,7 +26,7 @@ export function useVotableSessions(groupId: string | undefined, meId: string | u
       const { data: rows, error } = await supabase
         .from("sessions")
         .select(
-          "*, author:users(id, first_name, last_name, username, avatar_url), proofs:session_proofs(*)"
+          "*, author:users(id, first_name, last_name, username, avatar_url, avatar_color, avatar_icon), proofs:session_proofs(*)"
         )
         .eq("group_id", groupId!)
         .eq("status", "pending_vote")

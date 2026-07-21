@@ -8,6 +8,8 @@ function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
     last_name: "Martin",
     username: "romz",
     avatar_url: null,
+    avatar_color: null,
+    avatar_icon: null,
     expo_push_token: null,
     created_at: "2026-05-19T00:00:00Z",
     updated_at: "2026-05-19T00:00:00Z",

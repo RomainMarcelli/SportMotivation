@@ -1,8 +1,9 @@
 import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, FlatList, Image, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { Clock, MailX, UserCheck, UserX } from "lucide-react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { Avatar } from "@/components/ui/Avatar";
 import {
   useCancelInvitation,
   useGroupInvitations,
@@ -87,15 +88,13 @@ export default function GroupInvitationsScreen() {
             item.status === "accepted" ? UserCheck : item.status === "refused" ? UserX : Clock;
           return (
             <View className="flex-row items-center gap-3 rounded-2xl border border-neutral-200 p-3 dark:border-neutral-700">
-              {item.avatar_url ? (
-                <Image source={{ uri: item.avatar_url }} className="h-11 w-11 rounded-full" />
-              ) : (
-                <View className="h-11 w-11 items-center justify-center rounded-full bg-primary-500">
-                  <Text className="text-xs font-bold text-white">
-                    {(item.first_name?.[0] ?? "") + (item.last_name?.[0] ?? "")}
-                  </Text>
-                </View>
-              )}
+              <Avatar
+                uri={item.avatar_url}
+                color={item.avatar_color}
+                icon={item.avatar_icon}
+                name={`${item.first_name ?? ""} ${item.last_name ?? ""}`.trim()}
+                size={44}
+              />
               <View className="flex-1">
                 <Text className="text-sm font-semibold text-neutral-900 dark:text-white">
                   {item.first_name} {item.last_name}

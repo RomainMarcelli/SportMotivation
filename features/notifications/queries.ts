@@ -12,6 +12,9 @@ export function useNotifications() {
   return useQuery({
     queryKey: ["notifications", user?.id],
     enabled: !!user?.id,
+    // Rafraîchit le badge sans action de l'utilisateur (le vrai temps réel = Étape 11).
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<AppNotification[]> => {
       const { data, error } = await supabase
         .from("notifications")

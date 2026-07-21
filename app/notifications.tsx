@@ -4,9 +4,21 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler";
 import Animated, { FadeOutRight, LinearTransition } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Bell, Mail, Trash2, Wallet } from "lucide-react-native";
+import {
+  Bell,
+  CheckCircle2,
+  HeartPulse,
+  Mail,
+  ShieldCheck,
+  Trash2,
+  Vote,
+  Wallet,
+  XCircle,
+} from "lucide-react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { AppBackground } from "@/components/ui/AppBackground";
+import { colors } from "@/constants/colors";
 import { useNotifications, type AppNotification } from "@/features/notifications/queries";
 import {
   useDeleteAllNotifications,
@@ -15,10 +27,28 @@ import {
   useMarkNotificationRead,
 } from "@/features/notifications/mutations";
 
-function notifIcon(type: string) {
-  if (type === "group_invitation") return <Mail size={20} color="#3b82f6" />;
-  if (type === "penalty_change_request") return <Wallet size={20} color="#f59e0b" />;
-  return <Bell size={20} color="#3b82f6" />;
+/** Icône + teinte par type de notification (pastille douce, façon DA). */
+function notifVisual(type: string): { icon: typeof Bell; color: string; soft: string } {
+  switch (type) {
+    case "group_invitation":
+      return { icon: Mail, color: colors.coral, soft: colors.coralSoft };
+    case "penalty_change_request":
+      return { icon: Wallet, color: colors.amber, soft: colors.amberSoft };
+    case "vote_pending_excuse":
+      return { icon: HeartPulse, color: colors.amber, soft: colors.amberSoft };
+    case "vote_pending_session":
+      return { icon: Vote, color: colors.coral, soft: colors.coralSoft };
+    case "excuse_accepted":
+    case "session_validated":
+      return { icon: CheckCircle2, color: colors.mint, soft: colors.mintSoft };
+    case "excuse_rejected":
+    case "session_rejected":
+      return { icon: XCircle, color: colors.red, soft: colors.redSoft };
+    case "admin_transferred":
+      return { icon: ShieldCheck, color: colors.amber, soft: colors.amberSoft };
+    default:
+      return { icon: Bell, color: colors.creamDim, soft: colors.surface2 };
+  }
 }
 
 function formatWhen(iso: string): string {
@@ -53,6 +83,15 @@ export default function NotificationsScreen() {
         pathname: "/group/penalty-response",
         params: { changeId: data.change_id },
       } as never);
+    } else if (
+      (n.type === "vote_pending_excuse" || n.type === "vote_pending_session") &&
+      data.group_id
+    ) {
+      // Une demande à voter → directement le deck de vote du groupe.
+      router.push({ pathname: "/group/[id]/vote", params: { id: data.group_id } } as never);
+    } else if (data.group_id) {
+      // Résultat (excuse/séance acceptée ou refusée…) → dashboard du groupe.
+      router.push({ pathname: "/group/[id]", params: { id: data.group_id } } as never);
     }
   };
 
@@ -72,8 +111,11 @@ export default function NotificationsScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-neutral-900">
-        <ActivityIndicator color="#3b82f6" />
+      <View className="flex-1">
+        <AppBackground />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={colors.coral} />
+        </View>
       </View>
     );
   }
@@ -82,48 +124,61 @@ export default function NotificationsScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView className="flex-1 bg-white dark:bg-neutral-900" edges={["bottom"]}>
-        {hasNotifs ? (
-          <Animated.FlatList
-            data={notifications}
-            keyExtractor={(item) => item.id}
-            itemLayoutAnimation={LinearTransition}
-            contentContainerClassName="p-4 gap-2"
-            ListHeaderComponent={
-              <View className="mb-2 flex-row items-center justify-between">
-                <Pressable onPress={() => markAllRead.mutate()} hitSlop={8}>
-                  <Text className="text-xs font-medium text-primary-500">
-                    Tout marquer comme lu
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={onDeleteAll}
-                  hitSlop={8}
-                  className="flex-row items-center gap-1"
-                  disabled={deleteAll.isPending}
-                >
-                  <Trash2 size={14} color="#ef4444" />
-                  <Text className="text-xs font-medium text-red-500">Tout effacer</Text>
-                </Pressable>
+      <View className="flex-1">
+        <AppBackground />
+        <SafeAreaView className="flex-1" edges={["bottom"]}>
+          {hasNotifs ? (
+            <Animated.FlatList
+              data={notifications}
+              keyExtractor={(item) => item.id}
+              itemLayoutAnimation={LinearTransition}
+              contentContainerClassName="gap-2.5 p-[18px]"
+              ListHeaderComponent={
+                <View className="mb-1.5 flex-row items-center justify-between">
+                  <Pressable onPress={() => markAllRead.mutate()} hitSlop={8}>
+                    <Text className="font-body-semibold text-[12px] text-coral">
+                      Tout marquer comme lu
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={onDeleteAll}
+                    hitSlop={8}
+                    className="flex-row items-center gap-1.5"
+                    disabled={deleteAll.isPending}
+                  >
+                    <Trash2 size={13} color={colors.red} />
+                    <Text className="font-body-semibold text-[12px]" style={{ color: colors.red }}>
+                      Tout effacer
+                    </Text>
+                  </Pressable>
+                </View>
+              }
+              renderItem={({ item }) => (
+                <NotificationRow
+                  item={item}
+                  onPress={() => onPressNotification(item)}
+                  onDelete={() => deleteOne.mutate(item.id)}
+                />
+              )}
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center gap-4 px-8">
+              <View
+                className="h-[72px] w-[72px] items-center justify-center rounded-full"
+                style={{ backgroundColor: colors.surface2 }}
+              >
+                <Bell size={32} color={colors.creamDim} />
               </View>
-            }
-            renderItem={({ item }) => (
-              <NotificationRow
-                item={item}
-                onPress={() => onPressNotification(item)}
-                onDelete={() => deleteOne.mutate(item.id)}
-              />
-            )}
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center p-6">
-            <Bell size={40} color="#94a3b8" />
-            <Text className="mt-4 text-center text-base text-neutral-500 dark:text-neutral-400">
-              Aucune notification pour l'instant.
-            </Text>
-          </View>
-        )}
-      </SafeAreaView>
+              <Text className="text-center font-display text-[18px] tracking-tight text-cream">
+                Rien pour l'instant
+              </Text>
+              <Text className="text-center font-body text-[13px] leading-[1.5] text-cream-dim">
+                Les demandes à voter, résultats de tes excuses et infos du groupe arriveront ici.
+              </Text>
+            </View>
+          )}
+        </SafeAreaView>
+      </View>
     </GestureHandlerRootView>
   );
 }
@@ -138,6 +193,7 @@ function NotificationRow({
   onDelete: () => void;
 }) {
   const swipeRef = useRef<Swipeable>(null);
+  const { icon: Icon, color, soft } = notifVisual(item.type);
 
   const renderRightActions = () => (
     <Pressable
@@ -145,10 +201,13 @@ function NotificationRow({
         swipeRef.current?.close();
         onDelete();
       }}
-      className="my-0.5 ml-2 w-20 items-center justify-center rounded-2xl bg-red-500 active:opacity-80"
+      className="my-0.5 ml-2 w-20 items-center justify-center rounded-2xl active:opacity-80"
+      style={{ backgroundColor: colors.red }}
     >
-      <Trash2 size={22} color="#ffffff" />
-      <Text className="mt-1 text-xs font-semibold text-white">Supprimer</Text>
+      <Trash2 size={20} color={colors.cream} />
+      <Text className="mt-1 font-body-semibold text-[11px]" style={{ color: colors.cream }}>
+        Supprimer
+      </Text>
     </Pressable>
   );
 
@@ -157,23 +216,33 @@ function NotificationRow({
       <Swipeable ref={swipeRef} renderRightActions={renderRightActions} overshootRight={false}>
         <Pressable
           onPress={onPress}
-          className={`flex-row items-start gap-3 rounded-2xl border p-4 ${
-            item.read
-              ? "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
-              : "border-primary-200 bg-primary-50 dark:border-primary-900 dark:bg-primary-500/10"
-          }`}
+          className="flex-row items-start gap-3 rounded-2xl border p-3.5 active:opacity-90"
+          style={{
+            backgroundColor: item.read ? colors.surface : "rgba(255,106,69,0.07)",
+            borderColor: item.read ? colors.line : "rgba(255,106,69,0.32)",
+          }}
         >
-          <View className="mt-0.5">{notifIcon(item.type)}</View>
+          <View
+            className="h-10 w-10 items-center justify-center rounded-xl"
+            style={{ backgroundColor: soft }}
+          >
+            <Icon size={19} color={color} strokeWidth={2.1} />
+          </View>
           <View className="flex-1">
-            <Text className="text-sm font-semibold text-neutral-900 dark:text-white">
-              {item.title}
-            </Text>
-            <Text className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-400">
+            <Text className="font-display text-[14px] tracking-tight text-cream">{item.title}</Text>
+            <Text className="mt-0.5 font-body text-[12.5px] leading-[1.45] text-cream-dim">
               {item.body}
             </Text>
-            <Text className="mt-1 text-xs text-neutral-400">{formatWhen(item.created_at)}</Text>
+            <Text className="mt-1.5 font-body text-[10.5px] text-cream-dim" style={{ opacity: 0.7 }}>
+              {formatWhen(item.created_at)}
+            </Text>
           </View>
-          {!item.read ? <View className="mt-1 h-2 w-2 rounded-full bg-primary-500" /> : null}
+          {!item.read ? (
+            <View
+              className="mt-1 h-2 w-2 rounded-full"
+              style={{ backgroundColor: colors.coral }}
+            />
+          ) : null}
         </Pressable>
       </Swipeable>
     </Animated.View>

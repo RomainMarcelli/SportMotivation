@@ -1,16 +1,15 @@
-import { decode as decodeBase64 } from "base64-arraybuffer";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/lib/supabase";
+import { extFromMime, type Justification } from "./attachment";
 import type { ExcuseType } from "./excuse-logic";
 
 export type SubmitExcuseArgs = {
   groupId: string;
   excuseType: ExcuseType;
   reason: string;
-  /** Justificatif optionnel (image), encodé en base64. */
-  justificationBase64?: string | null;
-  justificationMime?: string | null;
+  /** Justificatif optionnel : image **ou PDF**. */
+  justification?: Justification | null;
 };
 
 const EXCUSE_ERROR_MESSAGES: Record<string, string> = {
@@ -43,16 +42,12 @@ export function useSubmitExcuse() {
       if (!userId) throw new Error("NOT_AUTHENTICATED");
 
       let justificationUrl: string | null = null;
-      if (args.justificationBase64) {
-        const mime = args.justificationMime ?? "image/jpeg";
-        const ext = mime.split("/")[1] ?? "jpg";
-        const path = `${userId}/${args.groupId}-${Date.now()}.${ext}`;
+      if (args.justification) {
+        const { bytes, mime, name } = args.justification;
+        const path = `${userId}/${args.groupId}-${Date.now()}.${extFromMime(mime, name)}`;
         const { error: uploadError } = await supabase.storage
           .from("excuse-justifications")
-          .upload(path, decodeBase64(args.justificationBase64), {
-            contentType: mime,
-            upsert: true,
-          });
+          .upload(path, bytes, { contentType: mime, upsert: true });
         if (uploadError) throw uploadError;
         justificationUrl = path;
       }

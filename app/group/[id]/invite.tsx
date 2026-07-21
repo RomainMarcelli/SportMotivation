@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { Check, ListChecks, UserPlus } from "lucide-react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { InviteBlock } from "@/components/groups/InviteBlock";
+import { Avatar } from "@/components/ui/Avatar";
 import { TextField } from "@/components/ui/TextField";
 import {
   useInviteUser,
@@ -81,15 +82,13 @@ export default function InviteScreen() {
                 key={u.id}
                 className="flex-row items-center gap-3 rounded-2xl border border-neutral-200 p-3 dark:border-neutral-700"
               >
-                {u.avatar_url ? (
-                  <Image source={{ uri: u.avatar_url }} className="h-10 w-10 rounded-full" />
-                ) : (
-                  <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-500">
-                    <Text className="text-xs font-bold text-white">
-                      {(u.first_name?.[0] ?? "") + (u.last_name?.[0] ?? "")}
-                    </Text>
-                  </View>
-                )}
+                <Avatar
+                  uri={u.avatar_url}
+                  color={u.avatar_color}
+                  icon={u.avatar_icon}
+                  name={`${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()}
+                  size={40}
+                />
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-neutral-900 dark:text-white">
                     {u.first_name} {u.last_name}

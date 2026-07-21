@@ -36,13 +36,30 @@ export function AppHeader() {
           <Bell size={19} color={colors.creamDim} />
           {unread > 0 ? (
             <View
-              className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-surface"
-              style={{ backgroundColor: colors.coral }}
-            />
+              className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full border-2 px-1"
+              style={{
+                height: 18,
+                backgroundColor: colors.coral,
+                borderColor: colors.ink,
+              }}
+            >
+              <Text
+                className="font-body-bold text-[10px]"
+                style={{ color: colors.onCoral, lineHeight: 12 }}
+              >
+                {unread > 9 ? "9+" : unread}
+              </Text>
+            </View>
           ) : null}
         </Pressable>
         <Pressable onPress={() => router.push("/(tabs)/profile" as never)} hitSlop={6}>
-          <Avatar uri={profile?.avatar_url} name={fullName || "?"} size={40} />
+          <Avatar
+            uri={profile?.avatar_url}
+            color={profile?.avatar_color}
+            icon={profile?.avatar_icon}
+            name={fullName || "?"}
+            size={40}
+          />
         </Pressable>
       </View>
     </View>
