@@ -18,7 +18,6 @@ export default function GroupDetailLayout() {
     >
       {/* Dashboard : header custom dans l'écran */}
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="invite" options={{ title: "Inviter" }} />
       <Stack.Screen name="invitations" options={{ title: "Invitations envoyées" }} />
       <Stack.Screen name="members" options={{ title: "Membres" }} />
       <Stack.Screen name="edit" options={{ title: "Modifier le groupe" }} />

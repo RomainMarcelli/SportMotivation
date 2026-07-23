@@ -17,6 +17,14 @@ describe("activeFromPath", () => {
     expect(activeFromPath("/settings")).toBe("profile");
   });
 
+  // Sécurité du compte et textes légaux : on n'y arrive que par les Paramètres.
+  it("écrans ouverts depuis les réglages → onglet Profil", () => {
+    expect(activeFromPath("/account/password")).toBe("profile");
+    expect(activeFromPath("/account/email")).toBe("profile");
+    expect(activeFromPath("/legal/terms")).toBe("profile");
+    expect(activeFromPath("/legal/privacy")).toBe("profile");
+  });
+
   it("aucun onglet actif sur les écrans hors footer", () => {
     // Régression : arriver sur le groupe DEPUIS les notifications ne doit pas
     // laisser un onglet fantôme actif.

@@ -35,7 +35,7 @@ type Props = {
 
 /** Carte DA d'un groupe dans la liste d'accueil. Réutilise la query `useMyGroups`. */
 export function GroupCard({ item, onPress }: Props) {
-  const { group, role, weeklyTarget } = item;
+  const { group, role, weeklyTarget, memberCount } = item;
   const badge = STATUS_BADGE[group.status] ?? STATUS_BADGE.active;
 
   return (
@@ -71,8 +71,14 @@ export function GroupCard({ item, onPress }: Props) {
           </View>
           <View className="flex-row items-center gap-1.5">
             <Users size={14} color={colors.creamDim} />
-            <Text className="font-body text-[12px] text-cream-dim">
-              max {group.max_members}
+            {/* L'effectif, pas la capacité : « max 12 » n'apprenait rien sur qui
+                est dans le défi. La capacité reste visible à côté. */}
+            <Text className="font-body-semibold text-[12.5px] text-cream">
+              {memberCount > 0 ? memberCount : "—"}
+              <Text className="font-body text-cream-dim">
+                {" "}
+                membre{memberCount > 1 ? "s" : ""} · max {group.max_members}
+              </Text>
             </Text>
             <ChevronRight size={18} color={colors.creamDim} />
           </View>

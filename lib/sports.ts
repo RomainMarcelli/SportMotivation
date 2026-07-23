@@ -5,11 +5,14 @@ import {
   Dumbbell,
   Footprints,
   Heart,
+  Medal,
   Mountain,
   Music,
   PersonStanding,
+  Sailboat,
   Snowflake,
   Swords,
+  Volleyball,
   Waves,
 } from "lucide-react-native";
 
@@ -29,18 +32,24 @@ export function normalizeSport(name: string): string {
 /** Sports proposés par défaut à la création (noms libres stockés tels quels). */
 export const DEFAULT_SPORTS = ["Course", "Musculation", "Vélo", "Rando", "Natation"] as const;
 
-// Règles de matching (1re correspondance gagne). `keys` = fragments normalisés cherchés dans le nom.
+// Règles de matching (1re correspondance gagne — l'ordre compte). `keys` = fragments
+// **déjà normalisés** (minuscules, sans accents) cherchés dans le nom du sport.
+// Aucune icône « cheval » n'existe dans lucide → l'équitation retombe sur `Medal`
+// (médaille = « c'est un sport »), meilleur proxy disponible.
 const ICON_RULES: { keys: string[]; icon: LucideIcon }[] = [
-  { keys: ["course", "running", "run", "footing", "jogging", "trail", "marathon", "sprint"], icon: Footprints },
-  { keys: ["muscu", "renfo", "fitness", "gym", "poids", "weight", "crossfit", "halter"], icon: Dumbbell },
+  { keys: ["course", "running", "run", "footing", "jogging", "trail", "marathon", "sprint", "athletisme", "athle"], icon: Footprints },
+  { keys: ["muscu", "renfo", "fitness", "poids", "weight", "crossfit", "halter", "bodybuild", "force"], icon: Dumbbell },
   { keys: ["velo", "cyclisme", "bike", "cycling", "vtt", "spinning", "rpm"], icon: Bike },
-  { keys: ["rando", "marche", "walk", "hiking", "trek", "montagne"], icon: Mountain },
+  { keys: ["rando", "marche", "walk", "hiking", "trek", "montagne", "escalade", "grimpe", "climb", "bloc", "varappe", "alpinisme"], icon: Mountain },
   { keys: ["natation", "nage", "swim", "piscine", "aquagym", "aqua"], icon: Waves },
-  { keys: ["yoga", "pilates", "stretching", "etirement", "gym douce", "meditation"], icon: PersonStanding },
+  { keys: ["voile", "kayak", "canoe", "aviron", "surf", "paddle", "bateau", "nautique", "kite", "planche a voile", "plongee"], icon: Sailboat },
+  { keys: ["yoga", "pilates", "stretching", "etirement", "gym douce", "meditation", "gymnas", "trampoline", "acrobat", "souplesse"], icon: PersonStanding },
   { keys: ["danse", "dance", "zumba", "barre"], icon: Music },
-  { keys: ["ski", "snow", "surf", "glisse", "skate", "patin"], icon: Snowflake },
-  { keys: ["boxe", "boxing", "mma", "judo", "karate", "combat", "art martiaux", "lutte", "krav"], icon: Swords },
-  { keys: ["cardio", "hiit", "fractionne", "endurance", "rameur", "elliptique"], icon: Heart },
+  { keys: ["ski", "snow", "glisse", "skate", "patin", "luge", "glace", "biathlon"], icon: Snowflake },
+  { keys: ["boxe", "boxing", "mma", "judo", "karate", "combat", "art martiaux", "arts martiaux", "lutte", "krav", "escrime", "taekwon", "kickbox", "grappling", "jjb"], icon: Swords },
+  { keys: ["foot", "basket", "hand", "volley", "rugby", "tennis", "badmin", "squash", "ping", "pong", "padel", "ballon", "balle", "golf", "baseball", "cricket", "hockey", "waterpolo", "ultimate", "petanque"], icon: Volleyball },
+  { keys: ["cardio", "hiit", "fractionne", "endurance", "rameur", "elliptique", "stepper"], icon: Heart },
+  { keys: ["equitation", "cheval", "poney", "hippisme", "equestre"], icon: Medal },
 ];
 
 /**

@@ -1,12 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Haptics from "expo-haptics";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { AlertCircle, Lock, Mail } from "lucide-react-native";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withSequence,
   withTiming,
@@ -22,11 +21,15 @@ import { colors } from "@/constants/colors";
 import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignIn } from "@/features/auth/mutations";
 import { signInSchema, type SignInInput } from "@/features/auth/schemas";
+import { useAppReducedMotion } from "@/hooks/useAppReducedMotion";
 
 export default function SignInScreen() {
   const router = useRouter();
+  // Arrivée depuis « Me connecter avec cet e-mail » (inscription refusée parce
+  // que l'adresse a déjà un compte) : on ne la fait pas resaisir.
+  const { email: prefilledEmail } = useLocalSearchParams<{ email?: string }>();
   const signIn = useSignIn();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
 
   const shakeX = useSharedValue(0);
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
@@ -48,7 +51,7 @@ export default function SignInScreen() {
     formState: { errors },
   } = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: prefilledEmail ?? "", password: "" },
   });
 
   // Efface le message d'erreur dès que l'utilisateur re-modifie un champ.

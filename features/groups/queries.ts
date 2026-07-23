@@ -13,6 +13,8 @@ export type MyGroup = {
   membershipId: string;
   role: MemberRole;
   weeklyTarget: number;
+  /** Membres actifs. 0 tant que le SQL 037 n'est pas passé → on masque l'info. */
+  memberCount: number;
   group: GroupRow;
 };
 
@@ -46,6 +48,7 @@ export function useMyGroups() {
         membershipId: r.membership_id as string,
         role: r.role as MemberRole,
         weeklyTarget: r.weekly_target as number,
+        memberCount: (r.member_count as number | null) ?? 0,
         group: {
           id: r.group_id as string,
           name: r.name as string,
@@ -142,6 +145,10 @@ export function useGroupMembers(groupId: string | undefined) {
   return useQuery({
     queryKey: ["group-members", groupId],
     enabled: !!groupId,
+    // L'effectif bouge sans nous prévenir (départ, suppression de compte, arrivée) :
+    // rentrer dans un écran qui affiche des membres doit recharger la liste, sinon
+    // on continue d'afficher quelqu'un qui n'est plus là.
+    refetchOnMount: "always",
     queryFn: async (): Promise<GroupMemberWithUser[]> => {
       const { data, error } = await supabase.rpc(
         "get_group_members" as never,

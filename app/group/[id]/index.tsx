@@ -12,6 +12,7 @@ import {
   Plus,
   TriangleAlert,
   UserPlus,
+  Users,
   Vote,
 } from "lucide-react-native";
 import { useState } from "react";
@@ -28,8 +29,8 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Reveal } from "@/components/ui/Reveal";
 import { AdminTransferSheet } from "@/components/groups/AdminTransferSheet";
 import { GroupTabs } from "@/components/groups/GroupTabs";
-import { InviteBlock } from "@/components/groups/InviteBlock";
-import { InviteSheet } from "@/components/groups/InviteSheet";
+import { GroupInviteSheet } from "@/components/groups/GroupInviteSheet";
+import { SessionDetailSheet } from "@/components/sessions/SessionDetailSheet";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TopFade } from "@/components/ui/TopFade";
 import { getActivityLabel } from "@/constants/activities";
@@ -52,6 +53,7 @@ import { useTransferAdmin } from "@/features/groups/transfer-mutations";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { useCurrentUser } from "@/lib/auth-store";
 import { daysUntil, formatDbDate, startOfWeekMonday, toDateOnly } from "@/lib/date";
+import { formatDuration } from "@/lib/duration";
 import type { Database } from "@/types/database.types";
 
 type ExcuseRow = Database["public"]["Tables"]["excuses"]["Row"];
@@ -63,7 +65,11 @@ function memberName(m: GroupMemberWithUser, meId: string | undefined): string {
 }
 
 export default function GroupDashboardScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `solo` : ouvert automatiquement parce que c'est le SEUL défi du joueur.
+  // Dans ce cas l'écran remplace l'onglet Groupes — une flèche de retour y
+  // renverrait, et l'onglet rouvrirait aussitôt le défi.
+  const { id, solo, tab } = useLocalSearchParams<{ id: string; solo?: string; tab?: string }>();
+  const isSolo = solo === "1";
   const router = useRouter();
   const me = useCurrentUser();
 
@@ -79,9 +85,12 @@ export default function GroupDashboardScreen() {
   const transferAdmin = useTransferAdmin(id);
   const { confirm, toast } = useFeedback();
 
-  const [view, setView] = useState<"infos" | "seances">("infos");
+  // `tab=seances` (depuis « Voir tout » de l'accueil) ouvre directement l'onglet Séances.
+  const [view, setView] = useState<"infos" | "seances">(tab === "seances" ? "seances" : "infos");
   const [menuOpen, setMenuOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  /** Séance ouverte en fiche détaillée (lecture seule) depuis l'onglet Séances. */
+  const [openedSession, setOpenedSession] = useState<SessionWithAuthor | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferPending, setTransferPending] = useState<string | null>(null);
   // Filtre de l'onglet Séances : 0 = semaine en cours, 1 = semaine précédente, etc.
@@ -138,6 +147,9 @@ export default function GroupDashboardScreen() {
   const memberList = members ?? [];
   const sessionList = sessions ?? [];
   const isAdmin = memberList.some((m) => m.user.id === me?.id && m.role === "admin");
+  // Objectif hebdo et pénalité sont réglés PAR MEMBRE : le récap des règles doit
+  // montrer les miens, pas les valeurs par défaut du groupe.
+  const myMembership = memberList.find((m) => m.user.id === me?.id);
   const left = daysUntil(group.challenge_end, now);
   const active = group.status === "active";
 
@@ -172,8 +184,6 @@ export default function GroupDashboardScreen() {
   const weekSessions = mySessions.filter((s) => s.week_start === selectedWeekStart);
   const pending = weekSessions.filter((s) => s.status === "pending_vote");
   const recent = weekSessions.filter((s) => s.status !== "pending_vote");
-
-  const goInvite = () => router.push({ pathname: "/group/[id]/invite", params: { id: id! } } as never);
 
   const candidates = eligibleNewAdmins(memberList, me?.id);
   const showTransfer = canTransferAdmin(candidates.length, isAdmin);
@@ -238,13 +248,15 @@ export default function GroupDashboardScreen() {
       <ScreenContainer transparent padded={false} edges={["top"]}>
         {/* Header */}
         <View className="flex-row items-center gap-3 px-[18px] pb-2 pt-1">
-          <Pressable
-            onPress={goBack}
-            hitSlop={8}
-            className="h-10 w-10 items-center justify-center rounded-chip border border-line bg-surface active:opacity-80"
-          >
-            <ChevronLeft size={20} color={colors.cream} />
-          </Pressable>
+          {!isSolo ? (
+            <Pressable
+              onPress={goBack}
+              hitSlop={8}
+              className="h-10 w-10 items-center justify-center rounded-chip border border-line bg-surface active:opacity-80"
+            >
+              <ChevronLeft size={20} color={colors.cream} />
+            </Pressable>
+          ) : null}
           <View className="flex-1">
             <Text numberOfLines={1} className="font-display text-[18px] tracking-tight text-cream">
               {group.name}
@@ -329,9 +341,9 @@ export default function GroupDashboardScreen() {
                         uri={m.user.avatar_url}
                         color={m.user.avatar_color}
                         icon={m.user.avatar_icon}
+                        seed={m.user.id}
                         name={`${m.user.first_name ?? ""} ${m.user.last_name ?? ""}`.trim()}
                         size={30}
-                        index={i}
                       />
                     </View>
                   ))}
@@ -354,15 +366,13 @@ export default function GroupDashboardScreen() {
                     </View>
                   ) : null}
                 </View>
-                {isAdmin ? (
-                  <Pressable
-                    onPress={goInvite}
-                    className="flex-row items-center gap-1.5 rounded-full border border-line-2 bg-surface-2 px-3 py-2 active:opacity-80"
-                  >
-                    <UserPlus size={15} color={colors.cream} />
-                    <Text className="font-body-semibold text-[12.5px] text-cream">Inviter</Text>
-                  </Pressable>
-                ) : null}
+                <Pressable
+                  onPress={() => setInviteOpen(true)}
+                  className="flex-row items-center gap-1.5 rounded-full border border-line-2 bg-surface-2 px-3 py-2 active:opacity-80"
+                >
+                  <UserPlus size={15} color={colors.cream} />
+                  <Text className="font-body-semibold text-[12.5px] text-cream">Inviter</Text>
+                </Pressable>
               </View>
             </Card>
           </Reveal>
@@ -385,13 +395,15 @@ export default function GroupDashboardScreen() {
               stats={stats}
               blamed={blamed}
               meId={me?.id}
-              isAdmin={isAdmin}
+              me={myMembership}
+              onOpenInvite={() => setInviteOpen(true)}
             />
           ) : (
             <SeancesPanel
               pending={pending}
               recent={recent}
               meId={me?.id}
+              onOpenSession={setOpenedSession}
               votableCount={(votable?.length ?? 0) + (votableExcuses?.length ?? 0)}
               onVote={() =>
                 router.push({ pathname: "/group/[id]/vote", params: { id: id! } } as never)
@@ -478,16 +490,48 @@ export default function GroupDashboardScreen() {
               ) : null}
               <MenuItem icon={LogOut} label="Quitter le groupe" tone="danger" onPress={onLeave} />
             </View>
+
+            {/* Un joueur qui n'a qu'un défi arrive ici directement : sans ces
+                deux entrées, il n'aurait plus aucun moyen d'en créer ou d'en
+                rejoindre un autre. */}
+            <View className="mt-4 border-t pt-4" style={{ borderColor: colors.line }}>
+              <Text className="mb-2.5 px-0.5 font-body-bold text-[10.5px] tracking-eyebrow text-cream-dim">
+                UN AUTRE DÉFI
+              </Text>
+              <View className="gap-2">
+                <MenuItem
+                  icon={Plus}
+                  label="Créer un défi"
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push("/group/create" as never);
+                  }}
+                />
+                <MenuItem
+                  icon={Users}
+                  label="Rejoindre un défi"
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push("/group/join" as never);
+                  }}
+                />
+              </View>
+            </View>
           </View>
         </View>
       </Modal>
 
-      <InviteSheet
+      <GroupInviteSheet
         visible={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        inviteCode={group.invite_code}
+        groupId={group.id}
         groupName={group.name}
+        inviteCode={group.invite_code}
+        memberIds={new Set(memberList.map((m) => m.user.id))}
+        isAdmin={isAdmin}
       />
+
+      <SessionDetailSheet session={openedSession} onClose={() => setOpenedSession(null)} />
 
       <AdminTransferSheet
         visible={transferOpen}
@@ -553,13 +597,16 @@ function InfosPanel({
   stats,
   blamed,
   meId,
-  isAdmin,
+  me,
+  onOpenInvite,
 }: {
   group: ReturnType<typeof useGroup>["data"] & {};
   stats: Stat[];
   blamed: { m: GroupMemberWithUser; count: number }[];
   meId: string | undefined;
-  isAdmin: boolean;
+  /** Mon adhésion : objectif et pénalité sont RÉGLÉS PAR MEMBRE. */
+  me: GroupMemberWithUser | undefined;
+  onOpenInvite: () => void;
 }) {
   const activities = Array.isArray(group.accepted_activities)
     ? (group.accepted_activities as string[])
@@ -585,9 +632,9 @@ function InfosPanel({
                     uri={st.member.user.avatar_url}
                     color={st.member.user.avatar_color}
                     icon={st.member.user.avatar_icon}
+                    seed={st.member.user.id}
                     name={`${st.member.user.first_name ?? ""} ${st.member.user.last_name ?? ""}`.trim()}
                     size={40}
-                    index={i}
                   />
                   <View className="flex-1">
                     <View className="flex-row items-center gap-2">
@@ -653,26 +700,43 @@ function InfosPanel({
           <RulesRecap
             challengeStart={group.challenge_start}
             challengeEnd={group.challenge_end}
-            penaltyAmount={group.penalty_amount}
+            weeklyTarget={me?.weeklyTarget}
+            penaltyAmount={me?.penaltyAmount ?? group.penalty_amount}
             acceptedActivities={activities}
             minDurationMin={group.min_duration_min}
             publicationDeadline={group.publication_deadline}
             voteDeadline={group.vote_deadline}
             blameThreshold={group.blame_threshold}
             maxExcuses={group.max_excuses}
+            maxSessionsPerDay={group.max_sessions_per_day}
           />
         </View>
       </Reveal>
 
-      {/* Inviter au groupe — admin uniquement, tout en bas de l'onglet Infos */}
-      {isAdmin ? (
-        <Reveal delay={140}>
-          <SecHead title="Inviter au groupe" />
-          <View className="mt-2">
-            <InviteBlock inviteCode={group.invite_code} groupName={group.name} />
+      {/* Inviter au groupe — un accès qui rouvre la même popup que le bouton du
+          haut. Tout le détail (recherche par pseudo, QR, code, lien, suivi) vit
+          désormais dans ce panneau, pas en bas de la page. */}
+      <Reveal delay={140}>
+        <SecHead title="Inviter au groupe" />
+        <Pressable
+          onPress={onOpenInvite}
+          className="mt-2 flex-row items-center gap-3 rounded-[14px] border p-3.5 active:opacity-80"
+          style={{ backgroundColor: colors.surface, borderColor: colors.line }}
+        >
+          <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-coral-soft">
+            <UserPlus size={17} color={colors.coral} />
           </View>
-        </Reveal>
-      ) : null}
+          <View className="flex-1">
+            <Text className="font-body-semibold text-[13.5px] text-cream">
+              Chercher un joueur, partager le code
+            </Text>
+            <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+              Par pseudo, QR code ou lien
+            </Text>
+          </View>
+          <ChevronRight size={17} color={colors.creamDim} />
+        </Pressable>
+      </Reveal>
     </View>
   );
 }
@@ -689,30 +753,49 @@ const STATUS_BADGE: Record<
   expired: { label: "Expirée", variant: "default" },
 };
 
-function SessionRow({ session, meId, index }: { session: SessionWithAuthor; meId: string | undefined; index: number }) {
+function SessionRow({
+  session,
+  meId,
+  index,
+  onPress,
+}: {
+  session: SessionWithAuthor;
+  meId: string | undefined;
+  index: number;
+  onPress: () => void;
+}) {
   const isMe = session.author.id === meId;
   const name = isMe ? "Toi" : session.author.first_name || session.author.username || "Membre";
   const badge = STATUS_BADGE[session.status] ?? STATUS_BADGE.expired;
   return (
-    <View className="flex-row items-center gap-3 rounded-[15px] border border-line bg-surface p-3">
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={`Voir la séance ${getActivityLabel(session.activity_type)}`}
+      className="flex-row items-center gap-3 rounded-[15px] border border-line bg-surface p-3 active:opacity-80"
+    >
       <Avatar
         uri={session.author.avatar_url}
         color={session.author.avatar_color}
         icon={session.author.avatar_icon}
+        seed={session.author.id}
         name={`${session.author.first_name ?? ""} ${session.author.last_name ?? ""}`.trim()}
         size={38}
-        index={index}
       />
       <View className="flex-1">
         <Text className="font-body-bold text-[13.5px] text-cream">
           {name} · {getActivityLabel(session.activity_type)}
         </Text>
         <Text className="mt-0.5 font-body text-[11px] text-cream-dim">
-          {session.duration_min} min · {formatDbDate(session.performed_at)}
+          {formatDuration(session.duration_min)} · {formatDbDate(session.performed_at)}
         </Text>
       </View>
-      <Badge label={badge.label} variant={badge.variant} />
-    </View>
+      {/* Le Badge porte `alignSelf: flex-start` (pour ne pas s'étirer en colonne) ;
+          l'envelopper le recentre verticalement face à l'avatar et à la flèche. */}
+      <View>
+        <Badge label={badge.label} variant={badge.variant} />
+      </View>
+      <ChevronRight size={16} color={colors.creamDim} />
+    </Pressable>
   );
 }
 
@@ -798,6 +881,7 @@ function SeancesPanel({
   pending,
   recent,
   meId,
+  onOpenSession,
   votableCount,
   onVote,
   weekLabel,
@@ -810,6 +894,7 @@ function SeancesPanel({
   pending: SessionWithAuthor[];
   recent: SessionWithAuthor[];
   meId: string | undefined;
+  onOpenSession: (session: SessionWithAuthor) => void;
   votableCount: number;
   onVote: () => void;
   weekLabel: string;
@@ -877,7 +962,7 @@ function SeancesPanel({
           </View>
           {pending.map((s, i) => (
             <Reveal key={s.id} delay={i * 40}>
-              <SessionRow session={s} meId={meId} index={i} />
+              <SessionRow session={s} meId={meId} index={i} onPress={() => onOpenSession(s)} />
             </Reveal>
           ))}
         </>
@@ -888,7 +973,7 @@ function SeancesPanel({
           <Text className="mt-2 px-0.5 font-display text-[13px] text-cream-dim">Récentes</Text>
           {recent.map((s, i) => (
             <Reveal key={s.id} delay={i * 40}>
-              <SessionRow session={s} meId={meId} index={i} />
+              <SessionRow session={s} meId={meId} index={i} onPress={() => onOpenSession(s)} />
             </Reveal>
           ))}
         </>

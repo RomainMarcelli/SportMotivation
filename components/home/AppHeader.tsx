@@ -57,6 +57,7 @@ export function AppHeader() {
             uri={profile?.avatar_url}
             color={profile?.avatar_color}
             icon={profile?.avatar_icon}
+            seed={profile?.id}
             name={fullName || "?"}
             size={40}
           />

@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import {
   AlertCircle,
+  CalendarClock,
   CalendarDays,
   Clock,
   Coins,
@@ -144,6 +145,7 @@ export default function CreateGroupScreen() {
         voteDeadline: data.voteDeadline,
         blameThreshold: data.blameThreshold,
         maxExcuses: data.maxExcuses,
+        maxSessionsPerDay: data.maxSessionsPerDay,
         weeklyTarget: data.weeklyTarget,
       },
       {
@@ -369,6 +371,25 @@ export default function CreateGroupScreen() {
             />
           </Reveal>
 
+          {/* Séances max par jour (0 = sans limite) */}
+          <Reveal delay={395}>
+            <FieldLabel>Séances max par jour</FieldLabel>
+            <Controller
+              control={control}
+              name="maxSessionsPerDay"
+              render={({ field: { onChange, value } }) => (
+                <Stepper
+                  value={value ?? 0}
+                  onChange={(n) => onChange(n === 0 ? null : n)}
+                  min={0}
+                  max={20}
+                  unit="par jour"
+                  zeroLabel="Sans limite"
+                />
+              )}
+            />
+          </Reveal>
+
           {/* Récap */}
           <Reveal delay={410}>
             <FieldLabel>Récap des règles</FieldLabel>
@@ -386,6 +407,11 @@ export default function CreateGroupScreen() {
                 icon={Clock}
                 label="Durée minimum"
                 value={v.minDurationMin === 0 ? "Aucun" : `${v.minDurationMin} min`}
+              />
+              <RecapRow
+                icon={CalendarClock}
+                label="Séances / jour"
+                value={v.maxSessionsPerDay ? `${v.maxSessionsPerDay} max` : "Sans limite"}
               />
               <RecapRow
                 icon={Tag}

@@ -1,5 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
-import { Camera, Check, ImageIcon, Trash2, X } from "lucide-react-native";
+import { Camera, Check, ImageIcon, Info, Trash2, X } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, Text, View } from "react-native";
 
@@ -50,11 +50,13 @@ export type AvatarValue = {
 
 type Tab = "color" | "icon" | "fun" | "photo";
 
+// Photo en premier : c'est ce que la majorité des gens cherchent en ouvrant
+// « mon avatar ». Le reste suit dans l'ordre du plus simple au plus fantaisiste.
 const TABS: { key: Tab; label: string }[] = [
+  { key: "photo", label: "Photo" },
   { key: "color", label: "Couleur" },
   { key: "icon", label: "Icône" },
   { key: "fun", label: "Fun" },
-  { key: "photo", label: "Photo" },
 ];
 
 /**
@@ -93,7 +95,8 @@ export function AvatarPicker({
     setPhoto(value.photo ?? null);
     setGeneratedUrl(isDicebearUrl(value.url) ? value.url! : null);
     setKeptUrl(isDicebearUrl(value.url) ? null : value.url ?? null);
-    setTab(value.photo ? "photo" : isDicebearUrl(value.url) ? "fun" : value.url ? "photo" : value.icon ? "icon" : "color");
+    // On rouvre sur l'onglet qui correspond à l'avatar actuel.
+    setTab(isDicebearUrl(value.url) ? "fun" : value.icon && !value.url ? "icon" : "photo");
     setError(null);
   }, [visible, value.color, value.icon, value.url, value.photo]);
 
@@ -104,20 +107,12 @@ export function AvatarPicker({
 
   const previewUri = photo?.uri ?? generatedUrl ?? keptUrl;
 
-  const chooseColor = (next: string) => {
-    setColor(next);
-    // Repasser en bulle : l'image cacherait la couleur qu'on vient de choisir.
-    setPhoto(null);
-    setGeneratedUrl(null);
-    setKeptUrl(null);
-  };
-
-  const chooseIcon = (next: string | null) => {
-    setIcon(next);
-    setPhoto(null);
-    setGeneratedUrl(null);
-    setKeptUrl(null);
-  };
+  // ⚠ Choisir une couleur ou une icône ne supprime PLUS l'image : perdre sa photo
+  // en tapant une pastille était une mauvaise surprise. L'image reste prioritaire à
+  // l'affichage, la couleur/icône sont mémorisées pour le jour où on la retirera —
+  // et un bandeau l'explique dans les onglets concernés.
+  const chooseColor = (next: string) => setColor(next);
+  const chooseIcon = (next: string | null) => setIcon(next);
 
   const chooseGenerated = (url: string) => {
     setGeneratedUrl(url);
@@ -167,11 +162,12 @@ export function AvatarPicker({
     }
   };
 
+  // On reste sur l'onglet courant : être renvoyé ailleurs après un simple
+  // « retirer » donnait l'impression d'avoir changé de mode sans le vouloir.
   const removeImage = () => {
     setPhoto(null);
     setGeneratedUrl(null);
     setKeptUrl(null);
-    setTab("color");
   };
 
   const validate = () => {
@@ -220,23 +216,15 @@ export function AvatarPicker({
             </Pressable>
           </View>
 
-          {/* Aperçu */}
+          {/* Aperçu — pas d'anneau quand il y a une image : on ne doit voir QUE la photo. */}
           <View className="mb-4 items-center">
-            <View
-              style={{
-                padding: 3,
-                borderRadius: 999,
-                backgroundColor: color,
-              }}
-            >
-              <Avatar
-                uri={previewUri}
-                color={color}
-                icon={previewUri ? null : icon}
-                name={value.name ?? ""}
-                size={84}
-              />
-            </View>
+            <Avatar
+              uri={previewUri}
+              color={color}
+              icon={previewUri ? null : icon}
+              name={value.name ?? ""}
+              size={90}
+            />
           </View>
 
           {/* Onglets */}
@@ -269,6 +257,22 @@ export function AvatarPicker({
             style={{ maxHeight: 300 }}
             keyboardShouldPersistTaps="handled"
           >
+            {/* Une image masque la bulle : on le dit, au lieu de supprimer la photo
+                dans le dos de l'utilisateur quand il touche une couleur/icône. */}
+            {previewUri && (tab === "color" || tab === "icon") ? (
+              <Pressable
+                onPress={removeImage}
+                className="mb-3 flex-row items-center gap-2.5 rounded-input border px-3 py-2.5 active:opacity-80"
+                style={{ backgroundColor: colors.amberSoft, borderColor: colors.amber }}
+              >
+                <Info size={15} color={colors.amber} />
+                <Text className="flex-1 font-body text-[11.5px] leading-4 text-cream">
+                  Ta photo masque la bulle. <Text className="font-body-bold">Retirer l'image</Text>{" "}
+                  pour la voir.
+                </Text>
+              </Pressable>
+            ) : null}
+
             {tab === "color" ? (
               <View className="flex-row flex-wrap gap-3">
                 {AVATAR_COLORS.map((c) => (

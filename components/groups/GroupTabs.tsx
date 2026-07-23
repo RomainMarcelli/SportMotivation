@@ -4,12 +4,12 @@ import { type LayoutChangeEvent, Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
 
 import { colors, gradients } from "@/constants/colors";
+import { useAppReducedMotion } from "@/hooks/useAppReducedMotion";
 
 type Tab<T extends string> = { value: T; label: string; count?: number };
 
@@ -25,7 +25,7 @@ type Props<T extends string> = {
  * mesurées par `onLayout`). Respecte `prefers-reduced-motion` (saut sans animation).
  */
 export function GroupTabs<T extends string>({ tabs, value, onChange }: Props<T>) {
-  const reduce = useReducedMotion();
+  const reduce = useAppReducedMotion();
   const [layouts, setLayouts] = useState<Record<string, { x: number; width: number }>>({});
   const x = useSharedValue(0);
   const w = useSharedValue(0);

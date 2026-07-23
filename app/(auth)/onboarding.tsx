@@ -12,7 +12,6 @@ import Animated, {
   interpolateColor,
   runOnJS,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -34,6 +33,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { colors } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
 import { setOnboardingCompleted } from "@/lib/onboarding-state";
+import { useAppReducedMotion } from "@/hooks/useAppReducedMotion";
 
 type Slide = {
   illustration: ReactNode;
@@ -70,7 +70,7 @@ const LAST = SLIDES.length - 1;
 export default function OnboardingScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
 
   const tx = useSharedValue(0); // translateX du track (négatif = slides suivants)
   const startTx = useSharedValue(0);

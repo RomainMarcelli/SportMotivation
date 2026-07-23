@@ -1,4 +1,4 @@
-import { Flame, Plus, Sparkles } from "lucide-react-native";
+import { Flame, KeyRound, Plus } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { GradientButton } from "@/components/ui/GradientButton";
@@ -70,7 +70,9 @@ export function EmptyGroups({
           onPress={onJoin}
           className="h-[52px] flex-row items-center justify-center gap-2.5 rounded-input border border-line-2 bg-surface active:opacity-80"
         >
-          <Sparkles size={18} color={colors.amber} />
+          {/* `Sparkles` faisait « décoratif », presque emoji. Une clé dit ce que fait
+              le bouton : entrer un code d'accès. */}
+          <KeyRound size={18} color={colors.creamDim} />
           <Text className="font-display text-[15px] text-cream">J'ai un code — Rejoindre</Text>
         </Pressable>
       </View>

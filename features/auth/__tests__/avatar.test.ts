@@ -1,6 +1,7 @@
 import { AVATAR_COLORS } from "@/constants/avatars";
 
 import {
+  avatarRingColor,
   displayName,
   fallbackColor,
   initialsFrom,
@@ -125,5 +126,32 @@ describe("resolveAvatar", () => {
 
   it("supporte un profil null", () => {
     expect(resolveAvatar(null).kind).toBe("initials");
+  });
+
+  // 🐛 Régression : la même personne apparaissait jaune dans le profil et verte
+  // dans le groupe, parce que chaque écran semait le repli différemment (nom ici,
+  // position dans la liste là). La graine DOIT être l'id, et rien d'autre.
+  it("donne la MÊME couleur à un utilisateur quel que soit l'écran", () => {
+    const fromProfile = resolveAvatar({ id: "user-1", first_name: "Romain" });
+    const fromGroup = resolveAvatar({ id: "user-1", first_name: "Romain", last_name: "M" });
+    const fromVote = resolveAvatar({ id: "user-1", username: "romz" });
+    expect(fromProfile.color).toBe(fromGroup.color);
+    expect(fromGroup.color).toBe(fromVote.color);
+  });
+
+  it("la couleur choisie prime toujours sur le repli", () => {
+    expect(resolveAvatar({ id: "user-1", avatar_color: "#FF7BA9" }).color).toBe("#FF7BA9");
+  });
+});
+
+describe("avatarRingColor", () => {
+  // 🐛 Régression : anneau ambre autour d'une bulle rouge.
+  it("reprend la couleur de la bulle", () => {
+    expect(avatarRingColor("#F2554A", "user-1")).toBe("#F2554A");
+  });
+
+  it("suit le repli quand aucune couleur n'est choisie", () => {
+    expect(avatarRingColor(null, "user-1")).toBe(fallbackColor("user-1"));
+    expect(avatarRingColor("   ", "user-1")).toBe(fallbackColor("user-1"));
   });
 });

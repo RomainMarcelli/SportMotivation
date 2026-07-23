@@ -185,6 +185,9 @@ export default function JoinConfirmScreen() {
             <RulesRecap
               challengeStart={preview.challenge_start}
               challengeEnd={preview.challenge_end}
+              // Suit le sélecteur ci-dessous : le tableau des règles doit montrer
+              // l'engagement qu'on s'apprête à prendre, pas une valeur générique.
+              weeklyTarget={weeklyTarget}
               penaltyAmount={preview.penalty_amount}
               acceptedActivities={preview.accepted_activities}
               minDurationMin={preview.min_duration_min}

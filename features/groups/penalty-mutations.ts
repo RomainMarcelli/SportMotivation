@@ -24,6 +24,51 @@ export function usePenaltyChange(changeId: string | undefined) {
   });
 }
 
+/**
+ * Propositions de pénalité **en attente** du groupe (best-effort).
+ *
+ * Sert à afficher « en attente de réponse » plutôt que de laisser l'admin
+ * reproposer indéfiniment le même montant. Dégrade à `[]` si la lecture est
+ * refusée par la RLS : l'écran reste utilisable.
+ */
+export function usePendingPenaltyChanges(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["penalty-changes", groupId],
+    enabled: !!groupId,
+    queryFn: async (): Promise<PenaltyChange[]> => {
+      const { data, error } = await supabase
+        .from("member_penalty_changes")
+        .select("*")
+        .eq("group_id", groupId!)
+        .eq("status", "pending");
+      if (error) return [];
+      return data ?? [];
+    },
+  });
+}
+
+/**
+ * L'admin fixe SA propre pénalité, sans passer par une proposition.
+ * Se demander à soi-même l'autorisation n'a pas de sens (et s'envoyait une
+ * notification au passage).
+ */
+export function useSetMyPenalty(groupId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (amount: number) => {
+      const { error } = await supabase.rpc("set_my_penalty", {
+        p_group_id: groupId,
+        p_amount: amount,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["my-groups"] });
+    },
+  });
+}
+
 /** Admin propose un changement de pénalité pour un membre (→ notif au membre). */
 export function useProposePenaltyChange(groupId: string) {
   const queryClient = useQueryClient();
@@ -37,6 +82,7 @@ export function useProposePenaltyChange(groupId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-members", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["penalty-changes", groupId] });
     },
   });
 }
@@ -67,6 +113,8 @@ type GroupSettings = {
   min_duration_min: number;
   blame_threshold: number;
   accepted_activities: string[];
+  /** NULL = pas de limite de séances par jour. */
+  max_sessions_per_day: number | null;
 };
 
 /** Met à jour les réglages du groupe (admin). RLS : groups_update_admin. */
@@ -83,6 +131,7 @@ export function useUpdateGroupSettings(groupId: string) {
           min_duration_min: settings.min_duration_min,
           blame_threshold: settings.blame_threshold,
           accepted_activities: settings.accepted_activities,
+          max_sessions_per_day: settings.max_sessions_per_day,
         })
         .eq("id", groupId);
       if (error) throw error;

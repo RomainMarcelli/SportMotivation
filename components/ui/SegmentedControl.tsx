@@ -7,6 +7,8 @@ type Option<T extends string> = {
   value: T;
   label: string;
   icon?: LucideIcon;
+  /** Segment visible mais pas encore proposable (fonctionnalité en préparation). */
+  disabled?: boolean;
 };
 
 type Props<T extends string> = {
@@ -32,8 +34,13 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
           <Pressable
             key={option.value}
             onPress={() => onChange(option.value)}
+            disabled={option.disabled}
+            accessibilityState={{ selected: active, disabled: !!option.disabled }}
             className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] py-3"
-            style={active ? { backgroundColor: colors.surface2 } : undefined}
+            style={[
+              active ? { backgroundColor: colors.surface2 } : undefined,
+              option.disabled ? { opacity: 0.4 } : undefined,
+            ]}
           >
             {Icon ? <Icon size={15} color={active ? colors.cream : colors.creamDim} /> : null}
             <Text

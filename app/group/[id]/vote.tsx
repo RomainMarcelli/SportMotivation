@@ -29,10 +29,8 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withSpring,
-  withTiming,
 } from "react-native-reanimated";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
@@ -62,9 +60,9 @@ import {
 } from "@/features/votes/vote-logic";
 import { useCurrentUser } from "@/lib/auth-store";
 import { formatDbDate } from "@/lib/date";
+import { formatDuration } from "@/lib/duration";
 import { getSportIcon } from "@/lib/sports";
 
-const SWIPE_OUT = 700;
 const SWIPE_THRESHOLD = 110;
 
 /** Élément votable du deck : une séance OU une excuse. */
@@ -116,7 +114,6 @@ export default function VoteScreen() {
   const castVote = useCastVote();
   const castExcuseVote = useCastExcuseVote();
   const now = useNow();
-  const reduceMotion = useReducedMotion();
 
   // File d'attente locale : on retire un élément dès qu'on a voté (le refetch des queries le
   // retire aussi, mais plus tard → ce set évite tout « saut » d'une carte).
@@ -186,18 +183,19 @@ export default function VoteScreen() {
     tx.value = 0;
   };
 
-  // Validation = geste/bouton direct (avec animation de sortie à droite).
+  /**
+   * Validation (bouton ou glissement).
+   *
+   * Le vote partait AUTREFOIS depuis le rappel de fin d'animation. Quand ce
+   * rappel n'arrivait pas — c'est le cas sur le web quand l'onglet perd le focus
+   * ou qu'un re-rendu tombe pendant les 220 ms — la carte restait affichée alors
+   * que le vote était déjà parti : il fallait re-cliquer. Le vote est maintenant
+   * envoyé **immédiatement**, l'animation n'est plus que décorative.
+   */
   const validate = () => {
     if (!current) return;
-    const item = current;
     haptic();
-    if (reduceMotion) {
-      commitVote(item, true, null);
-      return;
-    }
-    tx.value = withTiming(SWIPE_OUT, { duration: 220 }, (fin) => {
-      if (fin) runOnJS(commitVote)(item, true, null);
-    });
+    commitVote(current, true, null);
   };
 
   // Refus = ouvre la modale d'explication (le commentaire part à l'auteur).
@@ -220,9 +218,9 @@ export default function VoteScreen() {
     })
     .onEnd((e) => {
       if (e.translationX > SWIPE_THRESHOLD) {
-        tx.value = withTiming(SWIPE_OUT, { duration: 200 }, (fin) => {
-          if (fin) runOnJS(validate)();
-        });
+        // Même règle que le bouton : on vote dès le relâchement, sans attendre
+        // la fin de l'animation de sortie.
+        runOnJS(validate)();
       } else if (e.translationX < -SWIPE_THRESHOLD) {
         tx.value = withSpring(0);
         runOnJS(requestRefuse)();
@@ -488,7 +486,9 @@ function VoteCard({
                 label="distance"
               />
               <StravaStat
-                value={strava?.moving_time_s ? `${Math.round(strava.moving_time_s / 60)} min` : "—"}
+                value={
+                  strava?.moving_time_s ? formatDuration(strava.moving_time_s / 60) : "—"
+                }
                 label="durée"
               />
             </View>
@@ -531,6 +531,7 @@ function VoteCard({
             uri={session.author.avatar_url}
             color={session.author.avatar_color}
             icon={session.author.avatar_icon}
+            seed={session.author.id}
             name={`${session.author.first_name ?? ""} ${session.author.last_name ?? ""}`.trim()}
             size={42}
           />
@@ -548,7 +549,7 @@ function VoteCard({
 
         <View className="flex-row flex-wrap gap-2">
           <MetaPill icon={ActivityIcon} label={session.activity_type} />
-          <MetaPill icon={Clock} label={`${session.duration_min} min`} />
+          <MetaPill icon={Clock} label={formatDuration(session.duration_min)} />
           <MetaPill icon={CalendarDays} label={relativeDay(session.performed_at, now)} />
         </View>
 
@@ -624,6 +625,7 @@ function ExcuseVoteCard({ item, threshold }: { item: VotableExcuse; threshold: n
             uri={excuse.author.avatar_url}
             color={excuse.author.avatar_color}
             icon={excuse.author.avatar_icon}
+            seed={excuse.author.id}
             name={`${excuse.author.first_name ?? ""} ${excuse.author.last_name ?? ""}`.trim()}
             size={42}
           />

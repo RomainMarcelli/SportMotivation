@@ -4,7 +4,7 @@ import { Text, View } from "react-native";
 import { avatarIconFor } from "@/constants/avatars";
 import { colors } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
-import { fallbackColor, resolveAvatar } from "@/features/auth/avatar";
+import { resolveAvatar } from "@/features/auth/avatar";
 
 type Size = "sm" | "md" | "lg";
 
@@ -23,14 +23,17 @@ type Props = {
   color?: string | null;
   /** Icône lucide choisie par le joueur (`users.avatar_icon`). */
   icon?: string | null;
+  /**
+   * **Id de l'utilisateur.** Sert uniquement de graine à la couleur de repli quand
+   * le joueur n'a pas encore choisi la sienne.
+   *
+   * ⚠ Toujours passer le MÊME identifiant partout (l'id, pas le nom ni la position
+   * dans une liste) : sinon la même personne apparaît jaune dans le profil et verte
+   * dans le groupe.
+   */
+  seed?: string | null;
   /** Taille prédéfinie (`sm`/`md`/`lg`) ou diamètre en px. */
   size?: Size | number;
-  /**
-   * Repli historique : couleur déduite d'un index dans une liste. Utilisé
-   * uniquement si le joueur n'a PAS choisi de couleur, pour que les anciens
-   * écrans gardent des bulles variées.
-   */
-  index?: number;
 };
 
 /**
@@ -41,7 +44,7 @@ type Props = {
  * (profil, membres, votes, séances, header) : changer un avatar ici le change
  * dans toute l'app.
  */
-export function Avatar({ name = "", uri, color, icon, size = "md", index }: Props) {
+export function Avatar({ name = "", uri, color, icon, seed, size = "md" }: Props) {
   const { box, font } =
     typeof size === "number" ? { box: size, font: Math.round(size * 0.38) } : dims[size];
   const radius = box / 2;
@@ -51,11 +54,10 @@ export function Avatar({ name = "", uri, color, icon, size = "md", index }: Prop
     avatar_color: color,
     avatar_icon: icon,
     first_name: name,
-    id: index !== undefined ? String(index) : name,
+    id: seed,
   });
 
-  // Sans couleur choisie, on retombe sur la teinte déterministe du nom/index.
-  const bg = (color ?? "").trim() || fallbackColor(index !== undefined ? String(index) : name);
+  const bg = resolved.color;
 
   if (resolved.kind === "image") {
     return (

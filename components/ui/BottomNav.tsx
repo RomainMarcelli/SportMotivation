@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
+import { useMyGroups } from "@/features/groups/queries";
+import { groupsView } from "@/features/groups/selectors";
 
 type TabKey = "index" | "groups" | "profile";
 
@@ -23,7 +25,16 @@ const ITEMS: Item[] = [
 export function activeFromPath(pathname: string): TabKey | null {
   if (pathname === "/") return "index";
   if (pathname.startsWith("/group")) return "groups"; // /groups ET /group/[id]/...
-  if (pathname.startsWith("/profile") || pathname.startsWith("/settings")) return "profile";
+  // /account/* et /legal/* ne s'atteignent que depuis les Paramètres, eux-mêmes
+  // dans la branche Profil : l'onglet doit y rester allumé.
+  if (
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/legal")
+  ) {
+    return "profile";
+  }
   // /notifications : aucun onglet du footer ne correspond.
   return null;
 }
@@ -43,6 +54,17 @@ export function BottomNav() {
   const pathname = usePathname();
   const active = activeFromPath(pathname);
   const bottomPad = Math.max(insets.bottom, Platform.OS === "web" ? 22 : 14);
+
+  // Un seul défi → l'onglet « Groupes » ouvre le défi, pas une liste d'un
+  // élément. La décision est prise ICI et pas dans l'écran : une redirection
+  // côté écran se déclenchait aussi quand « Accueil » dépilait la navigation,
+  // ce qui rouvrait le défi et rendait l'accueil inatteignable.
+  const { data: groups } = useMyGroups();
+  const view = groupsView(groups);
+  const groupsHref: Href =
+    view.kind === "single"
+      ? ({ pathname: "/group/[id]", params: { id: view.groupId, solo: "1" } } as Href)
+      : "/groups";
 
   const go = (href: Href) => {
     // Depuis un écran poussé (Notifications → Groupe → …), `navigate` seul ne ramène pas
@@ -73,7 +95,7 @@ export function BottomNav() {
         return (
           <Pressable
             key={item.key}
-            onPress={() => go(item.href)}
+            onPress={() => go(item.key === "groups" ? groupsHref : item.href)}
             className="flex-1 items-center justify-center active:opacity-70"
             style={{ paddingVertical: 1 }}
           >

@@ -5,6 +5,7 @@ import { isValidInviteCode } from "@/lib/group-code";
 import { debugError } from "@/lib/log";
 import { supabase } from "@/lib/supabase";
 import type { Database, Json } from "@/types/database.types";
+import { invalidateMembership } from "./cache";
 
 type DeadlineType = Database["public"]["Enums"]["deadline_type"];
 
@@ -122,10 +123,6 @@ export function useJoinGroup() {
 
       return groupId;
     },
-    onSuccess: (groupId) => {
-      queryClient.invalidateQueries({ queryKey: ["my-groups"] });
-      queryClient.invalidateQueries({ queryKey: ["group", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] });
-    },
+    onSuccess: (groupId) => invalidateMembership(queryClient, groupId),
   });
 }

@@ -6,7 +6,6 @@ import Animated, {
   Easing,
   cancelAnimation,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -15,6 +14,7 @@ import Animated, {
 import { colors, gradients } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
 import { glow } from "@/lib/shadow";
+import { useAppReducedMotion } from "@/hooks/useAppReducedMotion";
 
 type Props = Omit<PressableProps, "children" | "style"> & {
   children: string;
@@ -49,7 +49,7 @@ export function GradientButton({
 }: Props) {
   const isDisabled = disabled || loading;
   const [width, setWidth] = useState(0);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
   const x = useSharedValue(-1);
 
   const sheenActive = sheen && !isDisabled && !reduceMotion && width > 0;

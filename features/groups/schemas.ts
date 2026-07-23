@@ -27,6 +27,13 @@ const baseShape = {
     .min(1, "Au moins 1")
     .max(10, "10 maximum"),
   maxExcuses: z.number().int().min(0).nullable(),
+  /** Séances max par jour et par membre. `null` = illimité. */
+  maxSessionsPerDay: z
+    .number()
+    .int("Nombre entier")
+    .min(1, "Au moins 1")
+    .max(20, "20 maximum")
+    .nullable(),
 };
 
 const datesRefine = (data: { challengeStart: Date; challengeEnd: Date }) =>
@@ -69,6 +76,7 @@ export const createGroupDefaults = {
   voteDeadline: "end_of_week" as const,
   blameThreshold: 3,
   maxExcuses: null,
+  maxSessionsPerDay: 3 as number | null,
   weeklyTarget: 4,
   acceptRules: false as boolean,
 };

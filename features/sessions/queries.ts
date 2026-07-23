@@ -42,6 +42,60 @@ export function useGroupSessions(groupId: string | undefined) {
   });
 }
 
+export type SessionVote = { voterId: string; value: boolean };
+
+/**
+ * Votes exprimés sur une séance (pour la fiche détaillée).
+ *
+ * On ne joint PAS `users` : la RLS de cette table ne laisse pas lire n'importe
+ * quel profil, la jointure reviendrait vide. L'écran croise les identifiants
+ * avec la liste des membres du groupe, qu'il a déjà.
+ */
+export function useSessionVotes(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: ["session-votes", sessionId],
+    enabled: !!sessionId,
+    queryFn: async (): Promise<SessionVote[]> => {
+      const { data, error } = await supabase
+        .from("votes")
+        .select("voter_id, vote_value")
+        .eq("session_id", sessionId!);
+      if (error) throw error;
+      return (data ?? []).map((v) => ({ voterId: v.voter_id, value: v.vote_value }));
+    },
+  });
+}
+
+export type SharedSessionGroup = { groupId: string; name: string; status: string };
+
+/**
+ * Les autres défis où cette même séance a été publiée (`shared_id`, cf. 036).
+ *
+ * La RLS ne renvoie que les défis dont on est membre : quelqu'un qui consulte la
+ * séance d'un camarade ne découvre pas au passage la liste de ses autres défis.
+ */
+export function useSharedSessionGroups(sharedId: string | undefined) {
+  return useQuery({
+    queryKey: ["shared-session", sharedId],
+    enabled: !!sharedId,
+    queryFn: async (): Promise<SharedSessionGroup[]> => {
+      const { data, error } = await supabase
+        .from("sessions")
+        .select("group_id, status, groups(name)")
+        .eq("shared_id", sharedId!);
+      if (error) throw error;
+      return (data ?? []).map((row) => {
+        const r = row as unknown as {
+          group_id: string;
+          status: string;
+          groups: { name: string } | null;
+        };
+        return { groupId: r.group_id, name: r.groups?.name ?? "Un défi", status: r.status };
+      });
+    },
+  });
+}
+
 /**
  * URL signée temporaire pour afficher une photo de preuve (bucket privé).
  * `path` est le chemin stocké dans `session_proofs.media_url`.

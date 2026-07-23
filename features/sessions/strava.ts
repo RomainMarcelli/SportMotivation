@@ -3,6 +3,8 @@
  * `lib/strava.ts` ; ici on ne fait que transformer les données d'activité Strava.
  */
 
+import { formatDuration } from "@/lib/duration";
+
 export type StravaActivity = {
   id: number;
   name: string;
@@ -84,5 +86,5 @@ export function stravaActivityDate(activity: StravaActivity): Date | null {
 export function formatStravaActivity(activity: StravaActivity): string {
   const km = (activity.distance / 1000).toFixed(1);
   const min = stravaDurationToMinutes(activity.moving_time);
-  return `${activity.name} — ${km} km · ${min} min`;
+  return `${activity.name} — ${km} km · ${formatDuration(min)}`;
 }

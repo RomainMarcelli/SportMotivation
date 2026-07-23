@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_proposals: {
+        Row: {
+          id: string
+          group_id: string
+          activity: string
+          requested_by: string | null
+          started_by: string
+          status: string
+          created_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          activity: string
+          requested_by?: string | null
+          started_by: string
+          status?: string
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          activity?: string
+          requested_by?: string | null
+          started_by?: string
+          status?: string
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Relationships: []
+      }
+      activity_proposal_votes: {
+        Row: {
+          proposal_id: string
+          voter_id: string
+          value: boolean
+          created_at: string
+        }
+        Insert: {
+          proposal_id: string
+          voter_id: string
+          value: boolean
+          created_at?: string
+        }
+        Update: {
+          proposal_id?: string
+          voter_id?: string
+          value?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      session_day_grants: {
+        Row: {
+          group_id: string
+          user_id: string
+          day: string
+          extra: number
+          granted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          group_id: string
+          user_id: string
+          day: string
+          extra?: number
+          granted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          group_id?: string
+          user_id?: string
+          day?: string
+          extra?: number
+          granted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       blames: {
         Row: {
           created_at: string
@@ -279,6 +360,7 @@ export type Database = {
           invite_code: string
           max_excuses: number | null
           max_members: number
+          max_sessions_per_day: number | null
           min_duration_min: number
           name: string
           penalty_amount: number
@@ -300,6 +382,7 @@ export type Database = {
           invite_code: string
           max_excuses?: number | null
           max_members?: number
+          max_sessions_per_day?: number | null
           min_duration_min?: number
           name: string
           penalty_amount: number
@@ -321,6 +404,7 @@ export type Database = {
           invite_code?: string
           max_excuses?: number | null
           max_members?: number
+          max_sessions_per_day?: number | null
           min_duration_min?: number
           name?: string
           penalty_amount?: number
@@ -652,6 +736,7 @@ export type Database = {
           id: string
           performed_at: string
           published_at: string
+          shared_id: string
           status: Database["public"]["Enums"]["session_status"]
           user_id: string
           validated_at: string | null
@@ -665,6 +750,7 @@ export type Database = {
           id?: string
           performed_at: string
           published_at?: string
+          shared_id?: string
           status?: Database["public"]["Enums"]["session_status"]
           user_id: string
           validated_at?: string | null
@@ -678,6 +764,7 @@ export type Database = {
           id?: string
           performed_at?: string
           published_at?: string
+          shared_id?: string
           status?: Database["public"]["Enums"]["session_status"]
           user_id?: string
           validated_at?: string | null
@@ -711,6 +798,9 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          notification_prefs: Json
+          /** FALSE = profil privé : invisible dans la recherche par pseudo (cf. 039). */
+          is_searchable: boolean
           updated_at: string
           username: string | null
         }
@@ -724,6 +814,8 @@ export type Database = {
           first_name?: string | null
           id: string
           last_name?: string | null
+          notification_prefs?: Json
+          is_searchable?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -737,6 +829,8 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          notification_prefs?: Json
+          is_searchable?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -948,11 +1042,72 @@ export type Database = {
           p_avatar_icon?: string | null
           p_clear_avatar_url?: boolean
           p_clear_avatar_icon?: boolean
+          p_is_searchable?: boolean | null
         }
+        /** v3 (039) : renvoie la ligne écrite, pour la poser directement dans le cache. */
+        Returns: Database["public"]["Tables"]["users"]["Row"]
+      }
+      /** Demande à l'admin d'ajouter un sport. `false` = rien envoyé (doublon). */
+      request_group_activity: {
+        Args: { p_group_id: string; p_activity: string }
+        Returns: boolean
+      }
+      /** L'admin ajoute le sport ; renvoie la liste complète mise à jour. */
+      add_group_activity: {
+        Args: { p_group_id: string; p_activity: string; p_requester_id?: string | null }
+        Returns: Json
+      }
+      /** Demande à l'admin de revoir une règle du défi. */
+      request_rule_change: {
+        Args: { p_group_id: string; p_rule: string }
+        Returns: boolean
+      }
+      /** L'admin refuse l'ajout d'un sport (commentaire facultatif). */
+      reject_group_activity: {
+        Args: { p_group_id: string; p_activity: string; p_requester_id: string; p_comment?: string | null }
         Returns: undefined
+      }
+      /** L'admin ouvre un vote de groupe pour ajouter un sport. */
+      start_activity_vote: {
+        Args: { p_group_id: string; p_activity: string; p_requester_id?: string | null }
+        Returns: string
+      }
+      /** Vote oui/non sur l'ajout d'un sport ; renvoie le statut de la proposition. */
+      cast_activity_vote: {
+        Args: { p_proposal_id: string; p_value: boolean }
+        Returns: string
+      }
+      /** Le joueur demande à dépasser sa limite de séances pour un jour. */
+      request_session_limit: {
+        Args: { p_group_id: string; p_day: string }
+        Returns: boolean
+      }
+      /** L'admin accorde une séance de plus ce jour-là. */
+      grant_session_limit: {
+        Args: { p_group_id: string; p_user_id: string; p_day: string }
+        Returns: undefined
+      }
+      /** Séances déjà déclarées par un membre un jour donné (hors refusées). */
+      sessions_used_on: {
+        Args: { p_group_id: string; p_user_id: string; p_day: string }
+        Returns: number
+      }
+      /** Quota effectif du jour (règle + dérogations). NULL = illimité. */
+      daily_session_allowance: {
+        Args: { p_group_id: string; p_user_id: string; p_day: string }
+        Returns: number | null
       }
       /** 'deleted' (effacement réel) | 'anonymized' (argent engagé) — cf. 031. */
       delete_my_account: { Args: Record<string, never>; Returns: string }
+      is_username_available: { Args: { p_username: string }; Returns: boolean }
+      set_notification_prefs: { Args: { p_prefs: Json }; Returns: Json }
+      publish_session_to_my_groups: {
+        Args: { p_session_id: string }
+        Returns: { group_id: string; group_name: string; session_id: string }[]
+      }
+      notify_session_declared: { Args: { p_session_id: string }; Returns: number }
+      set_my_penalty: { Args: { p_group_id: string; p_amount: number }; Returns: number }
+      notify_join_from_invitation: { Args: { p_group_id: string }; Returns: undefined }
       get_my_profile_stats: {
         Args: Record<string, never>
         Returns: {
@@ -1070,6 +1225,15 @@ export type Database = {
         | "group_invitation"
         | "penalty_change_request"
         | "admin_transferred"
+        | "member_left"
+        | "activity_request"
+        | "rule_change_request"
+        | "activity_added"
+        | "activity_rejected"
+        | "activity_vote"
+        | "session_refused_by_member"
+        | "session_limit_request"
+        | "session_limit_granted"
       penalty_type: "missed_session" | "blame_threshold"
       proof_type: "photo" | "strava" | "external_link"
       session_status: "pending_vote" | "validated" | "rejected" | "expired"
@@ -1227,6 +1391,15 @@ export const Constants = {
         "group_invitation",
         "penalty_change_request",
         "admin_transferred",
+        "member_left",
+        "activity_request",
+        "rule_change_request",
+        "activity_added",
+        "activity_rejected",
+        "activity_vote",
+        "session_refused_by_member",
+        "session_limit_request",
+        "session_limit_granted",
       ],
       penalty_type: ["missed_session", "blame_threshold"],
       proof_type: ["photo", "strava", "external_link"],

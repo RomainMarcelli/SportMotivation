@@ -18,7 +18,8 @@ import { colors } from "@/constants/colors";
 import { fontsToLoad } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useProfile } from "@/hooks/useProfile";
-import { useAuthInitialized, useIsAuthenticated } from "@/lib/auth-store";
+import { useAuthInitialized, useFinishingSignUp, useIsAuthenticated } from "@/lib/auth-store";
+import { useMotionStore } from "@/lib/motion-store";
 import { queryClient } from "@/lib/query-client";
 import { useThemeStore } from "@/lib/theme-store";
 
@@ -43,6 +44,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     useThemeStore.getState().load();
+    useMotionStore.getState().load();
   }, []);
 
   useEffect(() => {
@@ -79,8 +81,14 @@ function RootContent() {
   const colorScheme = useColorScheme();
   const pref = useThemeStore((s) => s.pref);
   const initialized = useAuthInitialized();
-  const isAuthenticated = useIsAuthenticated();
+  const hasSession = useIsAuthenticated();
+  const finishingSignUp = useFinishingSignUp();
   const { isLoading: profileLoading, isFetched: profileFetched } = useProfile();
+
+  // On ne quitte `(auth)` qu'une fois le profil ÉCRIT, pas dès que la session existe :
+  // sinon l'écran d'inscription est démonté en pleine écriture (avatar perdu, erreur
+  // invisible). Cf. `finishingSignUp` dans lib/auth-store.
+  const isAuthenticated = hasSession && !finishingSignUp;
 
   // Splash : tant que l'auth n'est pas init OU que le profil charge pour un user loggé
   if (!initialized) return <Splash />;
@@ -104,13 +112,13 @@ function RootContent() {
             <Stack.Protected guard={isAuthenticated}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="group" />
-              <Stack.Screen
-                name="notifications"
-                options={{ headerShown: true, title: "Notifications" }}
-              />
-              <Stack.Screen name="settings" options={{ headerShown: true, title: "Paramètres" }} />
-              {/* Écran plein (entête maison) : le header natif ferait doublon. */}
+              {/* Entête maison (compteur de non-lues + « tout effacer ») → pas de header natif. */}
+              <Stack.Screen name="notifications" />
+              {/* Écrans à entête maison : le header natif ferait doublon. */}
+              <Stack.Screen name="settings" />
               <Stack.Screen name="profile-edit" />
+              <Stack.Screen name="account" />
+              <Stack.Screen name="legal" />
             </Stack.Protected>
           </Stack>
         </View>

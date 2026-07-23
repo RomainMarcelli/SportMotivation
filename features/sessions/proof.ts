@@ -19,7 +19,13 @@ const SESSION_ERROR_MESSAGES: Record<string, string> = {
   DURATION_TOO_SHORT: "La durée est inférieure au minimum du groupe.",
   DATE_IN_FUTURE: "La séance ne peut pas être dans le futur.",
   PUBLICATION_TOO_LATE: "Ce groupe n'accepte les séances que le jour même.",
+  DAILY_LIMIT_REACHED: "Tu as atteint la limite de séances pour ce jour.",
 };
+
+/** Le serveur a refusé la déclaration parce que la limite du jour est atteinte. */
+export function isDailyLimitError(message: string): boolean {
+  return message.includes("DAILY_LIMIT_REACHED");
+}
 
 /** Traduit un code d'erreur de `declare_session` en message lisible (sinon renvoie le brut). */
 export function mapSessionError(code: string): string {

@@ -1,94 +1,94 @@
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import {
-  Bell,
+  Activity,
+  ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
+  Globe,
+  Globe2,
   Info,
   KeyRound,
   LifeBuoy,
+  Lock,
   LogOut,
+  type LucideIcon,
+  Mail,
+  MessageCircle,
+  Monitor,
+  Moon,
   Shield,
-  Trash2,
-  UserCog,
+  Sparkles,
+  Sun,
+  TriangleAlert,
 } from "lucide-react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { AppBackground } from "@/components/ui/AppBackground";
+import { Avatar } from "@/components/ui/Avatar";
+import { Reveal } from "@/components/ui/Reveal";
+import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { useDeleteAccount } from "@/features/auth/account";
+import { Toggle } from "@/components/ui/Toggle";
+import { colors } from "@/constants/colors";
+import {
+  deletionMessage,
+  finishAccountDeletion,
+  useDeleteAccount,
+} from "@/features/auth/account";
+import { displayName } from "@/features/auth/avatar";
 import { useSignOut } from "@/features/auth/mutations";
+import {
+  NOTIFICATION_PREF_ITEMS,
+  prefsSummary,
+  useNotificationPrefs,
+  useSetNotificationPref,
+} from "@/features/settings/notification-prefs";
+import {
+  PRIVACY_EXPLAINER,
+  privacyLabel,
+  privacySummary,
+  readIsSearchable,
+  useSetSearchable,
+} from "@/features/settings/privacy";
+import { stravaAthleteLabel } from "@/features/settings/strava-session";
+import { detectTimezone, timezoneLabel } from "@/features/settings/support";
+import { useProfile } from "@/hooks/useProfile";
+import { useCurrentUser } from "@/lib/auth-store";
+import { useMotionStore } from "@/lib/motion-store";
+import { isStravaConfigured, useStravaAuth, useStravaSession } from "@/lib/strava";
 import { useThemeStore, type ThemePref } from "@/lib/theme-store";
 
-function SectionTitle({ children }: { children: string }) {
-  return (
-    <Text className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-      {children}
-    </Text>
-  );
-}
-
-function Row({
-  icon,
-  label,
-  sublabel,
-  onPress,
-  right,
-  danger,
-  comingSoon,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  sublabel?: string;
-  onPress?: () => void;
-  right?: React.ReactNode;
-  danger?: boolean;
-  comingSoon?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={comingSoon ? undefined : onPress}
-      disabled={comingSoon || !onPress}
-      className={`flex-row items-center gap-3 rounded-2xl border border-neutral-200 p-4 dark:border-neutral-700 ${
-        onPress && !comingSoon ? "active:opacity-70" : ""
-      }`}
-    >
-      {icon}
-      <View className="flex-1">
-        <Text
-          className={`text-base font-medium ${
-            danger ? "text-red-600 dark:text-red-400" : "text-neutral-900 dark:text-white"
-          }`}
-        >
-          {label}
-        </Text>
-        {sublabel ? <Text className="text-xs text-neutral-400">{sublabel}</Text> : null}
-      </View>
-      {comingSoon ? (
-        <View className="rounded-full bg-neutral-100 px-2 py-1 dark:bg-neutral-800">
-          <Text className="text-[10px] font-medium text-neutral-400">Bientôt</Text>
-        </View>
-      ) : (
-        right ?? (onPress ? <ChevronRight size={18} color="#94a3b8" /> : null)
-      )}
-    </Pressable>
-  );
-}
-
-const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
-  { value: "light", label: "Clair" },
-  { value: "dark", label: "Sombre" },
-  { value: "system", label: "Auto" },
+const THEME_OPTIONS: { value: ThemePref; label: string; icon: LucideIcon; disabled?: boolean }[] = [
+  // Le thème clair n'est pas encore peint (toute la DA est écrite en sombre) :
+  // le proposer donnerait un écran à moitié cassé.
+  { value: "light", label: "Clair", icon: Sun, disabled: true },
+  { value: "dark", label: "Sombre", icon: Moon },
+  { value: "system", label: "Auto", icon: Monitor, disabled: true },
 ];
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const user = useCurrentUser();
+  const { data: profile } = useProfile();
   const { alert, confirm, toast } = useFeedback();
+
   const signOut = useSignOut();
   const deleteAccount = useDeleteAccount();
   const { pref, setPref } = useThemeStore();
+  const reduceMotion = useMotionStore((s) => s.reduced);
+  const setReduceMotion = useMotionStore((s) => s.setReduced);
 
-  const version = Constants.expoConfig?.version ?? "—";
+  const { data: prefs } = useNotificationPrefs();
+  const setPrefValue = useSetNotificationPref();
+
+  const setSearchable = useSetSearchable();
+  const searchable = readIsSearchable(profile);
+
+  const version = Constants.expoConfig?.version ?? "1.0.0";
+  const timezone = detectTimezone();
 
   const onDeleteAccount = async () => {
     const ok = await confirm({
@@ -100,20 +100,19 @@ export default function SettingsScreen() {
       destructive: true,
     });
     if (!ok) return;
-    deleteAccount.mutate(undefined, {
-      onSuccess: (mode) =>
-        alert({
-          title: "Compte supprimé",
-          tone: "success",
-          message:
-            mode === "deleted"
-              ? "Ton compte et toutes tes données ont été supprimés. À bientôt !"
-              : "Ton compte a été fermé. Comme de l'argent est engagé dans une cagnotte, " +
-                "ton historique reste anonymisé pour ne pas fausser les comptes du groupe.",
-          confirmLabel: "Fermer",
-        }),
-      onError: (e) => toast(e.message, "error"),
-    });
+    try {
+      const mode = await deleteAccount.mutateAsync();
+      // Accusé AVANT la déconnexion : `signOut` démonte cet écran.
+      await alert({
+        title: "Compte supprimé",
+        tone: "success",
+        message: deletionMessage(mode),
+        confirmLabel: "Fermer",
+      });
+      await finishAccountDeletion();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Suppression impossible.", "error");
+    }
   };
 
   const onSignOut = async () => {
@@ -126,80 +125,439 @@ export default function SettingsScreen() {
     if (ok) signOut.mutate();
   };
 
+  const name = displayName(profile ?? {}) || "Mon profil";
+
   return (
-    <ScrollView
-      className="flex-1 bg-white dark:bg-neutral-900"
-      contentContainerClassName="p-4 pb-12"
-    >
-      <SectionTitle>Compte</SectionTitle>
-      <View className="gap-2">
-        <Row
-          icon={<UserCog size={20} color="#3b82f6" />}
-          label="Modifier mon profil"
-          onPress={() => router.push("/(tabs)/profile" as never)}
-        />
-        <Row
-          icon={<KeyRound size={20} color="#94a3b8" />}
-          label="Changer le mot de passe"
-          comingSoon
-        />
-      </View>
-
-      <SectionTitle>Apparence</SectionTitle>
-      <View className="gap-2 rounded-2xl border border-neutral-200 p-4 dark:border-neutral-700">
-        <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Thème</Text>
-        <SegmentedControl options={THEME_OPTIONS} value={pref} onChange={setPref} />
-      </View>
-
-      <SectionTitle>Notifications</SectionTitle>
-      <View className="gap-2">
-        <Row
-          icon={<Bell size={20} color="#94a3b8" />}
-          label="Notifications push"
-          sublabel="Rappels, votes, récap hebdo"
-          comingSoon
-          right={<Switch value={false} disabled />}
-        />
-      </View>
-
-      <SectionTitle>Confidentialité & données</SectionTitle>
-      <View className="gap-2">
-        <Row
-          icon={<Shield size={20} color="#94a3b8" />}
-          label="Exporter mes données"
-          comingSoon
-        />
-        <Row
-          icon={<Trash2 size={20} color="#ef4444" />}
-          label="Supprimer mon compte"
-          danger
-          onPress={onDeleteAccount}
-        />
-      </View>
-
-      <SectionTitle>À propos</SectionTitle>
-      <View className="gap-2">
-        <Row
-          icon={<Info size={20} color="#94a3b8" />}
-          label="Version"
-          right={<Text className="text-sm text-neutral-400">{version}</Text>}
-        />
-        <Row icon={<FileText size={20} color="#94a3b8" />} label="Conditions d'utilisation" comingSoon />
-        <Row icon={<Shield size={20} color="#94a3b8" />} label="Politique de confidentialité" comingSoon />
-        <Row icon={<LifeBuoy size={20} color="#94a3b8" />} label="Support" comingSoon />
-      </View>
-
-      <View className="mt-8">
-        <Pressable
-          onPress={onSignOut}
-          className="flex-row items-center justify-center gap-2 rounded-2xl border border-neutral-200 p-4 active:opacity-70 dark:border-neutral-700"
+    <View className="flex-1">
+      <AppBackground />
+      <ScreenContainer transparent padded={false} edges={["top"]}>
+        <View
+          className="flex-row items-center gap-2 px-[18px] pb-2 pt-1"
+          style={{ backgroundColor: colors.ink }}
         >
-          <LogOut size={18} color="#ef4444" />
-          <Text className="text-base font-semibold text-red-600 dark:text-red-400">
-            Se déconnecter
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.navigate("/profile" as never))}
+            hitSlop={10}
+            accessibilityLabel="Retour"
+            className="h-10 w-10 items-center justify-center rounded-chip border active:opacity-70"
+            style={{ backgroundColor: colors.surface, borderColor: colors.line }}
+          >
+            <ChevronLeft size={20} color={colors.cream} strokeWidth={2.2} />
+          </Pressable>
+          <Text className="font-display text-[18px] tracking-tight text-cream">Paramètres</Text>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Profil ------------------------------------------------------- */}
+          <Reveal delay={0}>
+            <Pressable
+              onPress={() => router.push("/profile-edit" as never)}
+              className="flex-row items-center gap-3.5 rounded-[18px] border p-3.5 active:opacity-80"
+              style={{ backgroundColor: colors.surface, borderColor: colors.line2 }}
+            >
+              <Avatar
+                uri={profile?.avatar_url}
+                color={profile?.avatar_color}
+                icon={profile?.avatar_icon}
+                seed={profile?.id ?? user?.id}
+                name={name}
+                size={52}
+              />
+              <View className="flex-1">
+                <Text numberOfLines={1} className="font-display text-[17px] tracking-tight text-cream">
+                  {name}
+                </Text>
+                <Text numberOfLines={1} className="mt-0.5 font-body text-[12.5px] text-cream-dim">
+                  {profile?.username ? `@${profile.username} · ` : ""}Modifier le profil
+                </Text>
+              </View>
+              <ChevronRight size={18} color={colors.creamDim} />
+            </Pressable>
+          </Reveal>
+
+          {/* Compte ------------------------------------------------------- */}
+          <Reveal delay={60}>
+            <Section title="Compte">
+              <Row
+                icon={Mail}
+                label="Adresse e-mail"
+                sublabel={user?.email ?? "—"}
+                onPress={() => router.push("/account/email" as never)}
+              />
+              <Row
+                icon={KeyRound}
+                label="Mot de passe"
+                sublabel="Le modifier demande l'actuel"
+                onPress={() => router.push("/account/password" as never)}
+                last={!isStravaConfigured}
+              />
+              {isStravaConfigured ? <StravaRow /> : null}
+            </Section>
+          </Reveal>
+
+          {/* Confidentialité ---------------------------------------------- */}
+          <Reveal delay={100}>
+            <Section title="Confidentialité" hint={privacyLabel(searchable)}>
+              <View className="py-3.5">
+                <View className="flex-row items-center gap-3">
+                  <IconTile icon={searchable ? Globe2 : Lock} />
+                  <View className="flex-1">
+                    <Text className="font-body-semibold text-[14px] text-cream">
+                      Trouvable par mon pseudo
+                    </Text>
+                    <Text className="mt-0.5 font-body text-[11.5px] leading-4 text-cream-dim">
+                      {privacySummary(searchable)}
+                    </Text>
+                  </View>
+                  <Toggle
+                    value={searchable}
+                    accessibilityLabel="Trouvable par mon pseudo"
+                    onChange={(value) =>
+                      setSearchable.mutate(value, {
+                        onError: (e) => toast(e.message, "error"),
+                      })
+                    }
+                  />
+                </View>
+                <Text className="mt-2.5 font-body text-[11.5px] leading-[16px] text-cream-dim">
+                  {PRIVACY_EXPLAINER}
+                </Text>
+              </View>
+            </Section>
+          </Reveal>
+
+          {/* Notifications ------------------------------------------------ */}
+          <Reveal delay={120}>
+            <Section
+              title="Notifications"
+              hint={prefs ? prefsSummary(prefs) : undefined}
+            >
+              {NOTIFICATION_PREF_ITEMS.map((item, index) => (
+                <Row
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  sublabel={
+                    item.live ? item.sublabel : `${item.sublabel} · dès leur mise en service`
+                  }
+                  last={index === NOTIFICATION_PREF_ITEMS.length - 1}
+                >
+                  <Toggle
+                    value={prefs?.[item.key] ?? true}
+                    accessibilityLabel={item.label}
+                    onChange={(value) => setPrefValue.mutate({ key: item.key, value })}
+                  />
+                </Row>
+              ))}
+            </Section>
+          </Reveal>
+
+          {/* Apparence ---------------------------------------------------- */}
+          <Reveal delay={180}>
+            <Section title="Apparence">
+              <View className="border-b py-3.5" style={{ borderColor: colors.line }}>
+                <View className="flex-row items-center gap-3">
+                  <IconTile icon={Moon} />
+                  <View className="flex-1">
+                    <Text className="font-body-semibold text-[14px] text-cream">Thème</Text>
+                    <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+                      Clair, sombre ou selon le système
+                    </Text>
+                  </View>
+                </View>
+                <View className="mt-3">
+                  <SegmentedControl options={THEME_OPTIONS} value={pref} onChange={setPref} />
+                </View>
+                <Text className="mt-2.5 font-body text-[11.5px] leading-[16px] text-cream-dim">
+                  Le thème clair est en cours de fabrication : toute l'identité visuelle est
+                  aujourd'hui dessinée en sombre.
+                </Text>
+              </View>
+
+              <Row
+                icon={Sparkles}
+                label="Réduire les animations"
+                sublabel="Limite les transitions et effets"
+                last
+              >
+                <Toggle
+                  value={reduceMotion}
+                  accessibilityLabel="Réduire les animations"
+                  onChange={setReduceMotion}
+                />
+              </Row>
+            </Section>
+          </Reveal>
+
+          {/* Langue & région ---------------------------------------------- */}
+          <Reveal delay={240}>
+            <Section title="Langue & région">
+              <Row icon={Globe} label="Langue" value="Français" />
+              <Row
+                icon={Clock}
+                label="Fuseau horaire"
+                sublabel="Sert au calcul de la semaine"
+                value={timezoneLabel(timezone)}
+                last
+              />
+            </Section>
+          </Reveal>
+
+          {/* Aide & légal -------------------------------------------------- */}
+          <Reveal delay={300}>
+            <Section title="Aide & légal">
+              <Row
+                icon={LifeBuoy}
+                label="Centre d'aide"
+                onPress={() => router.push("/legal/help" as never)}
+              />
+              {/* Grisé tant que l'envoi d'e-mails n'est pas en place. */}
+              <Row icon={MessageCircle} label="Contacter le support" soon />
+              <Row
+                icon={FileText}
+                label="Conditions d'utilisation"
+                onPress={() => router.push("/legal/terms" as never)}
+              />
+              <Row
+                icon={Shield}
+                label="Politique de confidentialité"
+                onPress={() => router.push("/legal/privacy" as never)}
+              />
+              <Row icon={Info} label="Version" value={version} last />
+            </Section>
+          </Reveal>
+
+          {/* Sortie ------------------------------------------------------- */}
+          <Reveal delay={360} className="mt-6">
+            <Pressable
+              onPress={onSignOut}
+              className="flex-row items-center justify-center gap-2.5 rounded-[15px] border p-4 active:opacity-80"
+              style={{ backgroundColor: colors.surface, borderColor: colors.line2 }}
+            >
+              <LogOut size={18} color={colors.coral} strokeWidth={2.2} />
+              <Text className="font-display text-[14.5px] tracking-tight text-cream">
+                Se déconnecter
+              </Text>
+            </Pressable>
+
+            {/* Zone dangereuse : un lien nu au milieu de la page se cliquait par
+                accident. Elle est maintenant nommée, cadrée et explicite sur ce
+                qu'elle détruit. */}
+            <View
+              className="mt-5 rounded-[16px] border p-4"
+              style={{ backgroundColor: colors.redSoft, borderColor: "rgba(242,85,74,0.28)" }}
+            >
+              <View className="flex-row items-center gap-2.5">
+                <View
+                  className="h-9 w-9 items-center justify-center rounded-[10px]"
+                  style={{ backgroundColor: "rgba(242,85,74,0.18)" }}
+                >
+                  <TriangleAlert size={17} color={colors.red} strokeWidth={2.2} />
+                </View>
+                <Text className="flex-1 font-display text-[14.5px] tracking-tight text-cream">
+                  Supprimer mon compte
+                </Text>
+              </View>
+              <Text className="mt-2.5 font-body text-[12px] leading-[17px] text-cream-dim">
+                Efface définitivement tes séances, tes excuses et tes groupes. Les sommes dues à un
+                défi restent conservées jusqu'à leur règlement.
+              </Text>
+              <Pressable
+                onPress={onDeleteAccount}
+                disabled={deleteAccount.isPending}
+                className="mt-3 items-center rounded-input border py-3 active:opacity-80"
+                style={{
+                  borderColor: colors.red,
+                  opacity: deleteAccount.isPending ? 0.5 : 1,
+                }}
+              >
+                <Text className="font-body-bold text-[13px]" style={{ color: colors.red }}>
+                  {deleteAccount.isPending ? "Suppression…" : "Supprimer définitivement"}
+                </Text>
+              </Pressable>
+            </View>
+
+            <Text className="mt-4 text-center font-body text-[11px] text-cream-dim">
+              <Text className="font-display text-cream">Sport Motiv</Text> · v{version}
+            </Text>
+          </Reveal>
+        </ScrollView>
+      </ScreenContainer>
+    </View>
+  );
+}
+
+/* ---------------------------------------------------------------- Strava */
+
+/**
+ * Ligne Strava. Connectée, elle mène à l'écran du compte (dernières activités) ;
+ * déconnectée, elle lance l'autorisation puis confirme par une popup — sans quoi
+ * on revient de Strava sans savoir si ça a marché.
+ */
+function StravaRow() {
+  const router = useRouter();
+  const { alert } = useFeedback();
+  const { connect, isPending } = useStravaAuth();
+  const { data: session } = useStravaSession();
+
+  const connected = !!session;
+  const athlete = stravaAthleteLabel(session ?? null);
+
+  const onPress = async () => {
+    if (connected) {
+      router.push("/account/strava" as never);
+      return;
+    }
+    const token = await connect();
+    if (!token) return;
+    await alert({
+      title: "Strava connecté",
+      tone: "success",
+      message:
+        "Tes activités récentes peuvent maintenant servir de preuve quand tu déclares une séance.",
+      confirmLabel: "Parfait",
+    });
+    router.push("/account/strava" as never);
+  };
+
+  return (
+    <Row
+      icon={Activity}
+      label="Strava"
+      sublabel={
+        connected
+          ? athlete
+            ? `${athlete} · voir mes activités`
+            : "Voir mes dernières activités"
+          : "Importer tes activités comme preuve"
+      }
+      onPress={isPending ? undefined : onPress}
+      last
+    >
+      {connected ? (
+        <View
+          className="flex-row items-center gap-1.5 rounded-full px-2.5 py-1"
+          style={{ backgroundColor: colors.mintSoft }}
+        >
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.mint }} />
+          <Text className="font-body-bold text-[11px]" style={{ color: colors.mint }}>
+            Connecté
           </Text>
-        </Pressable>
+        </View>
+      ) : null}
+    </Row>
+  );
+}
+
+/* ------------------------------------------------------------- primitives */
+
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View className="mt-[18px]">
+      <View className="mb-2.5 flex-row items-baseline justify-between pl-0.5">
+        <Text className="font-body-bold text-[12px] uppercase tracking-label text-cream-dim">
+          {title}
+        </Text>
+        {hint ? <Text className="font-body text-[11.5px] text-cream-dim">{hint}</Text> : null}
       </View>
-    </ScrollView>
+      <View
+        className="rounded-[18px] border px-3.5"
+        style={{ backgroundColor: colors.surface, borderColor: colors.line2 }}
+      >
+        {children}
+      </View>
+    </View>
+  );
+}
+
+function IconTile({ icon: Icon, danger }: { icon: LucideIcon; danger?: boolean }) {
+  return (
+    <View
+      className="h-9 w-9 items-center justify-center rounded-[10px]"
+      style={{ backgroundColor: danger ? colors.redSoft : colors.surface2 }}
+    >
+      <Icon size={18} color={danger ? colors.red : colors.creamDim} strokeWidth={2} />
+    </View>
+  );
+}
+
+function Row({
+  icon,
+  label,
+  sublabel,
+  value,
+  last,
+  soon,
+  onPress,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  sublabel?: string;
+  /** Valeur en clair à droite (lecture seule). */
+  value?: string;
+  last?: boolean;
+  /** Fonction annoncée mais pas encore branchée → grisée et inerte. */
+  soon?: boolean;
+  onPress?: () => void;
+  /** Contrôle à droite (interrupteur, pastille…). */
+  children?: React.ReactNode;
+}) {
+  const content = (
+    <>
+      <IconTile icon={icon} />
+      <View className="flex-1">
+        <Text className="font-body-semibold text-[14px] text-cream">{label}</Text>
+        {sublabel ? (
+          <Text numberOfLines={1} className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+            {sublabel}
+          </Text>
+        ) : null}
+      </View>
+      {value ? (
+        <Text className="font-body-semibold text-[13px] text-cream">{value}</Text>
+      ) : null}
+      {soon ? (
+        <View
+          className="rounded-full px-2 py-1"
+          style={{ backgroundColor: colors.surface2 }}
+        >
+          <Text className="font-body-bold text-[10px] text-cream-dim">Bientôt</Text>
+        </View>
+      ) : null}
+      {children}
+      {onPress && !soon ? <ChevronRight size={17} color={colors.creamDim} /> : null}
+    </>
+  );
+
+  const className = "flex-row items-center gap-3 py-3.5";
+  const style = [
+    last ? undefined : { borderBottomWidth: 1, borderColor: colors.line },
+    soon ? { opacity: 0.45 } : undefined,
+  ];
+
+  if (onPress && !soon) {
+    return (
+      <Pressable onPress={onPress} className={`${className} active:opacity-70`} style={style}>
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View className={className} style={style}>
+      {content}
+    </View>
   );
 }

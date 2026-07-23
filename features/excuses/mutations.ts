@@ -91,6 +91,8 @@ export function useCastExcuseVote() {
     onSuccess: (_result, args) => {
       queryClient.invalidateQueries({ queryKey: ["excuses", args.groupId] });
       queryClient.invalidateQueries({ queryKey: ["votes", args.groupId] });
+      // La notification correspondante doit basculer sur « vote enregistré ».
+      queryClient.invalidateQueries({ queryKey: ["my-voted-targets"] });
     },
   });
 }

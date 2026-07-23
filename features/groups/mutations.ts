@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 import type { CreateGroupInput } from "./schemas";
 import { buildRulesSnapshot } from "./rules-snapshot";
+import { invalidateMembership } from "./cache";
 
 type CreateGroupArgs = CreateGroupInput & {
   weeklyTarget: number;
@@ -43,6 +44,7 @@ export function useCreateGroup() {
           vote_deadline: input.voteDeadline,
           blame_threshold: input.blameThreshold,
           max_excuses: input.maxExcuses,
+          max_sessions_per_day: input.maxSessionsPerDay,
           invite_code: "", // remplacé par le trigger generate_invite_code
         })
         .select()
@@ -68,8 +70,6 @@ export function useCreateGroup() {
 
       return group;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-groups"] });
-    },
+    onSuccess: () => invalidateMembership(queryClient),
   });
 }

@@ -1,6 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { AlertCircle, AtSign, Lock, Mail, Palette, ShieldCheck, User } from "lucide-react-native";
+import {
+  AlertCircle,
+  ArrowRight,
+  AtSign,
+  Lock,
+  Mail,
+  Palette,
+  ShieldCheck,
+  User,
+} from "lucide-react-native";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
@@ -8,6 +17,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { AvatarPicker, type AvatarSelection } from "@/components/profile/AvatarPicker";
+import { PrivacyToggleCard } from "@/components/profile/PrivacyToggleCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { GradientButton } from "@/components/ui/GradientButton";
@@ -20,21 +30,37 @@ import { isGoogleConfigured } from "@/features/auth/google";
 import { useSignUp } from "@/features/auth/mutations";
 import { useUpdateProfile } from "@/features/auth/profile-mutations";
 import { signUpSchema, type SignUpInput } from "@/features/auth/schemas";
+import {
+  isEmailTakenError,
+  isUsernameTakenError,
+  useUsernameAvailability,
+} from "@/features/auth/username";
+import { DEFAULT_IS_SEARCHABLE } from "@/features/settings/privacy";
+import { setFinishingSignUp } from "@/lib/auth-store";
 
 export default function SignUpScreen() {
   const router = useRouter();
   const signUp = useSignUp();
   const updateProfile = useUpdateProfile();
-  const [avatar, setAvatar] = useState<AvatarSelection>({
-    color: AVATAR_COLORS[0],
+  // Couleur de départ tirée au sort **une seule fois** : sans ça, tous les comptes
+  // créés sans passer par le sélecteur seraient corail. Elle est enregistrée telle
+  // quelle, donc ce que l'écran montre est bien ce que le joueur gardera.
+  const [avatar, setAvatar] = useState<AvatarSelection>(() => ({
+    color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
     icon: null,
     photo: null,
     generatedUrl: null,
     clearImage: true,
-  });
+  }));
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** Trouvable par son pseudo. Public par défaut (cf. `features/settings/privacy`). */
+  const [searchable, setSearchable] = useState(DEFAULT_IS_SEARCHABLE);
   const [pwdFocused, setPwdFocused] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  /** Compte créé, mais l'écriture du profil a échoué → on propose de réessayer. */
+  const [needsRetry, setNeedsRetry] = useState(false);
+  /** L'e-mail saisi a déjà un compte → raccourci vers la connexion. */
+  const [emailTaken, setEmailTaken] = useState(false);
 
   const {
     control,
@@ -52,20 +78,32 @@ export default function SignUpScreen() {
   const passwordValue = watch("password");
   const firstNameValue = watch("firstName");
   const usernameValue = watch("username");
+  const emailValue = watch("email");
   const submitting = signUp.isPending || updateProfile.isPending;
+
+  // Vérif live : on annonce « déjà pris » AVANT de créer le compte, plutôt que de
+  // deviner après coup à partir d'une violation de contrainte.
+  const { data: usernameFree } = useUsernameAvailability(usernameValue);
+  const usernameTaken = usernameFree === false && !errors.username;
 
   const avatarPreviewUri = avatar.photo?.uri ?? avatar.generatedUrl;
 
   const handleError = (e: unknown) => {
-    const err = e as { code?: string; message?: string };
+    const err = e as { code?: string; message?: string; details?: string };
     const msg = err.message ?? "";
-    if (/already registered|already.*exist|user.*exist/i.test(msg)) {
-      setError("email", { message: "Cet e-mail est déjà utilisé." });
-    } else if (
-      err.code === "23505" ||
-      /username|pseudo|duplicate|unique|database error saving new user/i.test(msg)
-    ) {
-      setError("username", { message: "Ce pseudo est déjà pris." });
+    // Pseudo d'abord : son message contient parfois « already », qui ferait
+    // passer un pseudo pris pour un e-mail pris.
+    if (isUsernameTakenError(err)) {
+      setError("username", { message: `« ${usernameValue} » est déjà pris, choisis-en un autre.` });
+    } else if (isEmailTakenError(err)) {
+      setEmailTaken(true);
+      setError("email", { message: "Un compte existe déjà avec cet e-mail." });
+    } else if (/database error saving new user/i.test(msg)) {
+      // Le trigger de création du profil a échoué. En pratique c'est presque
+      // toujours le pseudo : c'est la seule contrainte unique qu'il touche.
+      setError("username", {
+        message: `« ${usernameValue} » semble déjà pris, essaie une variante.`,
+      });
     } else if (msg) {
       // On affiche le VRAI message : c'est ici que se cachait « SQL non exécuté »,
       // masqué jusqu'ici derrière un « une erreur est survenue » inutile.
@@ -75,31 +113,71 @@ export default function SignUpScreen() {
     }
   };
 
+  /** Écriture du profil (identité + avatar). Isolée pour pouvoir être **réessayée**. */
+  const writeProfile = (data: SignUpInput) =>
+    updateProfile.mutateAsync({
+      firstName: data.firstName,
+      username: data.username,
+      avatarBase64: avatar.photo?.base64 ?? null,
+      avatarMimeType: avatar.photo?.mime ?? null,
+      generatedAvatarUrl: avatar.generatedUrl,
+      avatarColor: avatar.color,
+      avatarIcon: avatar.icon,
+      clearAvatarIcon: avatar.icon === null,
+      isSearchable: searchable,
+    });
+
   const onSubmit = async (data: SignUpInput) => {
     setSubmitError(null);
+    // Verrouille la racine sur `(auth)` : sans ça, `onAuthStateChange` démonte cet
+    // écran dès que le compte est créé — donc AVANT que l'avatar soit enregistré.
+    setFinishingSignUp(true);
+
+    let hasSession = false;
     try {
       const result = await signUp.mutateAsync(data);
+      hasSession = !!result.session;
+    } catch (e) {
+      setFinishingSignUp(false);
+      handleError(e);
+      return;
+    }
 
-      if (result.session) {
-        // Confirmation d'e-mail OFF : session active → on écrit le profil + l'avatar.
-        await updateProfile.mutateAsync({
-          firstName: data.firstName,
-          username: data.username,
-          avatarBase64: avatar.photo?.base64 ?? null,
-          avatarMimeType: avatar.photo?.mime ?? null,
-          generatedAvatarUrl: avatar.generatedUrl,
-          avatarColor: avatar.color,
-          avatarIcon: avatar.icon,
-          clearAvatarIcon: avatar.icon === null,
-        });
-        // Pas de navigation explicite : le root layout bascule sur (tabs) dès que la session est active.
-      } else {
-        // Confirmation ON (plus tard) : pas de session. Métadonnées déjà envoyées via signUp.
-        router.replace("/sign-in");
-      }
+    if (!hasSession) {
+      // Confirmation d'e-mail ON (plus tard) : métadonnées déjà envoyées via signUp.
+      setFinishingSignUp(false);
+      router.replace("/sign-in");
+      return;
+    }
+
+    try {
+      await writeProfile(data);
+      // Profil écrit → on relâche le verrou, la racine bascule sur les onglets.
+      setFinishingSignUp(false);
+    } catch (e) {
+      // Le compte EXISTE désormais. Plutôt que d'envoyer l'utilisateur dans l'app
+      // avec un profil vide (le bug d'avant), on le garde ici avec un « Réessayer ».
+      setNeedsRetry(true);
+      handleError(e);
+    }
+  };
+
+  /** Le compte est créé mais le profil n'a pas pu être écrit : on retente ce seul appel. */
+  const onRetry = handleSubmit(async (data) => {
+    setSubmitError(null);
+    try {
+      await writeProfile(data);
+      setNeedsRetry(false);
+      setFinishingSignUp(false);
     } catch (e) {
       handleError(e);
     }
+  });
+
+  /** Sortie de secours : entrer quand même, le profil restera modifiable. */
+  const onSkipProfile = () => {
+    setNeedsRetry(false);
+    setFinishingSignUp(false);
   };
 
   const clearSubmitError = () => {
@@ -204,7 +282,10 @@ export default function SignUpScreen() {
                     placeholder="romz"
                     autoCapitalize="none"
                     autoComplete="username"
-                    error={errors.username?.message}
+                    error={
+                      errors.username?.message ??
+                      (usernameTaken ? "Ce pseudo est déjà pris." : undefined)
+                    }
                   />
                 )}
               />
@@ -223,6 +304,7 @@ export default function SignUpScreen() {
                     onChangeText={(t) => {
                       onChange(t);
                       clearErrors("email");
+                      setEmailTaken(false);
                       clearSubmitError();
                     }}
                     placeholder="ton@email.com"
@@ -233,6 +315,22 @@ export default function SignUpScreen() {
                   />
                 )}
               />
+              {/* Adresse déjà inscrite : la bonne action n'est pas de corriger le
+                  champ, c'est d'aller se connecter. On l'offre directement. */}
+              {emailTaken ? (
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: "/sign-in", params: { email: emailValue } } as never)
+                  }
+                  hitSlop={8}
+                  className="mt-2 flex-row items-center gap-1.5 self-start py-1"
+                >
+                  <Text className="font-body-bold text-[12.5px] text-coral">
+                    Me connecter avec cet e-mail
+                  </Text>
+                  <ArrowRight size={14} color={colors.coral} strokeWidth={2.4} />
+                </Pressable>
+              ) : null}
             </Reveal>
 
             <Reveal delay={220}>
@@ -289,6 +387,13 @@ export default function SignUpScreen() {
                 )}
               />
             </Reveal>
+
+            {/* Confidentialité — posée ici plutôt qu'après coup dans les réglages :
+                c'est au moment de choisir son pseudo qu'on se demande qui pourra
+                le retrouver. Modifiable ensuite dans les Paramètres. */}
+            <Reveal delay={280}>
+              <PrivacyToggleCard value={searchable} onChange={setSearchable} />
+            </Reveal>
           </View>
 
           <Reveal delay={300} className="mt-7 gap-3.5">
@@ -300,14 +405,22 @@ export default function SignUpScreen() {
             ) : null}
 
             <GradientButton
-              onPress={handleSubmit(onSubmit)}
+              onPress={needsRetry ? onRetry : handleSubmit(onSubmit)}
               loading={submitting}
-              disabled={!isValid}
+              disabled={!isValid || usernameTaken}
             >
-              Créer mon compte
+              {needsRetry ? "Réessayer d'enregistrer mon profil" : "Créer mon compte"}
             </GradientButton>
 
-            {isGoogleConfigured ? (
+            {needsRetry ? (
+              <Pressable onPress={onSkipProfile} hitSlop={8} className="items-center py-1">
+                <Text className="font-body-semibold text-[12.5px] text-cream-dim">
+                  Continuer sans avatar (modifiable dans le profil)
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {isGoogleConfigured && !needsRetry ? (
               <>
                 <View className="flex-row items-center gap-3">
                   <View className="h-px flex-1 bg-line" />

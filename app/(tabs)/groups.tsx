@@ -19,8 +19,10 @@ export default function GroupsScreen() {
   const { data: groups, isLoading } = useMyGroups();
   const view = groupsView(groups);
 
-  // L'onglet Groupes liste TOUJOURS les défis (1 ou plusieurs). Plus de redirection auto vers
-  // le détail : elle cassait la navigation du footer (l'onglet renvoyait sans cesse au groupe).
+  // Un seul défi → c'est la barre du bas qui pointe DIRECTEMENT dessus
+  // (cf. `BottomNav`). Rediriger depuis cet écran avait un effet pervers :
+  // « Accueil » dépile la pile, ce qui redonnait le focus à cet onglet, qui
+  // rouvrait aussitôt le défi — impossible de rentrer chez soi.
   const isList = view.kind === "list" || view.kind === "single";
 
   return (
@@ -78,8 +80,9 @@ export default function GroupsScreen() {
               </Reveal>
             </>
           ) : (
-            // 0 défi (ou chargement) → état vide centré (identique à l'ancien état vide de l'accueil).
-            <View className="flex-1 justify-center pb-12">
+            // 0 défi (ou chargement) → état vide centré, EXACTEMENT comme l'accueil.
+            // (Un `pb-12` traînait ici : il remontait tout le bloc vers le haut.)
+            <View className="flex-1 justify-center">
               <EmptyGroups
                 loading={isLoading}
                 onCreate={() => router.push("/group/create" as never)}

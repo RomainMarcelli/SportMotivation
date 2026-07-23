@@ -29,3 +29,19 @@ export function addDuration(start: Date, value: number, unit: DurationUnit): Dat
 export function endFromPreset(start: Date, months: number): Date {
   return addDuration(start, months, "mois");
 }
+
+/**
+ * Durée d'une séance en toutes lettres : `45 min`, `1h`, `1h10`, `2h05`.
+ *
+ * Au-delà d'une heure, « 95 min » oblige à faire la division de tête. Les
+ * minutes sont sur deux chiffres après l'heure (`2h05`, pas `2h5`) : c'est la
+ * lecture d'un chrono, et ça évite de lire « 2h50 ».
+ */
+export function formatDuration(minutes: number | null | undefined): string {
+  const total = Math.max(0, Math.round(Number(minutes) || 0));
+  if (total < 60) return `${total} min`;
+
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, "0")}`;
+}

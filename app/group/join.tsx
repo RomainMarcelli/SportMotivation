@@ -4,6 +4,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
 
 import { AppBackground } from "@/components/ui/AppBackground";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
@@ -26,13 +27,10 @@ export default function JoinGroupScreen() {
         >
           <View className="flex-1 justify-center px-[22px]">
             <Reveal delay={0} className="items-center">
-              <View
-                className="h-[66px] w-[66px] items-center justify-center rounded-[20px]"
-                style={glow({ color: colors.coral, offsetY: 14, radius: 28, opacity: 0.5 })}
-              >
-                <View className="absolute h-full w-full rounded-[20px] bg-coral" />
-                <LogIn size={28} color={colors.onCoral} strokeWidth={2.2} />
-              </View>
+              {/* Le badge était un carré corail posé en `absolute` PAR-DESSUS
+                  l'icône : sur le web elle disparaissait derrière. On réutilise
+                  la marque de l'app, avec l'icône « rejoindre ». */}
+              <BrandMark size={66} icon={LogIn} />
               <Text className="mt-4 text-center font-display text-[25px] tracking-tighter text-cream">
                 Rejoins un défi
               </Text>

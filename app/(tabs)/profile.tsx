@@ -1,9 +1,9 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import {
   Activity,
   Bell,
   ChevronRight,
+  CircleDollarSign,
   Flame,
   LogOut,
   Moon,
@@ -19,12 +19,17 @@ import { ActivityIndicator, Pressable, ScrollView, Switch, Text, View } from "re
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { DevAccountSwitcher } from "@/components/profile/DevAccountSwitcher";
 import { Avatar } from "@/components/ui/Avatar";
+import { CountUp } from "@/components/ui/CountUp";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { colors, gradients } from "@/constants/colors";
-import { useDeleteAccount } from "@/features/auth/account";
-import { displayName } from "@/features/auth/avatar";
+import { colors } from "@/constants/colors";
+import {
+  deletionMessage,
+  finishAccountDeletion,
+  useDeleteAccount,
+} from "@/features/auth/account";
+import { avatarRingColor, displayName } from "@/features/auth/avatar";
 import { useSignOut } from "@/features/auth/mutations";
 import {
   challengeCount,
@@ -34,6 +39,8 @@ import {
   memberSince,
 } from "@/features/profile/format";
 import { useProfileGroups, useProfileStats } from "@/features/profile/queries";
+import { useFocusReplay } from "@/hooks/useFocusReplay";
+import { useUnreadCount } from "@/features/notifications/queries";
 import { useProfile } from "@/hooks/useProfile";
 import { useThemeStore, type ThemePref } from "@/lib/theme-store";
 
@@ -52,18 +59,28 @@ function SectionHead({ title, meta }: { title: string; meta?: string }) {
   );
 }
 
+/**
+ * Carte de stat. Le nombre s'incrémente de 0 à sa valeur (`CountUp`), comme dans
+ * la maquette — et respecte `prefers-reduced-motion`.
+ */
 function StatCard({
   icon: Icon,
   tint,
   soft,
   value,
+  suffix,
   caption,
+  delay,
+  replay,
 }: {
   icon: typeof Activity;
   tint: string;
   soft: string;
-  value: string;
+  value: number;
+  suffix?: string;
   caption: string;
+  delay: number;
+  replay: number;
 }) {
   return (
     <View
@@ -76,9 +93,13 @@ function StatCard({
       >
         <Icon size={18} color={tint} strokeWidth={2.2} />
       </View>
-      <Text className="font-display text-[24px] leading-[26px] tracking-tighter text-cream">
-        {value}
-      </Text>
+      <CountUp
+        key={replay}
+        to={value}
+        suffix={suffix}
+        duration={1100 + delay}
+        className="font-display text-[24px] leading-[26px] tracking-tighter text-cream"
+      />
       <Text className="mt-1 font-body text-[11.5px] text-cream-dim">{caption}</Text>
     </View>
   );
@@ -135,6 +156,10 @@ export default function ProfileScreen() {
   const deleteAccount = useDeleteAccount();
   const { alert, confirm, toast } = useFeedback();
   const { pref, setPref } = useThemeStore();
+  const unread = useUnreadCount();
+  // Les onglets restent montés : sans ce compteur, les nombres ne grimperaient
+  // qu’à la toute première visite de l’écran.
+  const replay = useFocusReplay();
 
   const onDelete = async () => {
     const ok = await confirm({
@@ -147,23 +172,21 @@ export default function ProfileScreen() {
     });
     if (!ok) return;
 
-    deleteAccount.mutate(undefined, {
-      onSuccess: (mode) => {
-        // La popup vit dans le FeedbackProvider, monté AU-DESSUS de la pile : elle
-        // reste visible alors même que la racine bascule vers l'écran de connexion.
-        alert({
-          title: "Compte supprimé",
-          tone: "success",
-          message:
-            mode === "deleted"
-              ? "Ton compte et toutes tes données ont été supprimés. À bientôt !"
-              : "Ton compte a été fermé. Comme de l'argent est engagé dans une cagnotte, " +
-                "ton historique reste anonymisé pour ne pas fausser les comptes du groupe.",
-          confirmLabel: "Fermer",
-        });
-      },
-      onError: (e) => toast(e.message, "error"),
-    });
+    try {
+      const mode = await deleteAccount.mutateAsync();
+      // On montre l'accusé AVANT de déconnecter : `signOut` démonte cet écran, et
+      // les callbacks d'une mutation sont abandonnés au démontage — c'est pour ça
+      // que la confirmation ne s'affichait jamais.
+      await alert({
+        title: "Compte supprimé",
+        tone: "success",
+        message: deletionMessage(mode),
+        confirmLabel: "Fermer",
+      });
+      await finishAccountDeletion();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Suppression impossible.", "error");
+    }
   };
 
   const onSignOut = async () => {
@@ -187,6 +210,8 @@ export default function ProfileScreen() {
   const name = displayName(profile ?? {}) || "Mon profil";
   const at = handle(profile?.username);
   const since = memberSince(profile?.created_at);
+  const ringColor = avatarRingColor(profile?.avatar_color, profile?.id);
+  const hasPhoto = !!(profile?.avatar_url ?? "").trim();
 
   return (
     <ScreenContainer padded={false} edges={["top"]}>
@@ -198,41 +223,78 @@ export default function ProfileScreen() {
         <Reveal delay={20}>
           <View className="flex-row items-center justify-between">
             <Text className="font-display text-[22px] tracking-tighter text-cream">Profil</Text>
-            <Pressable
-              onPress={() => router.push("/settings" as never)}
-              hitSlop={8}
-              accessibilityLabel="Paramètres"
-              className="h-10 w-10 items-center justify-center rounded-chip border active:opacity-80"
-              style={{ backgroundColor: colors.surface, borderColor: colors.line }}
-            >
-              <Settings size={20} color={colors.creamDim} />
-            </Pressable>
+            <View className="flex-row items-center gap-2">
+              {/* Les notifications n'étaient joignables que depuis l'accueil :
+                  depuis le profil il fallait faire un aller-retour. */}
+              <Pressable
+                onPress={() => router.push("/notifications" as never)}
+                hitSlop={8}
+                accessibilityLabel="Notifications"
+                className="h-10 w-10 items-center justify-center rounded-chip border active:opacity-80"
+                style={{ backgroundColor: colors.surface, borderColor: colors.line }}
+              >
+                <Bell size={20} color={colors.creamDim} />
+                {unread > 0 ? (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      minWidth: 16,
+                      height: 16,
+                      paddingHorizontal: 3,
+                      borderRadius: 8,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: colors.coral,
+                      borderWidth: 2,
+                      borderColor: colors.ink,
+                    }}
+                  >
+                    <Text
+                      className="font-body-bold text-[9px]"
+                      style={{ color: colors.onCoral }}
+                    >
+                      {unread > 9 ? "9+" : unread}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/settings" as never)}
+                hitSlop={8}
+                accessibilityLabel="Paramètres"
+                className="h-10 w-10 items-center justify-center rounded-chip border active:opacity-80"
+                style={{ backgroundColor: colors.surface, borderColor: colors.line }}
+              >
+                <Settings size={20} color={colors.creamDim} />
+              </Pressable>
+            </View>
           </View>
         </Reveal>
 
         {/* Entête profil */}
         <Reveal delay={60}>
           <View className="items-center pb-0.5 pt-1.5">
-            <LinearGradient
-              colors={gradients.brand.colors}
-              locations={gradients.brand.locations}
-              start={gradients.brand.start}
-              end={gradients.brand.end}
-              style={{ padding: 3, borderRadius: 999 }}
+            {/* Pas d'anneau dès qu'il y a une image : on ne doit voir QUE la photo,
+                pas un liseré coloré autour. Sur une bulle, l'anneau reprend sa
+                propre couleur (donc invisible) — il ne sert qu'au relief. */}
+            <View
+              style={
+                hasPhoto
+                  ? undefined
+                  : { padding: 3, borderRadius: 999, backgroundColor: ringColor }
+              }
             >
-              <View
-                className="items-center justify-center rounded-full"
-                style={{ backgroundColor: colors.surface, padding: 0 }}
-              >
-                <Avatar
-                  uri={profile?.avatar_url}
-                  color={profile?.avatar_color}
-                  icon={profile?.avatar_icon}
-                  name={name}
-                  size={80}
-                />
-              </View>
-            </LinearGradient>
+              <Avatar
+                uri={profile?.avatar_url}
+                color={profile?.avatar_color}
+                icon={profile?.avatar_icon}
+                seed={profile?.id}
+                name={name}
+                size={hasPhoto ? 86 : 80}
+              />
+            </View>
 
             <Text className="mt-3 font-display text-[23px] tracking-tighter text-cream">
               {name}
@@ -266,15 +328,20 @@ export default function ProfileScreen() {
                 icon={Activity}
                 tint={colors.coral}
                 soft={colors.coralSoft}
-                value={String(stats?.sessionsDone ?? 0)}
+                value={stats?.sessionsDone ?? 0}
                 caption="séances validées"
+                delay={0}
+                replay={replay}
               />
               <StatCard
                 icon={Flame}
                 tint={colors.amber}
                 soft={colors.amberSoft}
-                value={`${stats?.streakWeeks ?? 0} sem.`}
+                value={stats?.streakWeeks ?? 0}
+                suffix=" sem."
                 caption="série en cours"
+                delay={90}
+                replay={replay}
               />
             </View>
             <View className="flex-row gap-2.5">
@@ -282,15 +349,23 @@ export default function ProfileScreen() {
                 icon={Target}
                 tint={colors.mint}
                 soft={colors.mintSoft}
-                value={`${stats?.targetRate ?? 0} %`}
+                value={stats?.targetRate ?? 0}
+                suffix=" %"
                 caption="objectifs atteints"
+                delay={180}
+                replay={replay}
               />
               <StatCard
-                icon={Trash2}
+                icon={CircleDollarSign}
                 tint={colors.coral}
                 soft={colors.coralSoft}
-                value={euros(stats?.penaltiesPaid)}
+                // Les centimes n'apportent rien ici, et un compteur animé sur des
+                // décimales est illisible.
+                value={Math.round(stats?.penaltiesPaid ?? 0)}
+                suffix=" €"
                 caption="versés en pénalités"
+                delay={270}
+                replay={replay}
               />
             </View>
           </View>

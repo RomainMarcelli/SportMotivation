@@ -44,10 +44,17 @@ import { Stepper } from "@/components/ui/Stepper";
 import { TextField } from "@/components/ui/TextField";
 import { colors } from "@/constants/colors";
 import { getActivityLabel } from "@/constants/activities";
-import { useGroup } from "@/features/groups/queries";
+import { useGroup, useMyGroups } from "@/features/groups/queries";
 import { checkProofDate, declarableDateRange, parseExifDate } from "@/features/sessions/dates";
+import { SessionScopePicker } from "@/components/sessions/SessionScopePicker";
 import { useDeclareSession } from "@/features/sessions/mutations";
-import { mapSessionError } from "@/features/sessions/proof";
+import {
+  mapRequestError,
+  useRequestActivity,
+  useRequestRuleChange,
+  useRequestSessionLimit,
+} from "@/features/groups/requests";
+import { isDailyLimitError, mapSessionError } from "@/features/sessions/proof";
 import { buildDeclareSessionSchema, type DeclareSessionInput } from "@/features/sessions/schemas";
 import {
   stravaActivityDate,
@@ -56,6 +63,7 @@ import {
   toStravaProofData,
   type StravaActivity,
 } from "@/features/sessions/strava";
+import { toDateOnly } from "@/lib/date";
 import { getSportIcon } from "@/lib/sports";
 import { isStravaConfigured } from "@/lib/strava";
 import type { Json } from "@/types/database.types";
@@ -86,8 +94,32 @@ export default function DeclareSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: group, isLoading } = useGroup(id);
+  const { data: myGroups } = useMyGroups();
   const declare = useDeclareSession();
+  const requestActivity = useRequestActivity(id!);
+  const requestRuleChange = useRequestRuleChange(id!);
+  const requestSessionLimit = useRequestSessionLimit(id!);
   const { toast } = useFeedback();
+  // Jour dont la limite de séances est atteinte → popup de demande à l'admin.
+  const [limitDay, setLimitDay] = useState<string | null>(null);
+
+  // La séance part dans les défis en cours : un défi terminé n'accepte plus
+  // rien, il ne doit pas apparaître dans la sélection.
+  const activeGroups = useMemo(
+    () => (myGroups ?? []).filter((g) => g.group.status === "setup" || g.group.status === "active"),
+    [myGroups]
+  );
+
+  // Tout coché par défaut — le cas courant est « j'ai couru, ça compte partout ».
+  // `null` = pas encore initialisé (les défis arrivent après le premier rendu).
+  const [scopeOverride, setScopeOverride] = useState<string[] | null>(null);
+  const scope = scopeOverride ?? activeGroups.map((g) => g.group.id);
+
+  const toggleScope = (groupId: string) => {
+    setScopeOverride(
+      scope.includes(groupId) ? scope.filter((g) => g !== groupId) : [...scope, groupId]
+    );
+  };
 
   const [photo, setPhoto] = useState<CapturedPhoto | null>(null);
   const [geo, setGeo] = useState<Geo>(null);
@@ -131,6 +163,13 @@ export default function DeclareSessionScreen() {
   });
 
   const proofType = watch("proofType");
+  const performedAtValue = watch("performedAt");
+  // « Jour même » n'est un problème que si on déclare pour un AUTRE jour :
+  // respecter la règle ne mérite aucun avertissement.
+  const declaringPastDay =
+    group?.publication_deadline === "same_day" &&
+    !!performedAtValue &&
+    toDateOnly(performedAtValue) !== toDateOnly(new Date());
 
   if (isLoading || !group) {
     return (
@@ -248,14 +287,27 @@ export default function DeclareSessionScreen() {
         externalDescription: data.externalDescription ?? null,
         stravaActivityId: strava?.id ?? null,
         stravaData: strava?.data ?? null,
+        publishGroupIds: scope,
       },
       {
-        onSuccess: () => {
-          toast("Séance publiée", "success");
+        onSuccess: (result) => {
+          const count = result.groups.length;
+          toast(
+            count > 1 ? `Séance envoyée au vote dans ${count} défis` : "Séance publiée",
+            "success"
+          );
           if (router.canGoBack()) router.back();
           else router.replace({ pathname: "/group/[id]", params: { id: id! } } as never);
         },
-        onError: (e) => toast(mapSessionError(e.message), "error"),
+        onError: (e) => {
+          // Limite du jour atteinte → on n'affiche pas une erreur sèche, on
+          // propose de demander une dérogation à l'admin.
+          if (isDailyLimitError(e.message)) {
+            setLimitDay(toDateOnly(data.performedAt));
+            return;
+          }
+          toast(mapSessionError(e.message), "error");
+        },
       }
     );
   };
@@ -451,6 +503,25 @@ export default function DeclareSessionScreen() {
               )}
             />
             <Hint>Uniquement cette semaine (lundi → aujourd'hui)</Hint>
+            {declaringPastDay ? (
+              <View className="mt-2.5">
+                <SameDayNote
+                  onRequest={() =>
+                    requestRuleChange.mutate("publication_deadline", {
+                      onSuccess: (sent) =>
+                        toast(
+                          sent
+                            ? "Demande envoyée à l'admin d'assouplir ce délai."
+                            : "L'admin a déjà reçu cette demande.",
+                          sent ? "success" : "info"
+                        ),
+                      onError: (e) => toast(mapRequestError(e.message), "error"),
+                    })
+                  }
+                  pending={requestRuleChange.isPending}
+                />
+              </View>
+            ) : null}
           </Reveal>
 
           {/* Preuve */}
@@ -551,6 +622,15 @@ export default function DeclareSessionScreen() {
             />
           </Reveal>
 
+          <Reveal delay={340}>
+            <SessionScopePicker
+              groups={activeGroups}
+              originGroupId={id!}
+              selected={scope}
+              onToggle={toggleScope}
+            />
+          </Reveal>
+
           {declare.isError ? (
             <View className="flex-row items-center gap-2 rounded-input border border-red/30 bg-red-soft px-3.5 py-3">
               <AlertCircle size={18} color={colors.red} />
@@ -601,12 +681,152 @@ export default function DeclareSessionScreen() {
         }}
         onChange={() => setWarnData(null)}
         onNotifyAdmin={() => {
+          const activity = warnData?.activityType?.trim();
           setWarnData(null);
-          // TODO Étape 11 (notifications) : envoyer une demande d'ajout d'activité à l'admin.
-          toast("On préviendra l'admin d'ajouter cette activité (bientôt).", "info");
+          if (!activity) return;
+          requestActivity.mutate(activity, {
+            onSuccess: (sent) =>
+              toast(
+                sent
+                  ? `Demande envoyée à l'admin pour ajouter « ${activity} ».`
+                  : "L'admin a déjà été prévenu pour ce sport.",
+                sent ? "success" : "info"
+              ),
+            onError: (e) => toast(mapRequestError(e.message), "error"),
+          });
+        }}
+      />
+
+      <DailyLimitModal
+        visible={limitDay !== null}
+        pending={requestSessionLimit.isPending}
+        onClose={() => setLimitDay(null)}
+        onRequest={() => {
+          if (!limitDay) return;
+          requestSessionLimit.mutate(limitDay, {
+            onSuccess: (sent) => {
+              setLimitDay(null);
+              toast(
+                sent
+                  ? "Demande envoyée à l'admin. Tu pourras publier dès qu'il accepte."
+                  : "L'admin a déjà reçu ta demande pour ce jour.",
+                sent ? "success" : "info"
+              );
+            },
+            onError: (e) => toast(mapRequestError(e.message), "error"),
+          });
         }}
       />
     </View>
+  );
+}
+
+/* ---------- Rappel « le jour même » + demande d'assouplissement ---------- */
+
+function SameDayNote({ onRequest, pending }: { onRequest: () => void; pending: boolean }) {
+  return (
+    <View
+      className="gap-2.5 rounded-[14px] border p-3"
+      style={{ backgroundColor: colors.amberSoft, borderColor: "rgba(255,178,62,0.28)" }}
+    >
+      <View className="flex-row items-start gap-2.5">
+        <Info size={15} color={colors.amber} strokeWidth={2.2} style={{ marginTop: 1 }} />
+        <Text className="flex-1 font-body text-[11.5px] leading-[17px] text-cream">
+          Ce défi n'accepte que les séances <Text className="font-body-bold">du jour même</Text>.
+          Oublié hier ? Demande à l'admin d'assouplir le délai.
+        </Text>
+      </View>
+      <Pressable
+        onPress={onRequest}
+        disabled={pending}
+        className="flex-row items-center justify-center gap-2 rounded-input border py-2.5 active:opacity-80"
+        style={{ backgroundColor: colors.surface, borderColor: colors.line2, opacity: pending ? 0.6 : 1 }}
+      >
+        <BellRing size={14} color={colors.amber} />
+        <Text className="font-body-semibold text-[12.5px] text-cream">
+          Demander à l'admin d'assouplir
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/* ---------- Limite de séances du jour atteinte ---------- */
+
+function DailyLimitModal({
+  visible,
+  pending,
+  onRequest,
+  onClose,
+}: {
+  visible: boolean;
+  pending: boolean;
+  onRequest: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        onPress={onClose}
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}
+      >
+        <Pressable
+          onPress={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: colors.surface,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            borderWidth: 1,
+            borderColor: colors.line2,
+            padding: 22,
+            paddingBottom: 30,
+            gap: 16,
+          }}
+        >
+          <View className="flex-row items-center gap-3">
+            <View
+              className="h-11 w-11 items-center justify-center rounded-hero"
+              style={{ backgroundColor: colors.amberSoft }}
+            >
+              <TriangleAlert size={22} color={colors.amber} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-display text-[17px] tracking-tight text-cream">
+                Limite du jour atteinte
+              </Text>
+              <Text className="mt-0.5 font-body text-[12.5px] leading-[17px] text-cream-dim">
+                Ce défi limite le nombre de séances par jour. Demande à l'admin une séance de plus
+                pour aujourd'hui.
+              </Text>
+            </View>
+          </View>
+
+          <View className="gap-2.5">
+            <Pressable
+              onPress={onRequest}
+              disabled={pending}
+              className="h-[50px] flex-row items-center justify-center gap-2 rounded-input border active:opacity-80"
+              style={{
+                backgroundColor: colors.amberSoft,
+                borderColor: "rgba(255,178,62,0.35)",
+                opacity: pending ? 0.6 : 1,
+              }}
+            >
+              <BellRing size={16} color={colors.amber} />
+              <Text className="font-body-semibold text-[13px]" style={{ color: colors.amber }}>
+                Demander une séance de plus
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={onClose}
+              className="h-[50px] items-center justify-center rounded-input active:opacity-70"
+            >
+              <Text className="font-body-semibold text-[13px] text-cream-dim">Fermer</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -676,10 +896,11 @@ function ActivityWarningModal({
 
             <Pressable
               onPress={onNotifyAdmin}
-              className="h-[50px] flex-row items-center justify-center gap-2 rounded-input active:opacity-70"
+              className="h-[50px] flex-row items-center justify-center gap-2 rounded-input border active:opacity-80"
+              style={{ backgroundColor: colors.amberSoft, borderColor: "rgba(255,178,62,0.35)" }}
             >
-              <BellRing size={16} color={colors.creamDim} />
-              <Text className="font-body-semibold text-[13px] text-cream-dim">
+              <BellRing size={16} color={colors.amber} />
+              <Text className="font-body-semibold text-[13px]" style={{ color: colors.amber }}>
                 Prévenir l'admin de l'ajouter
               </Text>
             </Pressable>

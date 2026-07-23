@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { decode as decodeBase64 } from "base64-arraybuffer";
 
 import { supabase } from "@/lib/supabase";
+import type { UserProfile } from "@/hooks/useProfile";
 
 export type UpdateProfileArgs = {
   firstName?: string;
@@ -19,6 +20,8 @@ export type UpdateProfileArgs = {
   clearAvatarImage?: boolean;
   /** L'utilisateur a rechoisi ses initiales → efface l'icône en base. */
   clearAvatarIcon?: boolean;
+  /** Profil trouvable dans la recherche par pseudo. `undefined` = ne pas y toucher. */
+  isSearchable?: boolean;
 };
 
 const SQL_MISSING =
@@ -84,7 +87,7 @@ export function useUpdateProfile() {
         avatarUrl = `${publicUrl.publicUrl}?v=${Date.now()}`;
       }
 
-      const { error } = await supabase.rpc("upsert_my_profile", {
+      const { data, error } = await supabase.rpc("upsert_my_profile", {
         p_first_name: args.firstName ?? null,
         p_last_name: args.lastName ?? null,
         p_username: args.username ?? null,
@@ -93,6 +96,7 @@ export function useUpdateProfile() {
         p_avatar_icon: args.avatarIcon ?? null,
         p_clear_avatar_url: args.clearAvatarImage ?? false,
         p_clear_avatar_icon: args.clearAvatarIcon ?? false,
+        p_is_searchable: args.isSearchable ?? null,
       });
 
       if (error) {
@@ -100,11 +104,23 @@ export function useUpdateProfile() {
         throw error;
       }
 
-      return userId;
+      // La RPC renvoie la ligne écrite depuis 039. Un projet resté en v2
+      // renvoie `null` : on retombe alors sur l'invalidation classique.
+      return { userId, profile: (data as UserProfile | null) ?? null };
     },
-    onSuccess: (userId) => {
-      queryClient.invalidateQueries({ queryKey: ["profile", userId] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    onSuccess: ({ userId, profile }) => {
+      // ⚠ On POSE la vérité au lieu de la redemander.
+      //
+      // À l'inscription, la requête « mon profil » part dès que la session
+      // existe — donc avant cette écriture. Invalider ne l'annule pas : sa
+      // réponse (avatar encore vide) arrivait après et écrasait le cache, et
+      // rien ne la rafraîchissait ensuite (staleTime). D'où une couleur et une
+      // icône choisies mais invisibles, alors qu'elles étaient bien en base.
+      // Une photo passait, elle : son envoi au stockage laissait le temps à la
+      // première requête de retomber avant l'invalidation.
+      if (profile) queryClient.setQueryData(["profile", userId], profile);
+      else queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+
       // Les listes de membres affichent l'avatar : elles doivent suivre.
       queryClient.invalidateQueries({ queryKey: ["group-members"] });
     },

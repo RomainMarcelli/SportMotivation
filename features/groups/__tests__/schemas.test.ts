@@ -13,6 +13,7 @@ function makeValidInput() {
     voteDeadline: "end_of_week" as const,
     blameThreshold: 3,
     maxExcuses: null,
+    maxSessionsPerDay: 3 as number | null,
   };
 }
 
@@ -63,5 +64,17 @@ describe("createGroupSchema", () => {
     expect(createGroupSchema.safeParse({ ...makeValidInput(), maxExcuses: null }).success).toBe(
       true
     );
+  });
+
+  it("accepte maxSessionsPerDay null (sans limite)", () => {
+    expect(
+      createGroupSchema.safeParse({ ...makeValidInput(), maxSessionsPerDay: null }).success
+    ).toBe(true);
+  });
+
+  it("rejette maxSessionsPerDay à 0 (utiliser null pour illimité)", () => {
+    expect(
+      createGroupSchema.safeParse({ ...makeValidInput(), maxSessionsPerDay: 0 }).success
+    ).toBe(false);
   });
 });

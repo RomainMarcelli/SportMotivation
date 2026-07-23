@@ -17,6 +17,8 @@ type Props = {
   groupId: string;
   /** Objectif hebdo du membre dans ce groupe. */
   weeklyTarget: number;
+  /** Change à chaque arrivée sur l'écran → rejoue le compteur de jours. */
+  replay?: number;
 };
 
 /**
@@ -28,7 +30,7 @@ type Props = {
  * irréversible via la RPC `use_joker`) + entrée « M'excuser cette semaine » vers l'écran
  * d'excuse. L'EFFET du joker/de l'excuse sur les pénalités = Étape 9.
  */
-export function WeekPlanner({ groupId, weeklyTarget }: Props) {
+export function WeekPlanner({ groupId, weeklyTarget, replay = 0 }: Props) {
   const router = useRouter();
   const { toast, confirm } = useFeedback();
   const { data: plannedDays } = useWeeklyPlan(groupId);
@@ -125,10 +127,17 @@ export function WeekPlanner({ groupId, weeklyTarget }: Props) {
                   borderRadius: 11,
                   alignItems: "center",
                   justifyContent: "center",
-                  borderWidth: done ? 0 : 1.5,
-                  borderStyle: done ? "solid" : "dashed",
-                  borderColor: done ? "transparent" : colors.amber,
-                  backgroundColor: done ? "transparent" : "rgba(255,178,62,0.10)",
+                  // Aujourd'hui : PAS de contour pointillé amber — l'anneau coral
+                  // en dessous le laissait dépasser (deux bordures superposées).
+                  // Le jour courant se distingue par l'anneau + un fond coral léger.
+                  borderWidth: done || isToday ? 0 : 1.5,
+                  borderStyle: "dashed",
+                  borderColor: colors.amber,
+                  backgroundColor: done
+                    ? "transparent"
+                    : isToday
+                      ? colors.coralSoft
+                      : "rgba(255,178,62,0.10)",
                   ...(isToday ? { shadowColor: colors.coral } : null),
                 }}
               >
@@ -170,6 +179,7 @@ export function WeekPlanner({ groupId, weeklyTarget }: Props) {
       <View className="mt-3.5 flex-row items-center justify-between border-t border-line pt-3">
         <View className="flex-row items-center gap-1">
           <CountUp
+            key={replay}
             to={days.length}
             duration={700}
             className="font-display text-[13px] text-cream"

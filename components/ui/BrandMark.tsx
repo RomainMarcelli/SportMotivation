@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Flame } from "lucide-react-native";
+import { Flame, type LucideIcon } from "lucide-react-native";
 
 import { colors, gradients } from "@/constants/colors";
 import { glow as glowStyle } from "@/lib/shadow";
@@ -13,6 +13,8 @@ type Props = {
   radius?: number;
   /** Affiche le glow coral sous le badge (défaut true). */
   glow?: boolean;
+  /** Icône affichée dans le badge (défaut : la flamme de la marque). */
+  icon?: LucideIcon;
 };
 
 /**
@@ -20,7 +22,13 @@ type Props = {
  * logo (topbar onboarding, hero sign-in/sign-up…). Ne jamais l'envelopper dans une
  * layout-animation `entering` (contient un `expo-linear-gradient`) — utiliser `Reveal`.
  */
-export function BrandMark({ size = 64, iconSize, radius, glow = true }: Props) {
+export function BrandMark({
+  size = 64,
+  iconSize,
+  radius,
+  glow = true,
+  icon: Icon = Flame,
+}: Props) {
   const r = radius ?? Math.round(size * 0.31);
   const icon = iconSize ?? Math.round(size * 0.47);
 
@@ -43,7 +51,7 @@ export function BrandMark({ size = 64, iconSize, radius, glow = true }: Props) {
           : null),
       }}
     >
-      <Flame size={icon} color={colors.onCoral} strokeWidth={2.4} />
+      <Icon size={icon} color={colors.onCoral} strokeWidth={2.4} />
     </LinearGradient>
   );
 }

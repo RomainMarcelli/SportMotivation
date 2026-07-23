@@ -1,11 +1,11 @@
 import { Activity, Check } from "lucide-react-native";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { GradientButton } from "@/components/ui/GradientButton";
 import { colors } from "@/constants/colors";
 import { formatStravaActivity, type StravaActivity } from "@/features/sessions/strava";
-import { fetchRecentStravaActivities, useStravaAuth } from "@/lib/strava";
+import { fetchRecentStravaActivities, getValidStravaToken, useStravaAuth } from "@/lib/strava";
 
 type Props = {
   selectedId: string | null;
@@ -22,10 +22,7 @@ export function StravaProofPicker({ selectedId, onSelect }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onConnect = async () => {
-    setError(null);
-    const token = await connect();
-    if (!token) return;
+  const loadActivities = useCallback(async (token: string) => {
     setLoading(true);
     try {
       setActivities(await fetchRecentStravaActivities(token));
@@ -34,23 +31,45 @@ export function StravaProofPicker({ selectedId, onSelect }: Props) {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Déjà connecté (Paramètres ou séance précédente) → on va droit aux activités.
+  // Avant, la connexion n'était pas conservée : il fallait repasser par Strava à
+  // chaque déclaration.
+  useEffect(() => {
+    let cancelled = false;
+    getValidStravaToken().then((token) => {
+      if (token && !cancelled) loadActivities(token);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadActivities]);
+
+  const onConnect = async () => {
+    setError(null);
+    const token = await connect();
+    if (!token) return;
+    await loadActivities(token);
   };
 
-  if (!activities) {
-    return (
-      <View className="gap-2">
-        <GradientButton onPress={onConnect} loading={authPending || loading} icon={Activity}>
-          Connecter Strava
-        </GradientButton>
-        {error ? <Text className="font-body text-[12px] text-red">{error}</Text> : null}
-      </View>
-    );
-  }
-
+  // Le chargement passe AVANT le bouton : à la reprise d'une connexion mémorisée
+  // on chargerait sinon les activités derrière un bouton « Connecter Strava ».
   if (loading) {
     return (
       <View className="items-center py-4">
         <ActivityIndicator color={colors.coral} />
+      </View>
+    );
+  }
+
+  if (!activities) {
+    return (
+      <View className="gap-2">
+        <GradientButton onPress={onConnect} loading={authPending} icon={Activity}>
+          Connecter Strava
+        </GradientButton>
+        {error ? <Text className="font-body text-[12px] text-red">{error}</Text> : null}
       </View>
     );
   }

@@ -18,7 +18,11 @@ export function CheckCard({ checked, onToggle, children }: Props) {
   return (
     <Pressable
       onPress={onToggle}
-      className="flex-row items-start gap-3 rounded-[16px] border bg-surface p-3.5"
+      // `items-center` et non `items-start` : la case était alignée sur le HAUT
+      // du bloc de texte, donc visiblement plus haute qu'une phrase d'une ligne
+      // dont la hauteur de ligne dépasse celle de la case. Centré, c'est juste
+      // sur une ligne comme sur trois.
+      className="flex-row items-center gap-3 rounded-[16px] border bg-surface p-3.5"
       style={
         checked
           ? { backgroundColor: colors.coralSoft, borderColor: "rgba(255,106,69,0.4)" }
@@ -26,7 +30,7 @@ export function CheckCard({ checked, onToggle, children }: Props) {
       }
     >
       <View
-        className="mt-px h-6 w-6 items-center justify-center rounded-lg border-2"
+        className="h-6 w-6 items-center justify-center rounded-lg border-2"
         style={
           checked
             ? { backgroundColor: colors.coral, borderColor: colors.coral }

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import type { Database, Json } from "@/types/database.types";
+import { invalidateMembership } from "./cache";
 
 export type UserSearchResult = {
   id: string;
@@ -48,7 +49,8 @@ export type GroupInvitation = {
 };
 
 export function mapInviteError(message: string): string {
-  if (message.includes("NOT_ADMIN")) return "Seul un admin peut inviter.";
+  if (message.includes("NOT_MEMBER")) return "Tu dois faire partie du défi pour inviter.";
+  if (message.includes("NOT_ADMIN")) return "Seul un admin peut gérer les invitations.";
   if (message.includes("ALREADY_MEMBER")) return "Ce joueur fait déjà partie du groupe.";
   if (message.includes("GROUP_NOT_FOUND")) return "Groupe introuvable.";
   if (message.includes("GROUP_FULL")) return "Le groupe est complet.";
@@ -70,7 +72,61 @@ export function useSearchUsers(query: string) {
   });
 }
 
-/** Invite un utilisateur dans un groupe (admin). */
+/**
+ * Statut de MES invitations, par identifiant.
+ *
+ * Sert à ne plus proposer « Voir l'invitation » sur une invitation déjà
+ * acceptée ou refusée. Best-effort : `{}` si la lecture est refusée, le bouton
+ * reste alors affiché — mieux qu'un état inventé.
+ */
+export function useMyInvitationStatuses() {
+  const user = useCurrentUser();
+  return useQuery({
+    queryKey: ["my-invitations", user?.id],
+    enabled: !!user?.id,
+    staleTime: 30_000,
+    queryFn: async (): Promise<Record<string, string>> => {
+      const { data, error } = await supabase
+        .from("group_invitations")
+        .select("id, status")
+        .eq("invited_user_id", user!.id);
+      if (error) return {};
+      const map: Record<string, string> = {};
+      for (const row of data ?? []) map[row.id] = row.status;
+      return map;
+    },
+  });
+}
+
+/**
+ * Identifiants déjà invités (statut « pending ») d'un groupe — lisible par
+ * **tout membre**.
+ *
+ * Contrairement à `useGroupInvitations` (RPC `get_group_invitations`, réservée à
+ * l'admin, plus riche : avatars, renvoyer/annuler), on lit ici directement la
+ * table : sa RLS autorise `invited_user_id = auth.uid() OR is_group_member(...)`.
+ * Sert au bouton « Invité » de la recherche par pseudo, désormais ouverte à tous.
+ * Best-effort : `Set` vide si la lecture échoue (le bouton reste « Inviter »,
+ * une seconde invitation étant de toute façon idempotente côté SQL).
+ */
+export function useGroupPendingInvitees(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["group-pending-invitees", groupId],
+    enabled: !!groupId,
+    staleTime: 15_000,
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await supabase
+        .from("group_invitations")
+        .select("invited_user_id, status")
+        .eq("group_id", groupId!)
+        .eq("status", "pending");
+      if (error) return new Set();
+      return new Set((data ?? []).map((r) => r.invited_user_id));
+    },
+  });
+}
+
+/** Invite un utilisateur dans un groupe (tout membre — cf. SQL 040). */
 export function useInviteUser(groupId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -83,6 +139,7 @@ export function useInviteUser(groupId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-invitations", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["group-pending-invitees", groupId] });
     },
   });
 }
@@ -116,6 +173,8 @@ export function useCancelInvitation(groupId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-invitations", groupId] });
+      // Le bouton « Invité » de la recherche par pseudo doit repasser à « Inviter ».
+      queryClient.invalidateQueries({ queryKey: ["group-pending-invitees", groupId] });
     },
   });
 }
@@ -175,12 +234,16 @@ export function useAcceptInvitation() {
         { onConflict: "group_id,user_id" }
       );
       if (acceptanceError) throw acceptanceError;
+
+      // Prévient le groupe de l'arrivée. Best-effort : rater la notification ne
+      // doit pas faire échouer une adhésion qui, elle, a bien eu lieu.
+      await supabase.rpc("notify_join_from_invitation", { p_group_id: groupId });
+
       return groupId;
     },
     onSuccess: (groupId) => {
-      queryClient.invalidateQueries({ queryKey: ["my-groups"] });
+      invalidateMembership(queryClient, groupId);
       queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["group", groupId] });
     },
   });
 }

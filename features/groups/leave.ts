@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/lib/supabase";
+import { invalidateMembership } from "./cache";
 
 const LEAVE_ERROR_MESSAGES: Record<string, string> = {
   NOT_AUTHENTICATED: "Tu dois être connecté.",
@@ -29,10 +30,6 @@ export function useLeaveGroup() {
       if (error) throw error;
       return (data as unknown as string | null) ?? null;
     },
-    onSuccess: (_newAdmin, groupId) => {
-      queryClient.invalidateQueries({ queryKey: ["my-groups"] });
-      queryClient.invalidateQueries({ queryKey: ["group", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] });
-    },
+    onSuccess: (_newAdmin, groupId) => invalidateMembership(queryClient, groupId),
   });
 }

@@ -14,6 +14,9 @@ export function useSignIn() {
   });
 }
 
+/** Sentinelle « cet e-mail a déjà un compte » (cf. `isEmailTakenError`). */
+export const EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED";
+
 export function useSignUp() {
   return useMutation({
     mutationFn: async (input: SignUpInput) => {
@@ -30,6 +33,16 @@ export function useSignUp() {
         },
       });
       if (error) throw error;
+
+      // Quand la confirmation d'e-mail est activée, Supabase REFUSE de dire que
+      // l'adresse est déjà prise (protection contre l'énumération de comptes) :
+      // il renvoie un utilisateur factice, sans identité, et sans erreur. Sans
+      // ce test, l'écran renvoyait silencieusement vers la connexion — le
+      // joueur n'avait aucune idée de ce qui s'était passé.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        throw new Error(EMAIL_ALREADY_REGISTERED);
+      }
+
       return data;
     },
   });

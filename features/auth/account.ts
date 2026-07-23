@@ -43,7 +43,7 @@ export function mapDeleteAccountError(message: string): string {
 }
 
 /**
- * Supprime le compte de l'utilisateur courant, puis déconnecte localement.
+ * Supprime le compte de l'utilisateur courant.
  *
  * Chemin principal : la RPC `delete_my_account()` (SQL 031) fait tout en une
  * transaction — effacement réel des données, passation d'admin, suppression des
@@ -53,6 +53,11 @@ export function mapDeleteAccountError(message: string): string {
  * `auth`, la RPC échoue **sans rien avoir supprimé** et on repasse par l'Edge
  * Function, qui possède la `service_role`.
  *
+ * ⚠ La déconnexion n'est **PAS** faite ici : elle démonterait l'écran appelant
+ * avant qu'il ait pu afficher sa confirmation (les callbacks `mutate(_, {onSuccess})`
+ * sont abandonnés au démontage). L'écran appelle `finishAccountDeletion()` une fois
+ * l'accusé de réception fermé.
+ *
  * Renvoie `'deleted'` (tout est effacé) ou `'anonymized'` (de l'argent est engagé
  * dans une cagnotte : la ligne est conservée, l'identité est effacée).
  */
@@ -61,21 +66,28 @@ export function useDeleteAccount() {
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("delete_my_account");
 
-      let mode = data as DeleteAccountResult | null;
+      if (!error) return (data as DeleteAccountResult | null) ?? "deleted";
 
-      if (error) {
-        if (isMissingFunction(error)) throw new Error(SQL_MISSING);
-        if (!isAuthPermissionError(error)) throw new Error(error.message);
+      if (isMissingFunction(error)) throw new Error(SQL_MISSING);
+      if (!isAuthPermissionError(error)) throw new Error(error.message);
 
-        // Repli Edge Function (service_role).
-        const { data: fnData, error: fnError } =
-          await supabase.functions.invoke<{ mode?: DeleteAccountResult }>("delete-account");
-        if (fnError) throw new Error(mapDeleteAccountError(fnError.message));
-        mode = fnData?.mode ?? "deleted";
-      }
-
-      await supabase.auth.signOut();
-      return mode ?? "deleted";
+      // Repli Edge Function (service_role).
+      const { data: fnData, error: fnError } =
+        await supabase.functions.invoke<{ mode?: DeleteAccountResult }>("delete-account");
+      if (fnError) throw new Error(mapDeleteAccountError(fnError.message));
+      return fnData?.mode ?? "deleted";
     },
   });
+}
+
+/** Déconnexion finale, à appeler APRÈS avoir montré la confirmation de suppression. */
+export async function finishAccountDeletion() {
+  await supabase.auth.signOut();
+}
+
+/** Texte de l'accusé de réception, selon ce que le serveur a réellement fait. */
+export function deletionMessage(mode: DeleteAccountResult): string {
+  return mode === "deleted"
+    ? "Ton compte et toutes tes données ont été supprimés. Tu as été retiré de tes groupes. À bientôt !"
+    : "Ton compte a été fermé et tu as quitté tes groupes. Comme de l'argent est engagé dans une cagnotte, ton historique reste anonymisé pour ne pas fausser les comptes du groupe.";
 }

@@ -90,6 +90,7 @@ export default function MembersScreen() {
               uri={member.user.avatar_url}
               color={member.user.avatar_color}
               icon={member.user.avatar_icon}
+              seed={member.user.id}
               name={`${member.user.first_name ?? ""} ${member.user.last_name ?? ""}`.trim()}
               size={44}
             />

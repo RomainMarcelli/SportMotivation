@@ -129,6 +129,7 @@ export default function ProfileEditScreen() {
                   uri={imageUri}
                   color={color}
                   icon={imageUri ? null : icon}
+                  seed={profile?.id}
                   name={displayName(profile ?? {}) || firstNameValue}
                   size={96}
                 />

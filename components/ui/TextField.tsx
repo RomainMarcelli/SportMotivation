@@ -4,6 +4,7 @@ import { Platform, Pressable, Text, TextInput, View, type TextInputProps } from 
 
 import { colors } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
+import { WEB_INPUT_RESET } from "@/lib/web-input";
 
 type Props = TextInputProps & {
   label?: string;
@@ -87,6 +88,7 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
               paddingLeft: Icon ? 44 : 14,
               paddingRight: isPassword ? 44 : 14,
             },
+            WEB_INPUT_RESET,
             style,
           ]}
           {...rest}

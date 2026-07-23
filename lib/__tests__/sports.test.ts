@@ -1,4 +1,14 @@
-import { Activity, Bike, Dumbbell, Footprints, Waves } from "lucide-react-native";
+import {
+  Activity,
+  Bike,
+  Dumbbell,
+  Footprints,
+  Medal,
+  Mountain,
+  Sailboat,
+  Volleyball,
+  Waves,
+} from "lucide-react-native";
 
 import { getSportIcon, normalizeSport } from "@/lib/sports";
 
@@ -17,7 +27,22 @@ describe("getSportIcon", () => {
     expect(getSportIcon("natation")).toBe(Waves);
   });
 
-  it("retombe sur l'icône générique pour un sport inconnu", () => {
-    expect(getSportIcon("Pétanque")).toBe(Activity);
+  it("couvre les familles élargies (sports de balle, nautique, montagne)", () => {
+    expect(getSportIcon("Football")).toBe(Volleyball);
+    expect(getSportIcon("Padel")).toBe(Volleyball);
+    expect(getSportIcon("Voile")).toBe(Sailboat);
+    expect(getSportIcon("Kayak")).toBe(Sailboat);
+    expect(getSportIcon("Escalade")).toBe(Mountain);
+  });
+
+  // Aucune icône « cheval » n'existe : on retombe sur la médaille (proxy « sport »).
+  it("donne une icône à l'équitation", () => {
+    expect(getSportIcon("Équitation")).toBe(Medal);
+    expect(getSportIcon("cheval")).toBe(Medal);
+  });
+
+  it("retombe sur l'icône générique pour une activité non sportive", () => {
+    expect(getSportIcon("Échecs")).toBe(Activity);
+    expect(getSportIcon("Lecture")).toBe(Activity);
   });
 });

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Text, type TextProps } from "react-native";
-import { useReducedMotion } from "react-native-reanimated";
 
 import { countAt } from "@/lib/count-up";
+import { useAppReducedMotion } from "@/hooks/useAppReducedMotion";
 
 type Props = TextProps & {
   /** Valeur cible (atteinte en fin d'animation). */
@@ -21,7 +21,7 @@ type Props = TextProps & {
  * n'est pas fiable). Respecte `prefers-reduced-motion` (valeur finale immédiate).
  */
 export function CountUp({ to, duration = 1100, prefix = "", suffix = "", ...rest }: Props) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
   const [value, setValue] = useState(reduceMotion ? to : 0);
 
   useEffect(() => {

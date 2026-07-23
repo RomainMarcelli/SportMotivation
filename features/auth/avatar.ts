@@ -71,6 +71,19 @@ export function initialsFrom(source: AvatarSource): string {
 }
 
 /**
+ * Couleur d'un anneau posé autour de la bulle.
+ *
+ * On reprend la couleur de l'avatar lui-même : un liseré ambre autour d'une bulle
+ * rouge jurait. Sur une photo l'anneau sert de cadre, sur un aplat il se fond.
+ */
+export function avatarRingColor(
+  color: string | null | undefined,
+  seed: string | null | undefined
+): string {
+  return (color ?? "").trim() || fallbackColor(seed);
+}
+
+/**
  * Ordre de priorité : image (photo ou avatar généré) → icône → initiales.
  * La couleur est toujours résolue, même pour une image : elle sert de fond
  * pendant le chargement et d'anneau autour de la bulle.

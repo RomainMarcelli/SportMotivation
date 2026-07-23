@@ -93,6 +93,7 @@ export function AdminTransferSheet({
                         uri={m.user.avatar_url}
                         color={m.user.avatar_color}
                         icon={m.user.avatar_icon}
+                        seed={m.user.id}
                         name={`${m.user.first_name ?? ""} ${m.user.last_name ?? ""}`.trim() || name}
                         size={40}
                       />

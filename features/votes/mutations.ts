@@ -39,9 +39,14 @@ export function useCastVote() {
       if (error) throw error;
       return (data as unknown as VoteResult) ?? "pending_vote";
     },
-    onSuccess: (_result, args) => {
-      queryClient.invalidateQueries({ queryKey: ["votes", args.groupId] });
-      queryClient.invalidateQueries({ queryKey: ["sessions", args.groupId] });
+    onSuccess: () => {
+      // Un vote vaut pour TOUS les défis partagés avec l'auteur (SQL 036) :
+      // n'invalider que le groupe courant laissait les autres afficher une
+      // séance encore « à voter » qui venait d'être tranchée.
+      queryClient.invalidateQueries({ queryKey: ["votes"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      // La notification correspondante doit basculer sur « vote enregistré ».
+      queryClient.invalidateQueries({ queryKey: ["my-voted-targets"] });
     },
   });
 }

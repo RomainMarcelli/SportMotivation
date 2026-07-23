@@ -3,11 +3,11 @@ import { View, type ViewProps } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withDelay,
   withTiming,
 } from "react-native-reanimated";
+import { useAppReducedMotion } from "@/hooks/useAppReducedMotion";
 
 type Props = ViewProps & {
   children: ReactNode;
@@ -30,7 +30,7 @@ type Props = ViewProps & {
  * composant Reanimated (la rangée tombait en colonne). L'`Animated.View` ne fait que l'entrée.
  */
 export function Reveal({ children, delay = 0, distance = 16, className, style, ...rest }: Props) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
   const progress = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {

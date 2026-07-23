@@ -4,7 +4,6 @@ import { Text, View } from "react-native";
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -12,6 +11,7 @@ import Animated, {
 import { colors } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
 import { getPasswordChecks, PASSWORD_CRITERIA } from "@/lib/password";
+import { useAppReducedMotion } from "@/hooks/useAppReducedMotion";
 
 type Props = {
   password: string;
@@ -71,7 +71,7 @@ export function PasswordStrength({ password, visible }: Props) {
 }
 
 function CriterionRow({ label, done }: { label: string; done: boolean }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReducedMotion();
   const p = useSharedValue(done ? 1 : 0);
 
   useEffect(() => {
