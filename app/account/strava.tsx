@@ -10,8 +10,13 @@ import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { colors } from "@/constants/colors";
-import { formatStravaActivity, type StravaActivity } from "@/features/sessions/strava";
-import { stravaAthleteLabel } from "@/features/settings/strava-session";
+import { StravaLogo } from "@/components/brand/StravaLogo";
+import {
+  describeStravaError,
+  formatStravaActivity,
+  type StravaActivity,
+} from "@/features/sessions/strava";
+import { stravaAthleteLabel, stravaScopeHasActivityRead } from "@/features/settings/strava-session";
 import {
   clearStravaSession,
   fetchRecentStravaActivities,
@@ -42,6 +47,10 @@ export default function StravaScreen() {
 
   const connected = !!session;
   const athlete = stravaAthleteLabel(session ?? null);
+  // Scope réellement accordé : c'est LUI qui décide si la lecture des activités
+  // est permise. Affiché pour diagnostiquer le 403 (jeton connecté mais sans droit).
+  const scope = session?.scope ?? null;
+  const scopeOk = stravaScopeHasActivityRead(scope);
 
   const load = useCallback(async () => {
     setError(null);
@@ -54,13 +63,10 @@ export default function StravaScreen() {
     try {
       setActivities(await fetchRecentStravaActivities(token));
     } catch (e) {
-      // Un jeton révoqué côté Strava renvoie 401 : le dire plutôt que d'afficher
-      // une liste vide qui ressemble à « tu n'as rien couru ».
-      setError(
-        e instanceof Error && /401/.test(e.message)
-          ? "Strava a révoqué l'autorisation. Reconnecte ton compte."
-          : "Impossible de charger tes activités Strava."
-      );
+      // On affiche la VRAIE raison (ne plus la masquer) et on la traduit en conseil :
+      // 403 = scope activités non accordé, 401 = app révoquée, « action invalide » =
+      // Edge Function pas à jour, « Failed to fetch » = fonction injoignable, etc.
+      setError(describeStravaError(e instanceof Error ? e.message : ""));
     } finally {
       setLoading(false);
     }
@@ -71,8 +77,14 @@ export default function StravaScreen() {
   }, [connected, load]);
 
   const onConnect = async () => {
-    const token = await connect();
-    if (!token) return;
+    const { token, error } = await connect();
+    if (error) {
+      // On dit POURQUOI ça a échoué (fenêtre bloquée, fonction serveur absente…)
+      // au lieu de rester silencieux et de redemander une connexion.
+      toast(error, "error");
+      return;
+    }
+    if (!token) return; // annulation volontaire de l'utilisateur
     await alert({
       title: "Strava connecté",
       tone: "success",
@@ -112,7 +124,9 @@ export default function StravaScreen() {
           >
             <ChevronLeft size={24} color={colors.cream} strokeWidth={2.2} />
           </Pressable>
-          <Text className="flex-1 font-display text-[20px] tracking-tighter text-cream">Strava</Text>
+          <Text className="flex-1 font-display text-[20px] tracking-tighter text-cream">
+            Strava
+          </Text>
           {connected ? (
             <Pressable
               onPress={load}
@@ -145,9 +159,9 @@ export default function StravaScreen() {
             <Reveal delay={0} className="mt-6 items-center gap-5 px-4">
               <View
                 className="h-[72px] w-[72px] items-center justify-center rounded-full"
-                style={{ backgroundColor: colors.coralSoft }}
+                style={{ backgroundColor: "rgba(252,76,2,0.15)" }}
               >
-                <Zap size={32} color={colors.coral} />
+                <StravaLogo size={36} />
               </View>
               <Text className="text-center font-display text-[19px] tracking-tight text-cream">
                 Connecte ton compte Strava
@@ -178,6 +192,15 @@ export default function StravaScreen() {
                     </Text>
                     <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
                       {athlete ? `Strava · ${athlete}` : "Autorisation en lecture seule"}
+                    </Text>
+                    {/* Scope accordé : en ambre s'il manque le droit « activités »
+                        (cause directe du 403), pour qu'on voie le problème d'un coup. */}
+                    <Text
+                      className="mt-0.5 font-body text-[10.5px]"
+                      numberOfLines={1}
+                      style={{ color: scopeOk ? colors.creamDim : colors.amber }}
+                    >
+                      {scope ? `Accès : ${scope}` : "Accès inconnu — reconnecte-toi"}
                     </Text>
                   </View>
                 </View>
@@ -228,8 +251,8 @@ export default function StravaScreen() {
 
               <Reveal delay={200}>
                 <Text className="mt-5 font-body text-[12px] leading-[17px] text-cream-dim">
-                  Pour joindre l'une de ces activités à une séance, passe par « Déclarer une
-                  séance » et choisis la preuve Strava.
+                  Pour joindre l'une de ces activités à une séance, passe par « Déclarer une séance
+                  » et choisis la preuve Strava.
                 </Text>
 
                 <Pressable

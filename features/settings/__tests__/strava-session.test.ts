@@ -2,6 +2,7 @@ import {
   isStravaSessionExpired,
   parseStravaSession,
   stravaAthleteLabel,
+  stravaScopeHasActivityRead,
   type StravaSession,
 } from "../strava-session";
 
@@ -14,6 +15,7 @@ function session(over: Partial<StravaSession> = {}): StravaSession {
     refreshToken: "refresh",
     expiresAt: NOW_S + 3600,
     athlete: { id: 1, firstname: "Romain", lastname: "Marcelli" },
+    scope: "read,activity:read_all",
     ...over,
   };
 }
@@ -45,7 +47,16 @@ describe("parseStravaSession", () => {
       refreshToken: null,
       expiresAt: null,
       athlete: null,
+      scope: null,
     });
+  });
+
+  it("lit le scope quand il est présent, null sinon", () => {
+    expect(parseStravaSession({ accessToken: "a", scope: "read,activity:read_all" })?.scope).toBe(
+      "read,activity:read_all"
+    );
+    expect(parseStravaSession({ accessToken: "a" })?.scope).toBeNull();
+    expect(parseStravaSession({ accessToken: "a", scope: 42 })?.scope).toBeNull();
   });
 
   it("ignore un athlète mal formé", () => {
@@ -70,6 +81,21 @@ describe("isStravaSessionExpired", () => {
   // Sans date connue, mieux vaut un rafraîchissement inutile qu'un appel raté.
   it("considère périmé ce dont on ignore l'expiration", () => {
     expect(isStravaSessionExpired(session({ expiresAt: null }), NOW)).toBe(true);
+  });
+});
+
+describe("stravaScopeHasActivityRead", () => {
+  it("vrai si le scope autorise la lecture des activités", () => {
+    expect(stravaScopeHasActivityRead("read,activity:read_all")).toBe(true);
+    expect(stravaScopeHasActivityRead("read,activity:read")).toBe(true);
+    expect(stravaScopeHasActivityRead("activity:read_all")).toBe(true);
+  });
+
+  it("faux si le scope se limite au profil (cause du 403)", () => {
+    expect(stravaScopeHasActivityRead("read")).toBe(false);
+    expect(stravaScopeHasActivityRead("read_all")).toBe(false); // profil, pas activités
+    expect(stravaScopeHasActivityRead(null)).toBe(false);
+    expect(stravaScopeHasActivityRead("")).toBe(false);
   });
 });
 

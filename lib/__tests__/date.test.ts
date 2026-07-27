@@ -1,4 +1,11 @@
-import { daysUntil, startOfWeekMonday, toDateOnly, weekStartString } from "../date";
+import {
+  daysUntil,
+  formatDateRange,
+  formatDbDate,
+  startOfWeekMonday,
+  toDateOnly,
+  weekStartString,
+} from "../date";
 
 describe("toDateOnly", () => {
   it("formate en YYYY-MM-DD avec les composantes locales", () => {
@@ -50,5 +57,39 @@ describe("daysUntil", () => {
 
   it("négatif dans le passé", () => {
     expect(daysUntil("2026-06-10", from)).toBe(-5);
+  });
+});
+
+describe("formatDateRange", () => {
+  // On vérifie la STRUCTURE (mois en toutes lettres, flèche, année sur la fin
+  // seulement) plutôt qu'une chaîne figée : le rendu exact dépend d'ICU.
+  it("affiche « début → fin » avec l'année portée par la fin", () => {
+    const range = formatDateRange(new Date(2026, 5, 1), new Date(2026, 7, 31));
+    const [left, right] = range.split("→");
+    expect(left).toContain("juin");
+    expect(left).not.toContain("2026"); // le début ne porte pas l'année
+    expect(right).toContain("août");
+    expect(right).toContain("2026");
+  });
+});
+
+describe("formatDbDate", () => {
+  it("formate une date DB en français", () => {
+    const out = formatDbDate("2026-06-01");
+    expect(out).toContain("juin");
+    expect(out).toContain("2026");
+  });
+
+  // Tolère un timestamp complet : on ne garde que la partie date.
+  it("accepte un timestamp et n'en garde que le jour", () => {
+    expect(formatDbDate("2026-06-01T10:30:00Z")).toContain("juin");
+  });
+
+  // Cas de tolérance : jamais de « Invalid time value » qui casserait l'écran.
+  it("renvoie une chaîne vide sur une valeur absente ou illisible", () => {
+    expect(formatDbDate(null)).toBe("");
+    expect(formatDbDate(undefined)).toBe("");
+    expect(formatDbDate("")).toBe("");
+    expect(formatDbDate("pas-une-date")).toBe("");
   });
 });

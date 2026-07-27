@@ -1,4 +1,11 @@
-import { groupByDay, isVoteDone, relativeTime, unreadLabel, voteTargetId } from "../format";
+import {
+  groupByDay,
+  invitationOutcome,
+  isVoteDone,
+  relativeTime,
+  unreadLabel,
+  voteTargetId,
+} from "../format";
 
 const NOW = new Date(2026, 6, 22, 14, 0, 0); // mercredi 22 juillet 2026, 14 h
 
@@ -130,5 +137,47 @@ describe("isVoteDone", () => {
 
   it("ne s'applique pas aux notifications sans vote", () => {
     expect(isVoteDone({ type: "member_joined" }, new Set(["e1"]))).toBe(false);
+  });
+});
+
+/**
+ * `invitationOutcome` détermine si une invitation reçue a déjà été acceptée /
+ * refusée, pour remplacer les boutons « Rejoindre / Refuser » par un statut.
+ * Le point délicat : sans la table des statuts (pas encore chargée) ou tant que
+ * l'invitation est « en attente », on NE tranche PAS (null) — sinon on cacherait
+ * les boutons d'une invitation encore à traiter.
+ */
+describe("invitationOutcome", () => {
+  const invit = { type: "group_invitation", data: { invitation_id: "inv-1" } };
+
+  it("renvoie le statut d'une invitation déjà traitée", () => {
+    expect(invitationOutcome(invit, { "inv-1": "accepted" })).toBe("accepted");
+    expect(invitationOutcome(invit, { "inv-1": "refused" })).toBe("refused");
+  });
+
+  // En attente ou absente de la table → on garde les boutons (null).
+  it("renvoie null tant que l'invitation n'est pas tranchée", () => {
+    expect(invitationOutcome(invit, { "inv-1": "pending" })).toBeNull();
+    expect(invitationOutcome(invit, {})).toBeNull();
+  });
+
+  it("renvoie null sans table de statuts", () => {
+    expect(invitationOutcome(invit, undefined)).toBeNull();
+  });
+
+  it("ignore les notifications qui ne sont pas des invitations", () => {
+    expect(
+      invitationOutcome(
+        { type: "member_joined", data: { invitation_id: "inv-1" } },
+        { "inv-1": "accepted" }
+      )
+    ).toBeNull();
+  });
+
+  it("renvoie null sans identifiant d'invitation exploitable", () => {
+    expect(invitationOutcome({ type: "group_invitation", data: {} }, { "inv-1": "accepted" })).toBeNull();
+    expect(
+      invitationOutcome({ type: "group_invitation", data: { invitation_id: 42 } }, {})
+    ).toBeNull();
   });
 });

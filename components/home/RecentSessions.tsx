@@ -51,14 +51,24 @@ export function RecentSessions({ sessions, meId, onSeeAll, onOpenSession }: Prop
         <Text className="font-display text-[16px] tracking-tight text-cream">
           Dernières séances
         </Text>
-        {/* « Voir tout » à la DA : puce coral-soft + chevron, plus un simple lien texte. */}
+        {/* « Voir tout » à la DA : puce coral-soft + chevron. Hauteur fixe +
+            justify-center + lineHeight explicite → texte et chevron parfaitement
+            centrés (sur le web, le padding vertical seul laissait le texte
+            légèrement désaxé par rapport à l'icône). */}
         <Pressable
           onPress={onSeeAll}
           hitSlop={8}
-          className="flex-row items-center gap-1 rounded-full px-2.5 py-1.5 active:opacity-80"
-          style={{ backgroundColor: colors.coralSoft }}
+          accessibilityRole="button"
+          accessibilityLabel="Voir toutes les séances"
+          className="flex-row items-center justify-center gap-1 rounded-full px-3 active:opacity-80"
+          style={{ backgroundColor: colors.coralSoft, height: 30 }}
         >
-          <Text className="font-body-bold text-[11.5px] text-coral">Voir tout</Text>
+          <Text
+            className="font-body-bold text-[11.5px] text-coral"
+            style={{ lineHeight: 14, includeFontPadding: false }}
+          >
+            Voir tout
+          </Text>
           <ChevronRight size={13} color={colors.coral} strokeWidth={2.6} />
         </Pressable>
       </View>
@@ -73,7 +83,9 @@ export function RecentSessions({ sessions, meId, onSeeAll, onOpenSession }: Prop
         {latest.map((session, i) => {
           const tag = TAG[session.status] ?? TAG.expired;
           const isMe = session.author.id === meId;
-          const who = isMe ? "Toi" : session.author.first_name || session.author.username || "Membre";
+          const who = isMe
+            ? "Toi"
+            : session.author.first_name || session.author.username || "Membre";
           return (
             <Pressable
               key={session.id}
@@ -95,10 +107,7 @@ export function RecentSessions({ sessions, meId, onSeeAll, onOpenSession }: Prop
                   {relativeDay(session.performed_at, now)}
                 </Text>
               </View>
-              <View
-                className="rounded-full px-2.5 py-1"
-                style={{ backgroundColor: tag.soft }}
-              >
+              <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: tag.soft }}>
                 <Text className="font-body-bold text-[10px]" style={{ color: tag.tint }}>
                   {tag.label}
                 </Text>

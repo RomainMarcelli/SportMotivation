@@ -1,4 +1,4 @@
-import { SUPPORT_EMAIL, supportMailto, timezoneLabel } from "../support";
+import { detectTimezone, SUPPORT_EMAIL, supportMailto, timezoneLabel } from "../support";
 
 describe("supportMailto", () => {
   const base = { version: "1.0.0", platform: "ios", osVersion: "18.2" };
@@ -46,5 +46,14 @@ describe("timezoneLabel", () => {
   it("gère l'absence de fuseau", () => {
     expect(timezoneLabel(null)).toBe("—");
     expect(timezoneLabel(undefined)).toBe("—");
+  });
+});
+
+describe("detectTimezone", () => {
+  // Dépend de l'environnement (Intl) : on ne fige pas de valeur, mais on garantit
+  // le contrat — soit un fuseau non vide, soit `null`, jamais une erreur.
+  it("renvoie un fuseau non vide ou null, sans jamais lever", () => {
+    const tz = detectTimezone();
+    expect(tz === null || (typeof tz === "string" && tz.length > 0)).toBe(true);
   });
 });

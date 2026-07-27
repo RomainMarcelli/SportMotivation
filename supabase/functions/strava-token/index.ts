@@ -1,13 +1,21 @@
-// Edge Function : échange / rafraîchit un token Strava.
+// Edge Function : échange / rafraîchit un token Strava, ET relaie la liste des
+// activités (proxy).
+//
 // Le client_secret Strava n'est JAMAIS exposé au client : il vit dans les secrets
 // de la fonction (STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET).
 //
-// Déploiement : voir docs/guides/STRAVA_SETUP.md (déployable depuis le Dashboard Supabase,
-// pas besoin du CLI).
+// ⚠ Pourquoi le proxy d'activités passe AUSSI par ici : l'API Strava n'envoie pas
+// d'en-têtes CORS, donc un `fetch` direct depuis un NAVIGATEUR (app web) est
+// bloqué. En passant par la fonction (serveur → Strava), plus de CORS, et ça
+// marche identiquement sur web / iOS / Android.
+//
+// Déploiement : voir docs/guides/STRAVA_SETUP.md (déployable depuis le Dashboard
+// Supabase, pas besoin du CLI). À REDÉPLOYER après cette mise à jour.
 //
 // Body attendu :
-//   { action: "exchange", code: string }            → échange un code d'autorisation
-//   { action: "refresh",  refresh_token: string }    → rafraîchit un token expiré
+//   { action: "exchange",   code: string }                  → échange un code d'autorisation
+//   { action: "refresh",    refresh_token: string }          → rafraîchit un token expiré
+//   { action: "activities", access_token: string, per_page?: number } → activités récentes
 
 const STRAVA_CLIENT_ID = Deno.env.get("STRAVA_CLIENT_ID");
 const STRAVA_CLIENT_SECRET = Deno.env.get("STRAVA_CLIENT_SECRET");
@@ -23,11 +31,42 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+    const action = body?.action;
+
+    // --- Proxy activités : ne nécessite que le token d'accès (pas le secret) ---
+    if (action === "activities") {
+      const accessToken = body?.access_token;
+      if (!accessToken) return json({ error: "access_token manquant" }, 400);
+      const perPage = Number(body?.per_page) || 15;
+
+      const res = await fetch(
+        `https://www.strava.com/api/v3/athlete/activities?per_page=${perPage}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const data = await res.json();
+
+      // On répond TOUJOURS en 200 et on encode l'issue dans le corps : ça permet
+      // au client de lire le vrai statut Strava (ex. 401 = token révoqué) plutôt
+      // qu'un « non-2xx » opaque renvoyé par le SDK functions.invoke.
+      if (!res.ok) {
+        // On joint le DÉTAIL Strava (tableau `errors`) au message : il précise la
+        // cause exacte — champ « activity:read_permission:missing » (scope) vs
+        // « rate limit:exceeded » (limite d'API). Un simple « Forbidden » ne dit rien.
+        const errors = Array.isArray(data?.errors) ? data.errors : [];
+        const detail = errors
+          .map((e: { field?: string; code?: string }) => `${e?.field ?? "?"}:${e?.code ?? "?"}`)
+          .join(", ");
+        const message = (data?.message ?? "Erreur Strava") + (detail ? ` (${detail})` : "");
+        return json({ ok: false, status: res.status, message });
+      }
+      return json({ ok: true, activities: data });
+    }
+
+    // --- Actions token (exchange / refresh) : nécessitent le client_secret ---
     if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET) {
       return json({ error: "Strava non configuré côté serveur." }, 500);
     }
-
-    const { action, code, refresh_token } = await req.json();
 
     const params = new URLSearchParams({
       client_id: STRAVA_CLIENT_ID,
@@ -35,12 +74,12 @@ Deno.serve(async (req) => {
     });
 
     if (action === "exchange") {
-      if (!code) return json({ error: "code manquant" }, 400);
-      params.set("code", code);
+      if (!body?.code) return json({ error: "code manquant" }, 400);
+      params.set("code", body.code);
       params.set("grant_type", "authorization_code");
     } else if (action === "refresh") {
-      if (!refresh_token) return json({ error: "refresh_token manquant" }, 400);
-      params.set("refresh_token", refresh_token);
+      if (!body?.refresh_token) return json({ error: "refresh_token manquant" }, 400);
+      params.set("refresh_token", body.refresh_token);
       params.set("grant_type", "refresh_token");
     } else {
       return json({ error: "action invalide" }, 400);

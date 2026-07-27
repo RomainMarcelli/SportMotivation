@@ -141,6 +141,9 @@ type Props = {
   stats: WeekStats;
   potTotal: number | null;
   members: GroupMemberWithUser[];
+  /** Préférences d'accueil : masquer la cagnotte / la pile de membres si voulu. */
+  showPot?: boolean;
+  showMembers?: boolean;
   /** Change de valeur à chaque arrivée sur l'écran → rejoue les animations. */
   replay: number;
 };
@@ -157,10 +160,17 @@ export function ChallengeHero({
   stats,
   potTotal,
   members,
+  showPot = true,
+  showMembers = true,
   replay,
 }: Props) {
   const shown = members.slice(0, 3);
   const extra = members.length - shown.length;
+
+  // Justification du bloc du bas selon ce qui reste affiché (cagnotte à gauche,
+  // membres à droite) : si un seul est visible, on l'aligne du bon côté.
+  const bottomJustify =
+    showPot && showMembers ? "space-between" : showPot ? "flex-start" : "flex-end";
 
   return (
     <View
@@ -172,15 +182,14 @@ export function ChallengeHero({
           className="flex-row items-center gap-1.5 rounded-full px-2.5 py-1.5"
           style={{ backgroundColor: colors.coralSoft }}
         >
-          <View
-            style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral }}
-          />
-          <Text className="font-body-bold text-[10.5px] tracking-eyebrow text-coral">
-            EN COURS
-          </Text>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral }} />
+          <Text className="font-body-bold text-[10.5px] tracking-eyebrow text-coral">EN COURS</Text>
         </View>
         <View className="items-end">
-          <Text className="font-display text-[20px] tracking-tighter" style={{ color: colors.amber }}>
+          <Text
+            className="font-display text-[20px] tracking-tighter"
+            style={{ color: colors.amber }}
+          >
             {countdownLabel(daysLeft)}
           </Text>
           <Text className="mt-0.5 font-body text-[10.5px] text-cream-dim">
@@ -224,73 +233,81 @@ export function ChallengeHero({
         </View>
       </View>
 
-      <View className="my-3.5 h-px" style={{ backgroundColor: colors.line }} />
+      {showPot || showMembers ? (
+        <>
+          <View className="my-3.5 h-px" style={{ backgroundColor: colors.line }} />
 
-      <View className="flex-row items-end justify-between">
-        <View>
-          <Text className="font-body text-[11.5px] text-cream-dim">Cagnotte du groupe</Text>
-          {/* Chiffre nu en ambre : le dégradé de la maquette est un `background-clip:text`,
-              impossible tel quel en RN — une pastille dégradée alourdissait le bloc. */}
-          <CountUp
-            key={replay}
-            to={Math.round(potTotal ?? 0)}
-            suffix=" €"
-            className="mt-1 font-display text-[30px] tracking-tighter"
-            style={{ color: colors.amber, lineHeight: 32 }}
-          />
-          <Text className="mt-1.5 font-body text-[10.5px] text-cream-dim">
-            débloquée à la fin du défi
-          </Text>
-        </View>
-
-        <View className="items-end">
-          <View className="flex-row">
-            {shown.map((m, i) => (
-              <View
-                key={m.id}
-                style={{
-                  marginLeft: i === 0 ? 0 : -9,
-                  borderRadius: 16,
-                  borderWidth: 2,
-                  borderColor: colors.surface,
-                }}
-              >
-                <Avatar
-                  uri={m.user.avatar_url}
-                  color={m.user.avatar_color}
-                  icon={m.user.avatar_icon}
-                  seed={m.user.id}
-                  name={`${m.user.first_name ?? ""} ${m.user.last_name ?? ""}`.trim()}
-                  size={30}
+          <View className="flex-row items-end" style={{ justifyContent: bottomJustify }}>
+            {showPot ? (
+              <View>
+                <Text className="font-body text-[11.5px] text-cream-dim">Cagnotte du groupe</Text>
+                {/* Chiffre nu en ambre : le dégradé de la maquette est un `background-clip:text`,
+                    impossible tel quel en RN — une pastille dégradée alourdissait le bloc. */}
+                <CountUp
+                  key={replay}
+                  to={Math.round(potTotal ?? 0)}
+                  suffix=" €"
+                  className="mt-1 font-display text-[30px] tracking-tighter"
+                  style={{ color: colors.amber, lineHeight: 32 }}
                 />
+                <Text className="mt-1.5 font-body text-[10.5px] text-cream-dim">
+                  débloquée à la fin du défi
+                </Text>
               </View>
-            ))}
-            {extra > 0 ? (
-              <View
-                className="items-center justify-center"
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 15,
-                  marginLeft: -9,
-                  borderWidth: 2,
-                  borderColor: colors.surface,
-                  backgroundColor: colors.surface2,
-                }}
-              >
-                <Text className="font-body-bold text-[10px] text-cream-dim">+{extra}</Text>
+            ) : null}
+
+            {showMembers ? (
+              <View className="items-end">
+                <View className="flex-row">
+                  {shown.map((m, i) => (
+                    <View
+                      key={m.id}
+                      style={{
+                        marginLeft: i === 0 ? 0 : -9,
+                        borderRadius: 16,
+                        borderWidth: 2,
+                        borderColor: colors.surface,
+                      }}
+                    >
+                      <Avatar
+                        uri={m.user.avatar_url}
+                        color={m.user.avatar_color}
+                        icon={m.user.avatar_icon}
+                        seed={m.user.id}
+                        name={`${m.user.first_name ?? ""} ${m.user.last_name ?? ""}`.trim()}
+                        size={30}
+                      />
+                    </View>
+                  ))}
+                  {extra > 0 ? (
+                    <View
+                      className="items-center justify-center"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 15,
+                        marginLeft: -9,
+                        borderWidth: 2,
+                        borderColor: colors.surface,
+                        backgroundColor: colors.surface2,
+                      }}
+                    >
+                      <Text className="font-body-bold text-[10px] text-cream-dim">+{extra}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                {/* Liste vide = pas encore chargée (on est forcément membre de son
+                    propre défi) : mieux vaut ne rien dire qu'annoncer « 0 membre ». */}
+                {members.length > 0 ? (
+                  <Text className="mt-1.5 font-body text-[11px] text-cream-dim">
+                    {members.length} membre{members.length > 1 ? "s" : ""}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
           </View>
-          {/* Liste vide = pas encore chargée (on est forcément membre de son
-              propre défi) : mieux vaut ne rien dire qu'annoncer « 0 membre ». */}
-          {members.length > 0 ? (
-            <Text className="mt-1.5 font-body text-[11px] text-cream-dim">
-              {members.length} membre{members.length > 1 ? "s" : ""}
-            </Text>
-          ) : null}
-        </View>
-      </View>
+        </>
+      ) : null}
     </View>
   );
 }

@@ -18,12 +18,14 @@ import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TopFade } from "@/components/ui/TopFade";
 import { useGroupMembers, useMyGroups, usePot, type MyGroup } from "@/features/groups/queries";
+import { orderGroups } from "@/features/home/home-order";
 import { pickActiveGroup } from "@/features/groups/selectors";
-import { historyBars, motivationLine, weekStats } from "@/features/home/home-stats";
+import { motivationLine, weekStats } from "@/features/home/home-stats";
 import { useGroupSessions, type SessionWithAuthor } from "@/features/sessions/queries";
 import { useFocusReplay } from "@/hooks/useFocusReplay";
 import { useProfile } from "@/hooks/useProfile";
 import { useCurrentUser } from "@/lib/auth-store";
+import { useHomePrefsStore } from "@/lib/home-prefs-store";
 import { daysUntil, weekStartString } from "@/lib/date";
 
 /**
@@ -40,11 +42,16 @@ function HeroCard({
   meId,
   now,
   replay,
+  showPot,
+  showMembers,
 }: {
   item: MyGroup;
   meId: string | undefined;
   now: Date;
   replay: number;
+  /** Préférences d'accueil : afficher ou non la cagnotte / la pile de membres. */
+  showPot: boolean;
+  showMembers: boolean;
 }) {
   const groupId = item.group.id;
   const { data: sessions = [] } = useGroupSessions(groupId);
@@ -64,6 +71,8 @@ function HeroCard({
       stats={stats}
       potTotal={potTotal ?? null}
       members={members}
+      showPot={showPot}
+      showMembers={showMembers}
       replay={replay}
     />
   );
@@ -79,8 +88,23 @@ export default function HomeScreen() {
   // reste monté, donc sans ça l'animation ne se voit qu'une fois par session.
   const replay = useFocusReplay();
 
+  // Préférences d'accueil (ordre des défis + stats affichées), persistées localement.
+  const groupOrder = useHomePrefsStore((s) => s.groupOrder);
+  const homeStats = useHomePrefsStore((s) => s.stats);
+
   const [index, setIndex] = useState(0);
-  const list: MyGroup[] = useMemo(() => groups ?? [], [groups]);
+  // On applique l'ordre choisi par l'utilisateur (« mettre le groupe 2 devant »).
+  const list: MyGroup[] = useMemo(() => {
+    const base = groups ?? [];
+    if (base.length < 2) return base;
+    const orderedIds = orderGroups(
+      base.map((g) => g.group.id),
+      groupOrder
+    );
+    return orderedIds
+      .map((id) => base.find((g) => g.group.id === id))
+      .filter((g): g is MyGroup => !!g);
+  }, [groups, groupOrder]);
 
   // Au premier chargement on se place sur le défi actif (pas forcément le 1er),
   // et on reste dans les bornes si un groupe disparaît.
@@ -116,11 +140,6 @@ export default function HomeScreen() {
     [sessions, me?.id, now, current?.weeklyTarget]
   );
 
-  const bars = useMemo(
-    () => historyBars(sessions, me?.id, now, current?.weeklyTarget ?? 0),
-    [sessions, me?.id, now, current?.weeklyTarget]
-  );
-
   return (
     <View className="flex-1">
       <AppBackground />
@@ -153,7 +172,14 @@ export default function HomeScreen() {
                   onIndexChange={setIndex}
                   labelFor={(item) => item.group.name}
                   renderItem={(item) => (
-                    <HeroCard item={item} meId={me?.id} now={now} replay={replay} />
+                    <HeroCard
+                      item={item}
+                      meId={me?.id}
+                      now={now}
+                      replay={replay}
+                      showPot={homeStats.pot}
+                      showMembers={homeStats.members}
+                    />
                   )}
                 />
               </Reveal>
@@ -177,6 +203,8 @@ export default function HomeScreen() {
                   key={groupId}
                   groupId={groupId}
                   weeklyTarget={current.weeklyTarget}
+                  sessions={sessions}
+                  meId={me?.id}
                   replay={replay}
                 />
               </Reveal>
@@ -196,7 +224,15 @@ export default function HomeScreen() {
               </Reveal>
 
               <Reveal delay={300} className="mt-5">
-                <WeeklyHistory bars={bars} replay={replay} />
+                <WeeklyHistory
+                  sessions={sessions}
+                  meId={me?.id}
+                  now={now}
+                  challengeStart={current.group.challenge_start}
+                  challengeEnd={current.group.challenge_end}
+                  weeklyTarget={current.weeklyTarget}
+                  replay={replay}
+                />
               </Reveal>
 
               <DevResetTools groupId={groupId} />

@@ -1,8 +1,9 @@
 import {
+  buildHistory,
   countdownLabel,
-  historyBars,
   motivationLine,
   relativeDay,
+  weekSessionStatuses,
   weekStats,
   type HomeSession,
 } from "../home-stats";
@@ -98,43 +99,124 @@ describe("countdownLabel", () => {
   });
 });
 
-describe("historyBars", () => {
-  const now = new Date(2026, 6, 22); // mercredi 22 juillet 2026
-
-  it("renvoie le nombre de semaines demandé, la plus récente en dernier", () => {
-    const bars = historyBars([], ME, now, 4, 6);
-    expect(bars).toHaveLength(6);
-    expect(bars[5].current).toBe(true);
-    expect(bars[5].label).toBe("cette sem.");
-    expect(bars[0].current).toBe(false);
+describe("weekSessionStatuses", () => {
+  // WEEK = lundi 2026-07-20. Jours locaux (sans « Z ») pour un indice de jour
+  // déterministe quel que soit le fuseau du CI.
+  const at = (day: string, status: HomeSession["status"] = "validated"): HomeSession => ({
+    user_id: ME,
+    week_start: WEEK,
+    status,
+    performed_at: `${day}T10:00:00`,
   });
 
-  it("compte les séances validées de chaque semaine", () => {
-    const bars = historyBars([session(), session(), session({ week_start: "2026-07-13" })], ME, now, 4);
-    const current = bars[bars.length - 1];
-    expect(current.done).toBe(2);
-    expect(bars[bars.length - 2].done).toBe(1);
+  it("mappe une séance validée sur son jour (0 = lundi)", () => {
+    // 2026-07-22 = mercredi → indice 2.
+    expect(weekSessionStatuses([at("2026-07-22")], ME, WEEK)).toEqual({ 2: "validated" });
   });
 
-  // Une semaine vide reste affichée : c'est justement l'information utile.
-  it("conserve les semaines à zéro", () => {
-    const bars = historyBars([], ME, now, 4);
-    expect(bars.every((b) => b.done === 0)).toBe(true);
-    expect(bars).toHaveLength(6);
-  });
-
-  it("met l'échelle sur le meilleur score quand il dépasse l'objectif", () => {
-    const bars = historyBars([session(), session(), session(), session()], ME, now, 2);
-    expect(bars[bars.length - 1].ratio).toBe(1); // 4 séances / échelle 4
-  });
-
-  it("ignore les séances des autres et les non validées", () => {
-    const bars = historyBars(
-      [session({ user_id: "autre" }), session({ status: "pending_vote" })],
+  it("garde le statut le plus abouti si plusieurs séances le même jour", () => {
+    const map = weekSessionStatuses(
+      [at("2026-07-22", "rejected"), at("2026-07-22", "validated")],
       ME,
-      now,
-      4
+      WEEK
     );
+    expect(map[2]).toBe("validated"); // validée l'emporte sur refusée
+  });
+
+  it("ignore les autres membres, les autres semaines et les statuts non gérés", () => {
+    const map = weekSessionStatuses(
+      [
+        { ...at("2026-07-20"), user_id: "autre" }, // pas moi
+        { ...at("2026-07-15"), week_start: "2026-07-13" }, // autre semaine
+        at("2026-07-24", "expired"), // statut ignoré
+        at("2026-07-20", "pending_vote"), // lundi, en attente
+      ],
+      ME,
+      WEEK
+    );
+    expect(map).toEqual({ 0: "pending_vote" });
+  });
+
+  it("renvoie un objet vide sans utilisateur", () => {
+    expect(weekSessionStatuses([at("2026-07-22")], undefined, WEEK)).toEqual({});
+  });
+});
+
+describe("buildHistory", () => {
+  const now = new Date(2026, 6, 22); // mercredi 22 juillet 2026
+  const from = new Date(2026, 6, 20); // lundi 20 juillet (début du défi)
+
+  const val = (perf: string, week: string): HomeSession => ({
+    user_id: ME,
+    week_start: week,
+    status: "validated",
+    performed_at: `${perf}T10:00:00`,
+  });
+
+  it("mode semaine : borné au défi (aucune semaine avant le début)", () => {
+    const to = new Date(2026, 7, 16); // dim 16 août
+    const bars = buildHistory([val("2026-07-21", "2026-07-20"), val("2026-07-22", "2026-07-20")], ME, {
+      from,
+      to,
+      now,
+      granularity: "week",
+      target: 4,
+    });
+    // Semaines 07-20, 07-27, 08-03, 08-10 — pas de 07-13 (avant le défi).
+    expect(bars.map((b) => b.key)).toEqual(["2026-07-20", "2026-07-27", "2026-08-03", "2026-08-10"]);
+    expect(bars[0].current).toBe(true);
+    expect(bars[0].label).toBe("cette sem.");
+    expect(bars[0].done).toBe(2);
+    expect(bars[1].done).toBe(0);
+  });
+
+  it("mode jour : fenêtre jusqu'à aujourd'hui, une barre par jour", () => {
+    const to = new Date(2026, 7, 16);
+    const bars = buildHistory([val("2026-07-20", "2026-07-20"), val("2026-07-22", "2026-07-20")], ME, {
+      from,
+      to,
+      now,
+      granularity: "day",
+    });
+    expect(bars.map((b) => b.key)).toEqual(["2026-07-20", "2026-07-21", "2026-07-22"]);
+    expect(bars.map((b) => b.done)).toEqual([1, 0, 1]);
+    expect(bars[2].current).toBe(true);
+    expect(bars[2].label).toBe("auj.");
+  });
+
+  it("mode mois : une barre par mois du défi", () => {
+    const to = new Date(2026, 8, 10); // 10 septembre
+    const bars = buildHistory([val("2026-07-22", "2026-07-20")], ME, {
+      from,
+      to,
+      now,
+      granularity: "month",
+    });
+    expect(bars.map((b) => b.key)).toEqual(["2026-07", "2026-08", "2026-09"]);
+    expect(bars[0].current).toBe(true);
+    expect(bars[0].done).toBe(1);
+    expect(bars[1].done).toBe(0);
+  });
+
+  it("échelle sur le meilleur score (ratio plafonné à 1)", () => {
+    const to = new Date(2026, 7, 16);
+    const many = [
+      val("2026-07-20", "2026-07-20"),
+      val("2026-07-21", "2026-07-20"),
+      val("2026-07-22", "2026-07-20"),
+    ];
+    const bars = buildHistory(many, ME, { from, to, now, granularity: "week", target: 2 });
+    expect(bars[0].ratio).toBe(1); // 3 séances / échelle 3 (dépasse l'objectif 2)
+  });
+
+  it("ignore les non validées et sans utilisateur reste à zéro", () => {
+    const to = new Date(2026, 7, 16);
+    const bars = buildHistory([{ ...val("2026-07-22", "2026-07-20"), status: "pending_vote" }], undefined, {
+      from,
+      to,
+      now,
+      granularity: "week",
+    });
     expect(bars.every((b) => b.done === 0)).toBe(true);
   });
 });

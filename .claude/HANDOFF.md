@@ -11,8 +11,8 @@
 > guides Strava/Google/Storage), [`maquette/V3/*.html`](../maquette/V3/) (les maquettes,
 > **source de vérité UI**).
 >
-> Dernière mise à jour : étape 17 (sports refus/vote, limite séances/jour, notifs de résultat).
-> État SQL attendu côté Supabase : **jusqu'à `044_daily_session_limit.sql`**.
+> Dernière mise à jour : étape 18b (accueil « Ma semaine »/historique/perso, Strava, rappels week-end).
+> État SQL attendu côté Supabase : **jusqu'à `045_weekly_reminder.sql`** (`045` requiert `pg_cron`).
 
 ---
 
@@ -334,8 +334,9 @@ préférences). Demandes : `request_group_activity`, `add_group_activity`, `requ
 
 ## 9. État des migrations SQL
 
-Fichiers dans `supabase/sql/` numérotés `000`→`044`. **Romain les exécute lui-même, dans l'ordre.**
-État attendu à jour : **jusqu'à `044`**. Points d'attention pour les prochaines :
+Fichiers dans `supabase/sql/` numérotés `000`→`045`. **Romain les exécute lui-même, dans l'ordre.**
+État attendu à jour : **jusqu'à `045`** (`045_weekly_reminder.sql` = rappel week-end, **requiert
+l'extension `pg_cron`**). Points d'attention pour les prochaines :
 
 - Les `ALTER TYPE … ADD VALUE` (nouvelles valeurs d'enum) doivent être dans un **fichier séparé
   exécuté avant** celui qui les utilise — Postgres refuse d'utiliser une valeur d'enum ajoutée dans

@@ -99,6 +99,9 @@ function notifVisual(type: string): { icon: typeof Bell; color: string; soft: st
       return { icon: Plus, color: colors.amber, soft: colors.amberSoft };
     case "session_limit_granted":
       return { icon: CheckCircle2, color: colors.mint, soft: colors.mintSoft };
+    case "session_reminder":
+      // Rappel hebdo « n'oublie pas tes séances » (cron SQL 045).
+      return { icon: Dumbbell, color: colors.amber, soft: colors.amberSoft };
     default:
       return { icon: Bell, color: colors.creamDim, soft: colors.surface2 };
   }
@@ -136,10 +139,7 @@ export default function NotificationsScreen() {
   const { confirm, toast } = useFeedback();
 
   const now = useMemo(() => new Date(), [notifications]);
-  const sections = useMemo(
-    () => groupByDay(notifications ?? [], now),
-    [notifications, now]
-  );
+  const sections = useMemo(() => groupByDay(notifications ?? [], now), [notifications, now]);
   const unread = (notifications ?? []).filter((n) => !n.read).length;
 
   // Sports déjà présents dans les défis cités par une demande d'ajout : sert à
@@ -265,9 +265,7 @@ export default function NotificationsScreen() {
                   }}
                 >
                   <CheckCheck size={14} color={colors.cream} strokeWidth={2.2} />
-                  <Text className="font-body-semibold text-[12px] text-cream">
-                    Tout marquer lu
-                  </Text>
+                  <Text className="font-body-semibold text-[12px] text-cream">Tout marquer lu</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -403,7 +401,9 @@ function NotificationRow({
 
   // États locaux : réponse immédiate + persistance douce (l'écran ne se remonte pas).
   const [justAdded, setJustAdded] = useState(false);
-  const [localOutcome, setLocalOutcome] = useState<"refused" | "vote_started" | "granted" | null>(null);
+  const [localOutcome, setLocalOutcome] = useState<"refused" | "vote_started" | "granted" | null>(
+    null
+  );
   const [localVote, setLocalVote] = useState<boolean | null>(null);
   const [refuseOpen, setRefuseOpen] = useState(false);
   const [refuseComment, setRefuseComment] = useState("");
@@ -419,7 +419,7 @@ function NotificationRow({
 
   // Vote de sport : ma décision (persistée) ou celle de cette session.
   const myVote = isActivityVote
-    ? localVote ?? activityVotes?.[reqData.proposal_id ?? ""] ?? null
+    ? (localVote ?? activityVotes?.[reqData.proposal_id ?? ""] ?? null)
     : null;
 
   const acted = () => onMarkRead(); // toute action vaut lecture
@@ -593,9 +593,15 @@ function NotificationRow({
                         onPress={onRefuseActivity}
                         disabled={rejectActivity.isPending}
                         className="flex-row items-center gap-1.5 rounded-[10px] px-3.5 py-2 active:opacity-80"
-                        style={{ backgroundColor: colors.red, opacity: rejectActivity.isPending ? 0.6 : 1 }}
+                        style={{
+                          backgroundColor: colors.red,
+                          opacity: rejectActivity.isPending ? 0.6 : 1,
+                        }}
                       >
-                        <Text className="font-body-bold text-[12px]" style={{ color: colors.cream }}>
+                        <Text
+                          className="font-body-bold text-[12px]"
+                          style={{ color: colors.cream }}
+                        >
                           Envoyer le refus
                         </Text>
                       </Pressable>
@@ -604,7 +610,9 @@ function NotificationRow({
                         className="items-center justify-center rounded-[10px] px-3 py-2 active:opacity-70"
                         style={{ backgroundColor: colors.surface2 }}
                       >
-                        <Text className="font-body-semibold text-[12px] text-cream-dim">Annuler</Text>
+                        <Text className="font-body-semibold text-[12px] text-cream-dim">
+                          Annuler
+                        </Text>
                       </Pressable>
                     </View>
                   </View>
@@ -614,10 +622,16 @@ function NotificationRow({
                       onPress={onAddActivity}
                       disabled={addActivity.isPending}
                       className="flex-row items-center justify-center gap-1.5 rounded-[10px] px-4 py-2.5 active:opacity-80"
-                      style={{ backgroundColor: colors.coral, opacity: addActivity.isPending ? 0.6 : 1 }}
+                      style={{
+                        backgroundColor: colors.coral,
+                        opacity: addActivity.isPending ? 0.6 : 1,
+                      }}
                     >
                       <Plus size={14} color={colors.onCoral} strokeWidth={2.6} />
-                      <Text className="font-body-bold text-[12.5px]" style={{ color: colors.onCoral }}>
+                      <Text
+                        className="font-body-bold text-[12.5px]"
+                        style={{ color: colors.onCoral }}
+                      >
                         Ajouter « {reqData.activity} »
                       </Text>
                     </Pressable>
@@ -627,16 +641,24 @@ function NotificationRow({
                         className="flex-1 items-center justify-center rounded-[10px] border py-2 active:opacity-80"
                         style={{ backgroundColor: colors.surface2, borderColor: colors.line }}
                       >
-                        <Text className="font-body-semibold text-[12px] text-cream-dim">Refuser</Text>
+                        <Text className="font-body-semibold text-[12px] text-cream-dim">
+                          Refuser
+                        </Text>
                       </Pressable>
                       <Pressable
                         onPress={onStartVote}
                         disabled={startVote.isPending}
                         className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border py-2 active:opacity-80"
-                        style={{ backgroundColor: colors.amberSoft, borderColor: "rgba(255,178,62,0.3)" }}
+                        style={{
+                          backgroundColor: colors.amberSoft,
+                          borderColor: "rgba(255,178,62,0.3)",
+                        }}
                       >
                         <Vote size={13} color={colors.amber} />
-                        <Text className="font-body-semibold text-[12px]" style={{ color: colors.amber }}>
+                        <Text
+                          className="font-body-semibold text-[12px]"
+                          style={{ color: colors.amber }}
+                        >
                           Lancer un vote
                         </Text>
                       </Pressable>
@@ -645,7 +667,10 @@ function NotificationRow({
                 )
               ) : isActivityVote ? (
                 myVote !== null ? (
-                  <StatePill label={myVote ? "Ton vote : Pour" : "Ton vote : Contre"} tone={myVote ? "mint" : "neutral"} />
+                  <StatePill
+                    label={myVote ? "Ton vote : Pour" : "Ton vote : Contre"}
+                    tone={myVote ? "mint" : "neutral"}
+                  />
                 ) : (
                   <View className="mt-2.5 flex-row gap-2">
                     <Pressable
@@ -655,7 +680,10 @@ function NotificationRow({
                       style={{ backgroundColor: colors.mint }}
                     >
                       <Check size={14} color={colors.onMint} strokeWidth={2.8} />
-                      <Text className="font-body-bold text-[12.5px]" style={{ color: colors.onMint }}>
+                      <Text
+                        className="font-body-bold text-[12.5px]"
+                        style={{ color: colors.onMint }}
+                      >
                         Pour
                       </Text>
                     </Pressable>
@@ -679,10 +707,16 @@ function NotificationRow({
                       onPress={onGrantLimit}
                       disabled={grantLimit.isPending}
                       className="flex-row items-center gap-1.5 rounded-[10px] px-4 py-2 active:opacity-80"
-                      style={{ backgroundColor: colors.coral, opacity: grantLimit.isPending ? 0.6 : 1 }}
+                      style={{
+                        backgroundColor: colors.coral,
+                        opacity: grantLimit.isPending ? 0.6 : 1,
+                      }}
                     >
                       <Check size={14} color={colors.onCoral} strokeWidth={2.6} />
-                      <Text className="font-body-bold text-[12.5px]" style={{ color: colors.onCoral }}>
+                      <Text
+                        className="font-body-bold text-[12.5px]"
+                        style={{ color: colors.onCoral }}
+                      >
                         Accorder une séance
                       </Text>
                     </Pressable>

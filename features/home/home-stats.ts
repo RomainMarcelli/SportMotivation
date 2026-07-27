@@ -5,7 +5,7 @@
  * l'histogramme doivent raconter exactement la même chose.
  */
 
-import { toDateOnly, startOfWeekMonday } from "@/lib/date";
+import { toDateOnly, startOfWeekMonday, weekStartString } from "@/lib/date";
 
 export type HomeSession = {
   user_id: string;
@@ -67,57 +67,174 @@ export function countdownLabel(days: number): string {
   return `J-${days}`;
 }
 
+/* ------------------------------------------------------- « Ma semaine » réel */
+
+/** Les trois états d'une séance qu'on veut refléter dans « Ma semaine ». */
+export type DayStatus = "validated" | "pending_vote" | "rejected";
+
+// Priorité si plusieurs séances tombent le même jour : une séance validée
+// « gagne » sur une en attente, qui gagne sur une refusée.
+const DAY_STATUS_RANK: Record<DayStatus, number> = {
+  validated: 3,
+  pending_vote: 2,
+  rejected: 1,
+};
+
+/** Date locale → indice de jour 0 = lundi … 6 = dimanche (même repère que `plan.ts`). */
+function weekdayIndex(d: Date): number {
+  const day = d.getDay(); // 0 = dimanche
+  return day === 0 ? 6 : day - 1;
+}
+
+/**
+ * Statut RÉEL par jour de ma semaine en cours, pour superposer les séances
+ * déclarées au planning manuel : une séance validée coche son jour, une séance
+ * en attente le teinte, etc.
+ *
+ * C'est ce qui manquait — « Ma semaine » ne lisait que le planning (`weekly_plans`)
+ * et ignorait les séances réellement faites : le jour d'une séance validée restait
+ * « vide » comme si rien ne s'était passé.
+ */
+export function weekSessionStatuses(
+  sessions: HomeSession[],
+  userId: string | undefined,
+  weekStart: string
+): Record<number, DayStatus> {
+  const out: Record<number, DayStatus> = {};
+  if (!userId) return out;
+
+  for (const s of sessions) {
+    if (s.user_id !== userId || s.week_start !== weekStart) continue;
+    const status = s.status as DayStatus;
+    if (!DAY_STATUS_RANK[status]) continue; // ignore les statuts hors des 3 gérés (ex. « expired »)
+    const day = new Date(s.performed_at);
+    if (Number.isNaN(day.getTime())) continue;
+
+    const idx = weekdayIndex(day);
+    const prev = out[idx];
+    if (!prev || DAY_STATUS_RANK[status] > DAY_STATUS_RANK[prev]) out[idx] = status;
+  }
+  return out;
+}
+
+/* --------------------------------------------------------------- Historique */
+
+export type HistoryGranularity = "day" | "week" | "month";
+
 export type HistoryBar = {
-  /** `YYYY-MM-DD` du lundi. */
-  weekStart: string;
-  /** « 05.05 » ou « cette sem. ». */
+  /** Clé unique de la période (`YYYY-MM-DD` ou `YYYY-MM`). */
+  key: string;
+  /** Libellé court affiché sous la barre. */
   label: string;
   done: number;
   /** Hauteur relative 0 → 1. */
   ratio: number;
+  /** Période contenant « maintenant » (mise en avant + point de défilement). */
   current: boolean;
 };
 
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+const MONTH_FMT = new Intl.DateTimeFormat("fr-FR", { month: "short" });
+
 /**
- * Histogramme des N dernières semaines (la semaine en cours en dernier).
+ * Histogramme des séances validées, **borné à la période du défi** et à la
+ * granularité choisie (jour / semaine / mois).
  *
- * Les semaines sans séance sont conservées : un trou est une information, le
- * masquer donnerait un graphe faussement régulier.
+ * Pourquoi borné au défi : afficher des semaines antérieures au début du défi
+ * (vides par définition) n'apprend rien. On part donc de `from` (début du défi).
+ * Les périodes à venir du défi sont conservées (barres vides) pour qu'on puisse
+ * défiler en avant ; l'appelant fait défiler jusqu'à la période courante.
+ *
+ * En mode « jour », on ne remonte pas tout le défi (ça ferait 90 colonnes) : on
+ * garde une fenêtre glissante des ~4 dernières semaines jusqu'à aujourd'hui.
  */
-export function historyBars(
+export function buildHistory(
   sessions: HomeSession[],
   userId: string | undefined,
-  now: Date,
-  target: number,
-  weeks = 6
+  opts: {
+    /** Début du défi. */
+    from: Date;
+    /** Fin du défi. */
+    to: Date;
+    now: Date;
+    granularity: HistoryGranularity;
+    /** Objectif hebdo — sert d'échelle en mode « semaine ». */
+    target?: number;
+  }
 ): HistoryBar[] {
-  const monday = startOfWeekMonday(now);
-  const counts = new Map<string, number>();
+  const { from, to, now, granularity, target = 0 } = opts;
+  const mine = userId
+    ? sessions.filter((s) => s.user_id === userId && s.status === "validated")
+    : [];
 
-  if (userId) {
-    for (const session of sessions) {
-      if (session.user_id !== userId || session.status !== "validated") continue;
-      counts.set(session.week_start, (counts.get(session.week_start) ?? 0) + 1);
+  type Raw = { key: string; label: string; done: number; current: boolean };
+  const raw: Raw[] = [];
+
+  if (granularity === "week") {
+    const nowKey = weekStartString(now);
+    let cursor = startOfWeekMonday(from);
+    const last = startOfWeekMonday(to);
+    // Garde-fou : un intervalle absurde ne doit pas boucler à l'infini.
+    for (let i = 0; i < 260 && cursor.getTime() <= last.getTime(); i += 1) {
+      const key = toDateOnly(cursor);
+      const current = key === nowKey;
+      raw.push({
+        key,
+        label: current ? "cette sem." : `${pad(cursor.getDate())}.${pad(cursor.getMonth() + 1)}`,
+        done: mine.filter((s) => s.week_start === key).length,
+        current,
+      });
+      cursor = new Date(cursor);
+      cursor.setDate(cursor.getDate() + 7);
+    }
+  } else if (granularity === "month") {
+    let cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+    const last = new Date(to.getFullYear(), to.getMonth(), 1);
+    for (let i = 0; i < 120 && cursor.getTime() <= last.getTime(); i += 1) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      raw.push({
+        key: `${y}-${pad(m + 1)}`,
+        label: MONTH_FMT.format(cursor).replace(".", ""),
+        done: mine.filter((s) => {
+          const d = new Date(s.performed_at);
+          return d.getFullYear() === y && d.getMonth() === m;
+        }).length,
+        current: y === now.getFullYear() && m === now.getMonth(),
+      });
+      cursor = new Date(y, m + 1, 1);
+    }
+  } else {
+    // Jour : fenêtre des 28 derniers jours jusqu'à aujourd'hui, sans sortir du défi.
+    const today = startOfDay(now);
+    const windowStart = new Date(today);
+    windowStart.setDate(windowStart.getDate() - 27);
+    let cursor =
+      startOfDay(from).getTime() > windowStart.getTime() ? startOfDay(from) : windowStart;
+    const last = startOfDay(to).getTime() < today.getTime() ? startOfDay(to) : today;
+    const nowKey = toDateOnly(now);
+    for (let i = 0; i < 92 && cursor.getTime() <= last.getTime(); i += 1) {
+      const key = toDateOnly(cursor);
+      const current = key === nowKey;
+      raw.push({
+        key,
+        label: current ? "auj." : `${pad(cursor.getDate())}.${pad(cursor.getMonth() + 1)}`,
+        done: mine.filter((s) => toDateOnly(new Date(s.performed_at)) === key).length,
+        current,
+      });
+      cursor = new Date(cursor);
+      cursor.setDate(cursor.getDate() + 1);
     }
   }
 
-  // L'échelle suit le meilleur score affiché, pour qu'une semaine à 6 séances
-  // avec un objectif de 4 ne sorte pas du cadre.
-  const bars: Omit<HistoryBar, "ratio">[] = [];
-  for (let i = weeks - 1; i >= 0; i -= 1) {
-    const day = new Date(monday);
-    day.setDate(day.getDate() - i * 7);
-    const key = toDateOnly(day);
-    bars.push({
-      weekStart: key,
-      label: i === 0 ? "cette sem." : `${pad(day.getDate())}.${pad(day.getMonth() + 1)}`,
-      done: counts.get(key) ?? 0,
-      current: i === 0,
-    });
-  }
-
-  const scale = Math.max(target, ...bars.map((b) => b.done), 1);
-  return bars.map((b) => ({ ...b, ratio: b.done / scale }));
+  // Échelle : le meilleur score affiché (et l'objectif hebdo en mode semaine),
+  // pour qu'une semaine à 6 séances avec un objectif de 4 ne déborde pas.
+  const scaleTarget = granularity === "week" ? target : 0;
+  const scale = Math.max(scaleTarget, ...raw.map((b) => b.done), 1);
+  return raw.map((b) => ({ ...b, ratio: b.done / scale }));
 }
 
 function pad(value: number): string {

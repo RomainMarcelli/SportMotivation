@@ -17,6 +17,13 @@ export type StravaSession = {
   /** Expiration en **secondes** epoch — c'est le format renvoyé par Strava. */
   expiresAt: number | null;
   athlete: StravaAthlete | null;
+  /**
+   * Scope RÉELLEMENT accordé par Strava (ex. « read,activity:read_all »), capté
+   * sur le retour d'autorisation. Sans `activity:read`/`activity:read_all`, la
+   * lecture des activités renvoie 403 — on le garde pour l'afficher et diagnostiquer.
+   * `null` pour les sessions d'avant cet ajout (→ inviter à se reconnecter).
+   */
+  scope: string | null;
 };
 
 /** Marge avant expiration : un token qui expire dans 30 s est déjà mort en pratique. */
@@ -39,7 +46,13 @@ export function parseStravaSession(raw: unknown): StravaSession | null {
     refreshToken: typeof data.refreshToken === "string" ? data.refreshToken : null,
     expiresAt: typeof data.expiresAt === "number" && data.expiresAt > 0 ? data.expiresAt : null,
     athlete: parseAthlete(data.athlete),
+    scope: typeof data.scope === "string" ? data.scope : null,
   };
+}
+
+/** Le scope accordé permet-il de LIRE les activités ? (sinon 403 sur /athlete/activities) */
+export function stravaScopeHasActivityRead(scope: string | null): boolean {
+  return !!scope && /\bactivity:read(_all)?\b/.test(scope);
 }
 
 function parseAthlete(raw: unknown): StravaAthlete | null {

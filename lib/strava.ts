@@ -93,17 +93,18 @@ type TokenResponse = {
 async function invokeStravaToken(body: Record<string, unknown>): Promise<TokenResponse> {
   const call = supabase.functions.invoke("strava-token", { body });
   const timeout = new Promise<never>((_, reject) =>
-    setTimeout(
-      () => reject(new Error("Strava ne répond pas. Réessaie dans un instant.")),
-      15_000
-    )
+    setTimeout(() => reject(new Error("Strava ne répond pas. Réessaie dans un instant.")), 15_000)
   );
   const { data, error } = await Promise.race([call, timeout]);
   if (error) throw error;
   return (data ?? {}) as TokenResponse;
 }
 
-function toSession(data: TokenResponse, previous?: StravaSession | null): StravaSession | null {
+function toSession(
+  data: TokenResponse,
+  previous?: StravaSession | null,
+  grantedScope?: string | null
+): StravaSession | null {
   if (!data.access_token) return null;
   const parsed = parseStravaSession({
     accessToken: data.access_token,
@@ -116,6 +117,10 @@ function toSession(data: TokenResponse, previous?: StravaSession | null): Strava
     refreshToken: data.refresh_token ?? previous?.refreshToken ?? null,
     expiresAt: data.expires_at ?? null,
     athlete: parsed?.athlete ?? previous?.athlete ?? null,
+    // Le scope n'est PAS dans la réponse de token Strava : il n'arrive que sur le
+    // retour d'autorisation (`result.params.scope`). On le passe donc explicitement
+    // à la connexion ; au rafraîchissement il est conservé (le scope ne change pas).
+    scope: grantedScope ?? previous?.scope ?? null,
   };
 }
 
@@ -174,49 +179,65 @@ export function useStravaAuth() {
       scopes: ["activity:read_all"],
       redirectUri,
       responseType: AuthSession.ResponseType.Code,
-      extraParams: { approval_prompt: "auto" },
+      // `force` (et NON `auto`) : si le compte a déjà autorisé l'app une fois —
+      // même avec un scope réduit — `auto` fait sauter à Strava l'écran de
+      // consentement et renvoie un jeton gardant l'ANCIEN scope. Symptôme vécu :
+      // connexion OK (le nom s'affiche) mais 403 sur les activités, car
+      // `activity:read_all` n'avait jamais été accordé, et reconnecter n'y
+      // changeait rien. `force` réaffiche le consentement → le scope activités est
+      // bien (re)demandé à chaque connexion.
+      extraParams: { approval_prompt: "force" },
     },
     discovery
   );
 
-  const connect = async (): Promise<string | null> => {
+  /**
+   * Lance l'autorisation puis échange le code contre un jeton.
+   *
+   * Renvoie `{ token, error }` — et NON plus un simple `token` — car l'appelant
+   * DOIT pouvoir afficher l'erreur : c'était le bug « ça s'est fermé comme si ça
+   * marchait puis on me redemande de me connecter ». En réalité l'échange
+   * échouait (Edge Function `strava-token` non déployée / secrets manquants),
+   * `connect` renvoyait `null`, et l'écran l'ignorait en silence → aucune session
+   * enregistrée, donc reconnexion redemandée. On remonte désormais la raison.
+   */
+  const connect = async (): Promise<{ token: string | null; error: string | null }> => {
     setState((s) => ({ ...s, isPending: true, error: null }));
     try {
       const result = await promptAsync();
       if (result.type !== "success" || !result.params.code) {
         // Fenêtre fermée, refus, ou bloqueur de pop-up : on le dit, plutôt que
-        // de laisser croire à un chargement sans fin.
-        setState({
-          isPending: false,
-          error:
-            result.type === "dismiss" || result.type === "cancel"
-              ? null
-              : "Autorisation Strava interrompue. Vérifie que les fenêtres surgissantes sont autorisées.",
-          accessToken: null,
-        });
-        return null;
+        // de laisser croire à un chargement sans fin. Une annulation volontaire
+        // n'est pas une erreur (error: null).
+        const error =
+          result.type === "dismiss" || result.type === "cancel"
+            ? null
+            : "Autorisation Strava interrompue. Vérifie que les fenêtres surgissantes sont autorisées.";
+        setState({ isPending: false, error, accessToken: null });
+        return { token: null, error };
       }
       const data = await invokeStravaToken({ action: "exchange", code: result.params.code });
 
-      const session = toSession(data);
+      // Scope RÉELLEMENT accordé (« read,activity:read_all » si la case activités a
+      // été cochée). C'est la source de vérité pour savoir pourquoi les activités
+      // renvoient 403 : si `activity:read` n'y est pas, le jeton n'y a pas droit.
+      const grantedScope =
+        typeof result.params.scope === "string" ? result.params.scope : null;
+      const session = toSession(data, null, grantedScope);
       if (session) {
         // Mémorisée : avant, il fallait reconnecter Strava à chaque séance.
         await saveStravaSession(session);
         queryClient.invalidateQueries({ queryKey: STRAVA_QUERY_KEY });
       }
-      setState({
-        isPending: false,
-        error: session ? null : "Échec de l'échange Strava.",
-        accessToken: session?.accessToken ?? null,
-      });
-      return session?.accessToken ?? null;
+      const error = session
+        ? null
+        : "Strava a répondu sans jeton. Vérifie que la fonction serveur « strava-token » est déployée.";
+      setState({ isPending: false, error, accessToken: session?.accessToken ?? null });
+      return { token: session?.accessToken ?? null, error };
     } catch (err) {
-      setState({
-        isPending: false,
-        error: err instanceof Error ? err.message : "Erreur Strava.",
-        accessToken: null,
-      });
-      return null;
+      const error = err instanceof Error ? err.message : "Erreur Strava.";
+      setState({ isPending: false, error, accessToken: null });
+      return { token: null, error };
     }
   };
 
@@ -233,15 +254,56 @@ export function useStravaSession() {
   });
 }
 
-/** Récupère les activités récentes du membre (token d'accès Strava requis). */
+/**
+ * Extrait le VRAI message d'une erreur `functions.invoke`.
+ *
+ * En cas de statut non-2xx, le SDK Supabase renvoie une erreur générique
+ * (« Edge Function returned a non-2xx status code ») et cache le corps réel dans
+ * `error.context` (une `Response`). Sans ça, impossible de savoir si la fonction
+ * a répondu « action invalide » (ancien code non redéployé), « access_token
+ * manquant », une erreur Strava, etc. On lit donc ce corps pour le remonter.
+ */
+async function readInvokeError(error: unknown): Promise<string> {
+  const ctx = (error as { context?: unknown }).context;
+  if (ctx && typeof (ctx as Response).json === "function") {
+    try {
+      const b = (await (ctx as Response).json()) as { error?: string; message?: string };
+      if (typeof b?.error === "string") return b.error;
+      if (typeof b?.message === "string") return b.message;
+    } catch {
+      // corps non-JSON : on retombe sur le message générique ci-dessous
+    }
+  }
+  return error instanceof Error ? error.message : "Erreur Strava inconnue";
+}
+
+/**
+ * Activités récentes du membre.
+ *
+ * On passe par l'Edge Function `strava-token` (action `activities`) au lieu
+ * d'appeler l'API Strava en direct : Strava n'envoie AUCUN en-tête CORS, donc un
+ * `fetch` depuis un navigateur (app web) est bloqué (« Impossible de charger tes
+ * activités »). Le proxy serveur règle ça pour web / iOS / Android d'un coup.
+ */
 export async function fetchRecentStravaActivities(
   accessToken: string,
   perPage = 15
 ): Promise<StravaActivity[]> {
-  const res = await fetch(
-    `https://www.strava.com/api/v3/athlete/activities?per_page=${perPage}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!res.ok) throw new Error(`Strava ${res.status}`);
-  return (await res.json()) as StravaActivity[];
+  const { data, error } = await supabase.functions.invoke("strava-token", {
+    body: { action: "activities", access_token: accessToken, per_page: perPage },
+  });
+  if (error) throw new Error(await readInvokeError(error));
+
+  const payload = data as
+    | { ok: true; activities: StravaActivity[] }
+    | { ok: false; status: number; message: string };
+
+  if (!payload?.ok) {
+    // On propage le statut (ex. « Strava 401 ») pour que l'écran distingue un
+    // token révoqué d'une panne générique.
+    return Promise.reject(
+      new Error(`Strava ${payload?.status ?? ""}: ${payload?.message ?? "erreur"}`.trim())
+    );
+  }
+  return payload.activities ?? [];
 }

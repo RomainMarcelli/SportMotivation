@@ -1,7 +1,6 @@
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import {
-  Activity,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -10,6 +9,7 @@ import {
   Globe2,
   Info,
   KeyRound,
+  LayoutGrid,
   LifeBuoy,
   Lock,
   LogOut,
@@ -25,6 +25,7 @@ import {
 } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
+import { StravaLogo } from "@/components/brand/StravaLogo";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { AppBackground } from "@/components/ui/AppBackground";
 import { Avatar } from "@/components/ui/Avatar";
@@ -33,11 +34,7 @@ import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Toggle } from "@/components/ui/Toggle";
 import { colors } from "@/constants/colors";
-import {
-  deletionMessage,
-  finishAccountDeletion,
-  useDeleteAccount,
-} from "@/features/auth/account";
+import { deletionMessage, finishAccountDeletion, useDeleteAccount } from "@/features/auth/account";
 import { displayName } from "@/features/auth/avatar";
 import { useSignOut } from "@/features/auth/mutations";
 import {
@@ -136,7 +133,9 @@ export default function SettingsScreen() {
           style={{ backgroundColor: colors.ink }}
         >
           <Pressable
-            onPress={() => (router.canGoBack() ? router.back() : router.navigate("/profile" as never))}
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.navigate("/profile" as never)
+            }
             hitSlop={10}
             accessibilityLabel="Retour"
             className="h-10 w-10 items-center justify-center rounded-chip border active:opacity-70"
@@ -167,7 +166,10 @@ export default function SettingsScreen() {
                 size={52}
               />
               <View className="flex-1">
-                <Text numberOfLines={1} className="font-display text-[17px] tracking-tight text-cream">
+                <Text
+                  numberOfLines={1}
+                  className="font-display text-[17px] tracking-tight text-cream"
+                >
                   {name}
                 </Text>
                 <Text numberOfLines={1} className="mt-0.5 font-body text-[12.5px] text-cream-dim">
@@ -183,12 +185,14 @@ export default function SettingsScreen() {
             <Section title="Compte">
               <Row
                 icon={Mail}
+                tone="mint"
                 label="Adresse e-mail"
                 sublabel={user?.email ?? "—"}
                 onPress={() => router.push("/account/email" as never)}
               />
               <Row
                 icon={KeyRound}
+                tone="amber"
                 label="Mot de passe"
                 sublabel="Le modifier demande l'actuel"
                 onPress={() => router.push("/account/password" as never)}
@@ -203,7 +207,10 @@ export default function SettingsScreen() {
             <Section title="Confidentialité" hint={privacyLabel(searchable)}>
               <View className="py-3.5">
                 <View className="flex-row items-center gap-3">
-                  <IconTile icon={searchable ? Globe2 : Lock} />
+                  <IconTile
+                    icon={searchable ? Globe2 : Lock}
+                    tone={searchable ? "mint" : "amber"}
+                  />
                   <View className="flex-1">
                     <Text className="font-body-semibold text-[14px] text-cream">
                       Trouvable par mon pseudo
@@ -229,16 +236,28 @@ export default function SettingsScreen() {
             </Section>
           </Reveal>
 
+          {/* Accueil ------------------------------------------------------ */}
+          <Reveal delay={110}>
+            <Section title="Accueil">
+              <Row
+                icon={LayoutGrid}
+                tone="coral"
+                label="Organiser l'accueil"
+                sublabel="Ordre des défis et infos affichées sur l'accueil"
+                onPress={() => router.push("/account/home-layout" as never)}
+                last
+              />
+            </Section>
+          </Reveal>
+
           {/* Notifications ------------------------------------------------ */}
           <Reveal delay={120}>
-            <Section
-              title="Notifications"
-              hint={prefs ? prefsSummary(prefs) : undefined}
-            >
+            <Section title="Notifications" hint={prefs ? prefsSummary(prefs) : undefined}>
               {NOTIFICATION_PREF_ITEMS.map((item, index) => (
                 <Row
                   key={item.key}
                   icon={item.icon}
+                  tone={(["coral", "amber", "mint"] as Tone[])[index % 3]}
                   label={item.label}
                   sublabel={
                     item.live ? item.sublabel : `${item.sublabel} · dès leur mise en service`
@@ -260,7 +279,7 @@ export default function SettingsScreen() {
             <Section title="Apparence">
               <View className="border-b py-3.5" style={{ borderColor: colors.line }}>
                 <View className="flex-row items-center gap-3">
-                  <IconTile icon={Moon} />
+                  <IconTile icon={Moon} tone="amber" />
                   <View className="flex-1">
                     <Text className="font-body-semibold text-[14px] text-cream">Thème</Text>
                     <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
@@ -279,6 +298,7 @@ export default function SettingsScreen() {
 
               <Row
                 icon={Sparkles}
+                tone="coral"
                 label="Réduire les animations"
                 sublabel="Limite les transitions et effets"
                 last
@@ -295,9 +315,10 @@ export default function SettingsScreen() {
           {/* Langue & région ---------------------------------------------- */}
           <Reveal delay={240}>
             <Section title="Langue & région">
-              <Row icon={Globe} label="Langue" value="Français" />
+              <Row icon={Globe} tone="mint" label="Langue" value="Français" />
               <Row
                 icon={Clock}
+                tone="amber"
                 label="Fuseau horaire"
                 sublabel="Sert au calcul de la semaine"
                 value={timezoneLabel(timezone)}
@@ -311,6 +332,7 @@ export default function SettingsScreen() {
             <Section title="Aide & légal">
               <Row
                 icon={LifeBuoy}
+                tone="mint"
                 label="Centre d'aide"
                 onPress={() => router.push("/legal/help" as never)}
               />
@@ -318,11 +340,13 @@ export default function SettingsScreen() {
               <Row icon={MessageCircle} label="Contacter le support" soon />
               <Row
                 icon={FileText}
+                tone="amber"
                 label="Conditions d'utilisation"
                 onPress={() => router.push("/legal/terms" as never)}
               />
               <Row
                 icon={Shield}
+                tone="coral"
                 label="Politique de confidentialité"
                 onPress={() => router.push("/legal/privacy" as never)}
               />
@@ -399,7 +423,7 @@ export default function SettingsScreen() {
  */
 function StravaRow() {
   const router = useRouter();
-  const { alert } = useFeedback();
+  const { alert, toast } = useFeedback();
   const { connect, isPending } = useStravaAuth();
   const { data: session } = useStravaSession();
 
@@ -411,8 +435,14 @@ function StravaRow() {
       router.push("/account/strava" as never);
       return;
     }
-    const token = await connect();
-    if (!token) return;
+    const { token, error } = await connect();
+    if (error) {
+      // On montre la raison de l'échec plutôt que de rester muet (le bug signalé :
+      // « ça se ferme comme si ça marchait » puis reconnexion redemandée).
+      toast(error, "error");
+      return;
+    }
+    if (!token) return; // annulation volontaire de l'utilisateur
     await alert({
       title: "Strava connecté",
       tone: "success",
@@ -425,7 +455,8 @@ function StravaRow() {
 
   return (
     <Row
-      icon={Activity}
+      iconNode={<StravaLogo size={18} />}
+      tone="strava"
       label="Strava"
       sublabel={
         connected
@@ -481,19 +512,48 @@ function Section({
   );
 }
 
-function IconTile({ icon: Icon, danger }: { icon: LucideIcon; danger?: boolean }) {
+/**
+ * Palette des icônes de réglage. Chaque ton = une couleur d'icône + son fond
+ * doux assorti. On reste dans la DA chaude (coral / ambre / menthe / rouge) —
+ * pas de bleu/violet qui jureraient — pour donner de la couleur à la page sans
+ * la sortir de son identité. `strava` porte l'orange de marque.
+ */
+const TONES = {
+  coral: { fg: colors.coral, bg: colors.coralSoft },
+  amber: { fg: colors.amber, bg: colors.amberSoft },
+  mint: { fg: colors.mint, bg: colors.mintSoft },
+  red: { fg: colors.red, bg: colors.redSoft },
+  neutral: { fg: colors.creamDim, bg: colors.surface2 },
+  strava: { fg: "#FC4C02", bg: "rgba(252,76,2,0.15)" },
+} as const;
+
+type Tone = keyof typeof TONES;
+
+function IconTile({
+  icon: Icon,
+  tone = "neutral",
+  node,
+}: {
+  icon?: LucideIcon;
+  tone?: Tone;
+  /** Contenu personnalisé (ex. logo Strava) à la place de l'icône lucide. */
+  node?: React.ReactNode;
+}) {
+  const { fg, bg } = TONES[tone];
   return (
     <View
       className="h-9 w-9 items-center justify-center rounded-[10px]"
-      style={{ backgroundColor: danger ? colors.redSoft : colors.surface2 }}
+      style={{ backgroundColor: bg }}
     >
-      <Icon size={18} color={danger ? colors.red : colors.creamDim} strokeWidth={2} />
+      {node ?? (Icon ? <Icon size={18} color={fg} strokeWidth={2} /> : null)}
     </View>
   );
 }
 
 function Row({
   icon,
+  iconNode,
+  tone,
   label,
   sublabel,
   value,
@@ -502,7 +562,11 @@ function Row({
   onPress,
   children,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  /** Icône personnalisée (ex. logo Strava) au lieu d'une icône lucide. */
+  iconNode?: React.ReactNode;
+  /** Couleur de l'icône (donne de la vie à la page). */
+  tone?: Tone;
   label: string;
   sublabel?: string;
   /** Valeur en clair à droite (lecture seule). */
@@ -516,7 +580,7 @@ function Row({
 }) {
   const content = (
     <>
-      <IconTile icon={icon} />
+      <IconTile icon={icon} tone={tone} node={iconNode} />
       <View className="flex-1">
         <Text className="font-body-semibold text-[14px] text-cream">{label}</Text>
         {sublabel ? (
@@ -525,14 +589,9 @@ function Row({
           </Text>
         ) : null}
       </View>
-      {value ? (
-        <Text className="font-body-semibold text-[13px] text-cream">{value}</Text>
-      ) : null}
+      {value ? <Text className="font-body-semibold text-[13px] text-cream">{value}</Text> : null}
       {soon ? (
-        <View
-          className="rounded-full px-2 py-1"
-          style={{ backgroundColor: colors.surface2 }}
-        >
+        <View className="rounded-full px-2 py-1" style={{ backgroundColor: colors.surface2 }}>
           <Text className="font-body-bold text-[10px] text-cream-dim">Bientôt</Text>
         </View>
       ) : null}

@@ -1,24 +1,40 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { Check, HeartCrack, Ticket } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Check, Clock, HeartCrack, Ticket, X as XIcon } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, Text, View, type ViewStyle } from "react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Card } from "@/components/ui/Card";
 import { CountUp } from "@/components/ui/CountUp";
 import { colors, gradients } from "@/constants/colors";
+import { weekSessionStatuses, type HomeSession } from "@/features/home/home-stats";
 import { mapJokerError, useMonthlyJoker, useUseJoker } from "@/features/jokers/queries";
 import { useToggleWeeklyPlanDay, useWeeklyPlan } from "@/features/plans/queries";
 import { WEEKDAY_LABELS, todayWeekdayIndex } from "@/features/plans/plan";
+import { weekStartString } from "@/lib/date";
 
 type Props = {
   /** Groupe « actif » auquel rattacher le plan de la semaine. */
   groupId: string;
   /** Objectif hebdo du membre dans ce groupe. */
   weeklyTarget: number;
+  /** Séances du groupe (pour superposer le réel au planning). */
+  sessions: HomeSession[];
+  /** Mon identifiant (les jours réels ne concernent que MES séances). */
+  meId: string | undefined;
   /** Change à chaque arrivée sur l'écran → rejoue le compteur de jours. */
   replay?: number;
+};
+
+// Couche de remplissage d'une case (posée en absolu par-dessus la case dashed).
+const FILL_STYLE: ViewStyle = {
+  position: "absolute",
+  width: 32,
+  height: 32,
+  borderRadius: 11,
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 /**
@@ -30,13 +46,24 @@ type Props = {
  * irréversible via la RPC `use_joker`) + entrée « M'excuser cette semaine » vers l'écran
  * d'excuse. L'EFFET du joker/de l'excuse sur les pénalités = Étape 9.
  */
-export function WeekPlanner({ groupId, weeklyTarget, replay = 0 }: Props) {
+export function WeekPlanner({ groupId, weeklyTarget, sessions, meId, replay = 0 }: Props) {
   const router = useRouter();
   const { toast, confirm } = useFeedback();
   const { data: plannedDays } = useWeeklyPlan(groupId);
   const toggleDay = useToggleWeeklyPlanDay(groupId);
   const { data: jokerUsed } = useMonthlyJoker(groupId);
   const useJoker = useUseJoker(groupId);
+
+  // Statut RÉEL par jour (validée / en attente / refusée) de MA semaine courante.
+  // C'est la couche qui « superpose » les séances déclarées au planning manuel.
+  const realStatuses = useMemo(
+    () => weekSessionStatuses(sessions, meId, weekStartString(new Date())),
+    [sessions, meId]
+  );
+  const doneCount = useMemo(
+    () => Object.values(realStatuses).filter((s) => s === "validated").length,
+    [realStatuses]
+  );
 
   // Miroir local pour un compteur réactif immédiat (la mutation persiste en arrière-plan).
   const [days, setDays] = useState<number[]>(plannedDays ?? []);
@@ -105,8 +132,17 @@ export function WeekPlanner({ groupId, weeklyTarget, replay = 0 }: Props) {
 
       <View className="flex-row justify-between">
         {WEEKDAY_LABELS.map((label, index) => {
-          const done = days.includes(index);
+          const planned = days.includes(index);
+          const real = realStatuses[index]; // 'validated' | 'pending_vote' | 'rejected' | undefined
           const isToday = index === today;
+
+          // Une case « remplie » (séance réelle OU jour planifié) n'a pas besoin
+          // du contour pointillé. L'anneau « aujourd'hui » ne se superpose PAS à
+          // une case déjà pleine (validée verte ou planifiée coral) — sinon deux
+          // bordures se chevauchent, le défaut qu'on avait corrigé.
+          const hasFill = !!real || planned;
+          const showRing = isToday && real !== "validated" && !(planned && !real);
+
           return (
             <Pressable
               key={index}
@@ -127,36 +163,51 @@ export function WeekPlanner({ groupId, weeklyTarget, replay = 0 }: Props) {
                   borderRadius: 11,
                   alignItems: "center",
                   justifyContent: "center",
-                  // Aujourd'hui : PAS de contour pointillé amber — l'anneau coral
-                  // en dessous le laissait dépasser (deux bordures superposées).
-                  // Le jour courant se distingue par l'anneau + un fond coral léger.
-                  borderWidth: done || isToday ? 0 : 1.5,
+                  // Aujourd'hui SANS séance : pas de pointillé ambre — l'anneau
+                  // coral suffit (sinon les deux bordures se superposaient, le
+                  // contour jaune qui « dépassait » sous l'anneau).
+                  borderWidth: hasFill || isToday ? 0 : 1.5,
                   borderStyle: "dashed",
                   borderColor: colors.amber,
-                  backgroundColor: done
+                  backgroundColor: hasFill
                     ? "transparent"
                     : isToday
                       ? colors.coralSoft
                       : "rgba(255,178,62,0.10)",
-                  ...(isToday ? { shadowColor: colors.coral } : null),
                 }}
               >
-                {done ? (
-                  <LinearGradient
-                    {...gradients.brand}
-                    style={{
-                      position: "absolute",
-                      width: 32,
-                      height: 32,
-                      borderRadius: 11,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                {real === "validated" ? (
+                  // Séance faite ET validée : dégradé vert + check (le réel prime).
+                  <LinearGradient {...gradients.green} style={FILL_STYLE}>
+                    <Check size={16} color={colors.onMint} strokeWidth={2.8} />
+                  </LinearGradient>
+                ) : real === "pending_vote" ? (
+                  // Déclarée, en attente du vote du groupe : aplat ambre + horloge.
+                  <View style={[FILL_STYLE, { backgroundColor: colors.amber }]}>
+                    <Clock size={15} color={colors.onAmber} strokeWidth={2.6} />
+                  </View>
+                ) : real === "rejected" ? (
+                  // Refusée par le groupe : aplat rouge doux + croix.
+                  <View
+                    style={[
+                      FILL_STYLE,
+                      {
+                        backgroundColor: colors.redSoft,
+                        borderWidth: 1.5,
+                        borderColor: colors.red,
+                      },
+                    ]}
                   >
+                    <XIcon size={14} color={colors.red} strokeWidth={2.8} />
+                  </View>
+                ) : planned ? (
+                  // Jour planifié (intention), pas encore de séance : dégradé de marque + check.
+                  <LinearGradient {...gradients.brand} style={FILL_STYLE}>
                     <Check size={16} color={colors.onCoral} strokeWidth={2.8} />
                   </LinearGradient>
                 ) : null}
-                {isToday && !done ? (
+
+                {showRing ? (
                   <View
                     style={{
                       position: "absolute",
@@ -180,11 +231,14 @@ export function WeekPlanner({ groupId, weeklyTarget, replay = 0 }: Props) {
         <View className="flex-row items-center gap-1">
           <CountUp
             key={replay}
-            to={days.length}
+            to={doneCount}
             duration={700}
             className="font-display text-[13px] text-cream"
           />
-          <Text className="font-body text-[12px] text-cream-dim"> jours prévus</Text>
+          <Text className="font-body text-[12px] text-cream-dim">
+            {" "}
+            validée{doneCount > 1 ? "s" : ""} cette semaine
+          </Text>
         </View>
         <Text className="font-body text-[12px] text-cream-dim">
           objectif <Text className="font-display text-[13px] text-cream">{weeklyTarget}</Text>
@@ -199,9 +253,7 @@ export function WeekPlanner({ groupId, weeklyTarget, replay = 0 }: Props) {
         className="mt-3 flex-row items-center justify-center gap-2 rounded-input border border-line-2 bg-surface-2 py-3 active:opacity-80"
       >
         <HeartCrack size={15} color={colors.creamDim} />
-        <Text className="font-body-semibold text-[13px] text-cream">
-          M'excuser cette semaine
-        </Text>
+        <Text className="font-body-semibold text-[13px] text-cream">M'excuser cette semaine</Text>
       </Pressable>
     </Card>
   );

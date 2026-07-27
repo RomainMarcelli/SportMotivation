@@ -42,9 +42,20 @@ Les 14 autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'inde
 ## Notes transverses
 - Convention rapports : un fichier par étape `.claude/reports/etape-NN-nom.md`.
 - Vérifs avant clôture d'étape : `npx tsc --noEmit` ✅ + `jest` ✅.
+- **Passe qualité (17b)** : couverture unitaire de **toute la logique pure** exportée
+  (`features/`, `lib/`, `constants/`) — **464 tests / 58 suites** (pilotée par `jest --coverage`).
+  Aucun code de prod modifié. Rapport [etape-17b-tests-et-couverture.md](reports/etape-17b-tests-et-couverture.md).
+  Reste hors périmètre unitaire (convention) : hooks/queries/mutations à effets de bord.
+- **Lot accueil/Strava/rappels (18b)** : « Ma semaine » superpose les séances réelles au planning ;
+  historique borné au défi + filtre Jour/Semaine/Mois + scroll ; rappel week-end (SQL 045, pg_cron) ;
+  page « Organiser l'accueil » (ordre des défis + infos affichées, **préférences locales**) ;
+  commentaires de refus dans la fiche séance ; **Strava — erreur de connexion enfin visible**
+  (connexion effective = déployer l'Edge Function `strava-token`) ; logo Strava ; icônes de réglages
+  colorées. **479 tests / 59 suites**. Rapport [etape-18b-accueil-strava-rappels.md](reports/etape-18b-accueil-strava-rappels.md).
 - Commits faits par Romain (jamais en automatique).
-- **SQL à jour attendu côté Supabase : jusqu'à `044_daily_session_limit.sql`**
+- **SQL à jour attendu côté Supabase : jusqu'à `045_weekly_reminder.sql`**
   (exécuter les fichiers d'enum **avant** ceux qui les utilisent : `038` avant 039, `042` avant 043/044).
+  `045` (rappel week-end) **nécessite l'extension `pg_cron`** et s'exécute après 044.
 - Décision produit : **inviter par pseudo est ouvert à tout membre** (SQL 040) ; seule la gestion
   des invitations (renvoyer/annuler) reste admin.
 - **Étape 18 (amis) — nuance à retenir** : une fois le système d'amis en place, le mode **privé**

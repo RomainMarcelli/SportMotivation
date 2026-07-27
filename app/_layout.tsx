@@ -19,6 +19,7 @@ import { fontsToLoad } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuthInitialized, useFinishingSignUp, useIsAuthenticated } from "@/lib/auth-store";
+import { useHomePrefsStore } from "@/lib/home-prefs-store";
 import { useMotionStore } from "@/lib/motion-store";
 import { queryClient } from "@/lib/query-client";
 import { useThemeStore } from "@/lib/theme-store";
@@ -45,6 +46,7 @@ export default function RootLayout() {
   useEffect(() => {
     useThemeStore.getState().load();
     useMotionStore.getState().load();
+    useHomePrefsStore.getState().load();
   }, []);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { createGroupSchema } from "../schemas";
+import { createGroupFormSchema, createGroupSchema } from "../schemas";
 
 function makeValidInput() {
   return {
@@ -76,5 +76,50 @@ describe("createGroupSchema", () => {
     expect(
       createGroupSchema.safeParse({ ...makeValidInput(), maxSessionsPerDay: 0 }).success
     ).toBe(false);
+  });
+});
+
+// Le schéma du FORMULAIRE ajoute l'objectif hebdo perso de l'admin et
+// l'acceptation obligatoire des règles. C'est celui réellement câblé à l'écran
+// de création — d'où l'importance de le tester à part du schéma « métier ».
+describe("createGroupFormSchema", () => {
+  function makeValidForm() {
+    return { ...makeValidInput(), weeklyTarget: 4, acceptRules: true };
+  }
+
+  it("accepte un formulaire complet et coché", () => {
+    expect(createGroupFormSchema.safeParse(makeValidForm()).success).toBe(true);
+  });
+
+  // Garde-fou central : impossible de créer un défi sans avoir accepté les règles.
+  it("refuse tant que les règles ne sont pas acceptées", () => {
+    const result = createGroupFormSchema.safeParse({ ...makeValidForm(), acceptRules: false });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const msg = result.error.issues.find((i) => i.path.includes("acceptRules"))?.message;
+      expect(msg).toBe("Tu dois accepter les règles");
+    }
+  });
+
+  it("borne l'objectif hebdomadaire entre 1 et 14", () => {
+    expect(createGroupFormSchema.safeParse({ ...makeValidForm(), weeklyTarget: 0 }).success).toBe(
+      false
+    );
+    expect(createGroupFormSchema.safeParse({ ...makeValidForm(), weeklyTarget: 15 }).success).toBe(
+      false
+    );
+    expect(createGroupFormSchema.safeParse({ ...makeValidForm(), weeklyTarget: 7 }).success).toBe(
+      true
+    );
+  });
+
+  // La contrainte de dates du schéma métier reste active sur le formulaire.
+  it("hérite de la règle « fin après début »", () => {
+    const result = createGroupFormSchema.safeParse({
+      ...makeValidForm(),
+      challengeStart: new Date("2026-08-31"),
+      challengeEnd: new Date("2026-06-01"),
+    });
+    expect(result.success).toBe(false);
   });
 });

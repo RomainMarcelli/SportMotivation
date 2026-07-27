@@ -88,3 +88,53 @@ export function formatStravaActivity(activity: StravaActivity): string {
   const min = stravaDurationToMinutes(activity.moving_time);
   return `${activity.name} — ${km} km · ${formatDuration(min)}`;
 }
+
+/**
+ * Traduit une erreur de chargement d'activités Strava en message ACTIONNABLE.
+ *
+ * Le proxy encode le statut Strava dans le message (« Strava 403: … ») : on en
+ * fait un conseil clair plutôt qu'un code brut, car chaque statut a une cause et
+ * un remède précis :
+ *  - **401** → l'app a été révoquée côté Strava (ou jeton mort) → se reconnecter.
+ *  - **403** → jeton VALIDE mais SANS le scope « activités » : Strava a connecté
+ *    le compte avec la seule permission de base. C'est le piège `approval_prompt`
+ *    (cf. `lib/strava.ts`) — il faut se reconnecter en accordant la lecture des
+ *    activités.
+ *  - autre (« Failed to fetch », « action invalide »…) → on remonte le message
+ *    brut sans le masquer, ça pointe l'Edge Function.
+ *
+ * Fonction pure (pas d'accès réseau) → testable directement.
+ */
+export function describeStravaError(message: string): string {
+  // Limite d'API atteinte : Strava répond 403 « Rate Limit Exceeded ». Rien à
+  // reconnecter — il faut juste patienter. On teste ce cas AVANT le 403 générique.
+  if (/rate limit/i.test(message)) {
+    return "Limite de requêtes Strava atteinte. Patiente ~15 min puis réessaie (rien à reconnecter).";
+  }
+  // Quota d'ATHLÈTES de l'app Strava dépassé (une app neuve est en « Single Player
+  // Mode » = 1 athlète). ⚠ Reconnecter n'aide PAS et gonfle encore le compteur :
+  // il faut révoquer les accès existants sur strava.com, sinon demander une hausse
+  // de quota. Testé avant le 403 générique (c'est aussi un 403).
+  if (/connected athletes|athlete limit|logged-in athlete|athlète.{0,4}connect/i.test(message)) {
+    return (
+      "Quota Strava atteint : ton app est limitée à 1 athlète. NE reconnecte PAS en boucle " +
+      "(ça aggrave). Sur strava.com/settings/apps, révoque les accès « Sport motiv », attends, " +
+      "puis connecte une seule fois."
+    );
+  }
+  if (/\b401\b/.test(message)) {
+    return "Strava a révoqué l'autorisation. Reconnecte ton compte.";
+  }
+  if (/\b403\b/.test(message)) {
+    // 403 générique : le scope PEUT être accordé (cf. ligne « Accès » à l'écran) et
+    // Strava refuse quand même — signe d'une autorisation restée partielle côté
+    // Strava. Le remède fiable est de RÉVOQUER l'app sur strava.com puis reconnecter
+    // (le simple « déconnecter » in-app ne purge pas le consentement serveur). On
+    // garde le détail brut entre crochets pour le diagnostic.
+    return (
+      "Strava a refusé l'accès aux activités (403). Va sur strava.com/settings/apps, " +
+      `révoque « Sport motiv », puis reconnecte dans l'app. [${message}]`
+    );
+  }
+  return `Activités indisponibles — ${message || "erreur inconnue"}`;
+}

@@ -80,8 +80,7 @@ function Body({ session }: { session: SessionWithAuthor }) {
   const { data: shared } = useSharedSessionGroups(session.shared_id);
 
   const proof = session.proofs[0];
-  const authorName =
-    session.author.first_name || session.author.username || "Membre";
+  const authorName = session.author.first_name || session.author.username || "Membre";
 
   // Les autres défis où la même séance a été publiée (elle est dupliquée par
   // `shared_id`) — sans celui qu'on est en train de regarder.
@@ -159,15 +158,32 @@ function Body({ session }: { session: SessionWithAuthor }) {
         </View>
 
         {votes && votes.length > 0 ? (
-          <View className="mt-2.5 gap-1.5">
+          <View className="mt-2.5 gap-2">
             {votes.map((v) => (
-              <View key={v.voterId} className="flex-row items-center gap-2">
-                {v.value ? (
-                  <Check size={13} color={colors.mint} strokeWidth={3} />
-                ) : (
-                  <XIcon size={13} color={colors.red} strokeWidth={3} />
-                )}
-                <Text className="font-body text-[12px] text-cream-dim">{nameOf(v.voterId)}</Text>
+              <View key={v.voterId} className="gap-0.5">
+                <View className="flex-row items-center gap-2">
+                  {v.value ? (
+                    <Check size={13} color={colors.mint} strokeWidth={3} />
+                  ) : (
+                    <XIcon size={13} color={colors.red} strokeWidth={3} />
+                  )}
+                  <Text className="font-body text-[12px] text-cream-dim">{nameOf(v.voterId)}</Text>
+                </View>
+                {/* Commentaire du votant : surtout utile sur un refus (l'auteur
+                    veut savoir pourquoi). Pour un refus sans mot, on le dit
+                    explicitement plutôt que de laisser un vide ambigu. */}
+                {v.comment ? (
+                  <Text
+                    className="ml-5 font-body text-[11.5px] leading-[16px] text-cream"
+                    style={{ fontStyle: "italic" }}
+                  >
+                    « {v.comment} »
+                  </Text>
+                ) : !v.value ? (
+                  <Text className="ml-5 font-body text-[11px] text-cream-dim">
+                    Sans commentaire
+                  </Text>
+                ) : null}
               </View>
             ))}
           </View>
@@ -193,15 +209,7 @@ function Body({ session }: { session: SessionWithAuthor }) {
   );
 }
 
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Clock;
-  label: string;
-  value: string;
-}) {
+function Stat({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
   return (
     <View
       className="flex-1 rounded-[14px] border p-3"
@@ -275,7 +283,10 @@ function Proof({ proof }: { proof: SessionWithAuthor["proofs"][number] | undefin
             <Image source={{ uri: signedUrl }} style={{ width: "100%", height: 200 }} />
           </Pressable>
         ) : (
-          <View className="h-[200px] items-center justify-center" style={{ backgroundColor: colors.surface2 }}>
+          <View
+            className="h-[200px] items-center justify-center"
+            style={{ backgroundColor: colors.surface2 }}
+          >
             {isLoading ? (
               <ActivityIndicator color={colors.coral} />
             ) : (
@@ -305,7 +316,12 @@ function Proof({ proof }: { proof: SessionWithAuthor["proofs"][number] | undefin
           </View>
         ) : null}
 
-        <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)}>
+        <Modal
+          visible={zoom}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setZoom(false)}
+        >
           <Pressable
             onPress={() => setZoom(false)}
             style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center" }}

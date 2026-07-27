@@ -4,7 +4,11 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { GradientButton } from "@/components/ui/GradientButton";
 import { colors } from "@/constants/colors";
-import { formatStravaActivity, type StravaActivity } from "@/features/sessions/strava";
+import {
+  describeStravaError,
+  formatStravaActivity,
+  type StravaActivity,
+} from "@/features/sessions/strava";
 import { fetchRecentStravaActivities, getValidStravaToken, useStravaAuth } from "@/lib/strava";
 
 type Props = {
@@ -27,7 +31,9 @@ export function StravaProofPicker({ selectedId, onSelect }: Props) {
     try {
       setActivities(await fetchRecentStravaActivities(token));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Impossible de charger les activités Strava.");
+      // Message actionnable selon le statut Strava (403 = scope activités manquant,
+      // 401 = app révoquée) plutôt qu'un code brut — voir describeStravaError.
+      setError(describeStravaError(e instanceof Error ? e.message : ""));
     } finally {
       setLoading(false);
     }
@@ -48,8 +54,14 @@ export function StravaProofPicker({ selectedId, onSelect }: Props) {
 
   const onConnect = async () => {
     setError(null);
-    const token = await connect();
-    if (!token) return;
+    const { token, error: connectError } = await connect();
+    if (connectError) {
+      // Surfacer la raison (fonction serveur absente, pop-up bloquée…) dans le
+      // message d'erreur déjà affiché sous le bouton, au lieu de ne rien dire.
+      setError(connectError);
+      return;
+    }
+    if (!token) return; // annulation volontaire
     await loadActivities(token);
   };
 
