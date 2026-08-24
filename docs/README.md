@@ -1,0 +1,55 @@
+# 📚 Documentation du projet — Sport Motiv App
+
+Arborescence et rôle de chaque fichier.
+
+## 🟢 À la racine (critique, toujours à jour)
+
+| Fichier | Rôle |
+|---|---|
+| [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) | 🎯 **Point d'entrée.** État global, phase en cours, % réalisé, blocages, métriques. |
+| [`SPECIFICATIONS_MVP.md`](./SPECIFICATIONS_MVP.md) | Spec fonctionnelle complète V1.1 (référence métier). |
+| [`DECISIONS.md`](./DECISIONS.md) | Journal des décisions techniques (stack, libs, contournements). |
+| [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) | Bugs connus, limitations acceptées, dette technique. |
+| [`SETUP.md`](./SETUP.md) | Guide d'installation pour un nouveau dev. |
+
+## 📦 Sous-dossiers
+
+### `phases/`
+Rapports de fin de phase, un fichier par phase terminée.
+
+- [`PHASE_0_REPORT.md`](./phases/PHASE_0_REPORT.md) — Setup environnement & projet
+- _Phase 1 Report — à venir_
+- _Phase 2 Report — à venir_
+- _...etc_
+
+### `guides/`
+Guides de configuration pour services externes ou setups spécifiques.
+
+- [`GOOGLE_OAUTH_SETUP.md`](./guides/GOOGLE_OAUTH_SETUP.md) — Activer la connexion Google
+- [`STORAGE_POLICIES.md`](./guides/STORAGE_POLICIES.md) — Policies RLS sur les buckets Supabase Storage
+- [`STRAVA_SETUP.md`](./guides/STRAVA_SETUP.md) — Connecter Strava (OAuth + Edge Function)
+- [`ACCOUNT_DELETION.md`](./guides/ACCOUNT_DELETION.md) — Suppression de compte (Edge Function `delete-account`)
+- [`SQL_CHECKLIST.md`](./guides/SQL_CHECKLIST.md) — Checklist d'exécution des SQL `001`→`014` + requêtes de vérification
+- [`SHARING_EXPO_GO.md`](./guides/SHARING_EXPO_GO.md) — Faire tester l'app à distance via Expo Go (tunnel)
+
+---
+
+> Pour une **présentation complète du projet** (vision, stack, archi, modèle de données, sécurité, flux, roadmap), voir [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md). C'est le fichier à envoyer pour reprendre le contexte rapidement.
+- _EAS_BUILD.md — à venir Phase 7_
+
+### `archives/`
+Documents sources que je ne touche plus, conservés pour traçabilité.
+
+- `Specifications_MVP_SportMotivationApp.docx` — V1.0 originale
+- `Specifications_MVP_SportMotivationApp_V1.1.docx` — V1.1 (source de [`SPECIFICATIONS_MVP.md`](./SPECIFICATIONS_MVP.md))
+
+### `architecture/` (à créer)
+À créer en Phase 2+ quand les patterns se stabilisent.
+
+- `ARCHITECTURE.md` — vue d'ensemble structurelle
+- `DATABASE_SCHEMA.md` — schéma DB annoté
+
+## 🚧 Hors `docs/` mais important
+
+- [`.claude/`](../.claude/) — Skills Claude Code (à lire en début de chaque session)
+- [`work-log/`](../work-log/) — Journal détaillé des modifs par phase (gitignoré, usage interne)

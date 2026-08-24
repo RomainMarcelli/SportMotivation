@@ -1,0 +1,119 @@
+import { Eye, EyeOff, type LucideIcon } from "lucide-react-native";
+import { forwardRef, useState } from "react";
+import { Platform, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
+
+import { colors } from "@/constants/colors";
+import { fontFamily } from "@/constants/fonts";
+import { WEB_INPUT_RESET } from "@/lib/web-input";
+
+type Props = TextInputProps & {
+  label?: string;
+  error?: string;
+  /** Icône lucide affichée à gauche du champ. */
+  icon?: LucideIcon;
+  /** Désactive copier/couper (menu natif + web). N'impacte pas l'autofill. */
+  noCopy?: boolean;
+  /** Désactive coller (menu natif + web) → ressaisie forcée. N'impacte pas l'autofill. */
+  noPaste?: boolean;
+};
+
+const preventDefault = (e: { preventDefault: () => void }) => e.preventDefault();
+
+/**
+ * Champ de saisie DA : label optionnel, icône à gauche, états focus/erreur, et
+ * œil afficher/masquer automatique quand `secureTextEntry` est passé.
+ * Compatible react-hook-form (forwardRef + passthrough de `onBlur`).
+ */
+export const TextField = forwardRef<TextInput, Props>(function TextField(
+  { label, error, icon: Icon, secureTextEntry, noCopy, noPaste, onFocus, onBlur, style, ...rest },
+  ref
+) {
+  const [focused, setFocused] = useState(false);
+  const [hidden, setHidden] = useState(true);
+  const isPassword = !!secureTextEntry;
+
+  // Web : bloque copier/couper/coller au niveau du DOM (react-native-web transmet ces handlers).
+  const webGuards =
+    Platform.OS === "web"
+      ? ({
+          ...(noCopy ? { onCopy: preventDefault, onCut: preventDefault } : null),
+          ...(noPaste ? { onPaste: preventDefault } : null),
+        } as Partial<TextInputProps>)
+      : null;
+
+  const borderColor = error ? colors.red : focused ? colors.coral : colors.line;
+  const backgroundColor = focused ? colors.surface2 : colors.surface;
+
+  return (
+    <View style={{ gap: 6 }}>
+      {label ? (
+        <Text className="font-body-bold uppercase text-cream-dim tracking-label text-[12px]">
+          {label}
+        </Text>
+      ) : null}
+
+      <View style={{ position: "relative", justifyContent: "center" }}>
+        {Icon ? (
+          <View style={{ position: "absolute", left: 14, zIndex: 1 }} pointerEvents="none">
+            <Icon size={18} color={colors.creamDim} />
+          </View>
+        ) : null}
+
+        <TextInput
+          ref={ref}
+          placeholderTextColor="rgba(183,161,139,0.6)"
+          secureTextEntry={isPassword ? hidden : false}
+          // Désactive le menu contextuel natif (copier/coller/couper) si demandé.
+          contextMenuHidden={noCopy || noPaste || undefined}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
+          {...webGuards}
+          style={[
+            {
+              minHeight: 52,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor,
+              backgroundColor,
+              color: colors.cream,
+              fontFamily: fontFamily.bodyRegular,
+              fontSize: 14,
+              paddingVertical: 14,
+              paddingLeft: Icon ? 44 : 14,
+              paddingRight: isPassword ? 44 : 14,
+            },
+            WEB_INPUT_RESET,
+            style,
+          ]}
+          {...rest}
+        />
+
+        {isPassword ? (
+          <Pressable
+            onPress={() => setHidden((h) => !h)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={hidden ? "Afficher le mot de passe" : "Masquer le mot de passe"}
+            style={{ position: "absolute", right: 12, padding: 4 }}
+          >
+            {hidden ? (
+              <EyeOff size={18} color={colors.creamDim} />
+            ) : (
+              <Eye size={18} color={colors.creamDim} />
+            )}
+          </Pressable>
+        ) : null}
+      </View>
+
+      {error ? (
+        <Text className="font-body-medium text-red text-[12px]">{error}</Text>
+      ) : null}
+    </View>
+  );
+});

@@ -60,6 +60,12 @@ Thumbs.db
 _init/
 _expo_init.log
 
+# work-log : journal interne de Claude, non versionné
+work-log/
+
 # Supabase local (si jamais on installe le CLI)
 supabase/.branches
 supabase/.temp
+
+
+maquette/

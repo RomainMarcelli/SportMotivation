@@ -1,35 +1,21 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs } from "expo-router";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
+/**
+ * Onglets Accueil / Groupes / Profil. La tab bar native est **masquée** : le footer de l'app
+ * est une `BottomNav` unique montée globalement (`app/_layout.tsx`) pour être identique partout
+ * (onglets ET écrans poussés). On garde le navigateur `Tabs` pour les routes seulement.
+ */
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+        tabBarStyle: { display: "none" },
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: "Accueil" }} />
+      <Tabs.Screen name="groups" options={{ title: "Groupes" }} />
+      <Tabs.Screen name="profile" options={{ title: "Profil" }} />
     </Tabs>
   );
 }

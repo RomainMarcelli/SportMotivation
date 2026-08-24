@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Web : fond du document en `ink` (évite toute bande transparente derrière la status bar). */
+html,
+body,
+#root {
+  background-color: #15100c;
+}
