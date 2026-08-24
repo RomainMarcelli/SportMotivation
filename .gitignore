@@ -67,5 +67,11 @@ work-log/
 supabase/.branches
 supabase/.temp
 
+# Playwright (tests E2E) : artefacts non versionnés
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 
 maquette/

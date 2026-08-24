@@ -38,6 +38,7 @@ export function Stepper({
     <View className="flex-row items-center justify-between rounded-[16px] border border-line bg-surface p-2.5">
       <StepButton
         icon={Minus}
+        label="Diminuer"
         onPress={() => onChange(stepValue(value, "dec", { min, max, step }))}
         disabled={value <= min}
       />
@@ -56,6 +57,7 @@ export function Stepper({
       </View>
       <StepButton
         icon={Plus}
+        label="Augmenter"
         onPress={() => onChange(stepValue(value, "inc", { min, max, step }))}
         disabled={value >= max}
       />
@@ -67,15 +69,20 @@ function StepButton({
   icon: Icon,
   onPress,
   disabled,
+  label,
 }: {
   icon: LucideIcon;
   onPress: () => void;
   disabled?: boolean;
+  /** Nom accessible (« Augmenter »/« Diminuer ») : a11y + ciblage des tests. */
+  label?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       hitSlop={4}
       className={`h-[42px] w-[42px] items-center justify-center rounded-xl bg-surface-2 active:opacity-80 ${
         disabled ? "opacity-30" : ""

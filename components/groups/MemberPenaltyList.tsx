@@ -113,6 +113,9 @@ function MemberPenaltyRow({
 
   return (
     <View
+      // `testID` = ciblage E2E de la carte d'un membre (les steppers, sans nom
+      // propre, se ressemblent tous à l'écran).
+      testID={`penalty-row-${name}`}
       className="rounded-[16px] border p-3.5"
       style={{
         backgroundColor: colors.surface,
