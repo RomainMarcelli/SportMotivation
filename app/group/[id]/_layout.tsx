@@ -21,10 +21,16 @@ export default function GroupDetailLayout() {
       <Stack.Screen name="invitations" options={{ title: "Invitations envoyées" }} />
       <Stack.Screen name="members" options={{ title: "Membres" }} />
       <Stack.Screen name="edit" options={{ title: "Modifier le groupe" }} />
+      <Stack.Screen name="suspensions" options={{ title: "Suspensions" }} />
       <Stack.Screen name="declare" options={{ title: "Déclarer une séance" }} />
       {/* Excuse : header custom dans l'écran (maquette) */}
       <Stack.Screen name="excuse" options={{ headerShown: false }} />
       <Stack.Screen name="vote" options={{ headerShown: false }} />
+      {/* Cagnotte : header custom dans l'écran (maquette) */}
+      <Stack.Screen name="cagnotte" options={{ headerShown: false }} />
+      {/* Fin de défi : bilan + clôture (headers custom, maquettes) */}
+      <Stack.Screen name="fin-defi" options={{ headerShown: false }} />
+      <Stack.Screen name="cloture" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -149,6 +149,11 @@ export default function VoteScreen() {
   const goBack = () =>
     router.canGoBack() ? router.back() : router.navigate("/groups" as never);
 
+  // « Retour au groupe » : on va VRAIMENT au dashboard du défi (peu importe d'où on
+  // vient — notif, accueil…). `replace` pour ne pas empiler l'écran de vote vide.
+  const backToGroup = () =>
+    id ? router.replace(`/group/${id}` as never) : goBack();
+
   const commitVote = (item: VItem, value: boolean, comment: string | null) => {
     if (item.kind === "session") {
       castVote.mutate(
@@ -270,7 +275,7 @@ export default function VoteScreen() {
             <ActivityIndicator color={colors.coral} />
           </View>
         ) : !current ? (
-          <DoneState onBack={goBack} />
+          <DoneState onBack={backToGroup} />
         ) : (
           <>
             <View className="flex-1 justify-center px-[18px] pb-1 pt-1">

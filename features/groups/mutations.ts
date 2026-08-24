@@ -35,6 +35,10 @@ export function useCreateGroup() {
           name: input.name,
           description: input.description?.trim() || null,
           created_by: user.id,
+          // Actif dès la création : plus de phase « à venir » à lancer à la main. C'est la
+          // date de début (`challenge_start`) qui pilote quand le défi « commence » vraiment
+          // (l'affichage et les pénalités hebdo dérivent des dates, cf. `challenge-phase.ts`).
+          status: "active",
           challenge_start: toDateOnly(input.challengeStart),
           challenge_end: toDateOnly(input.challengeEnd),
           penalty_amount: input.penaltyAmount,

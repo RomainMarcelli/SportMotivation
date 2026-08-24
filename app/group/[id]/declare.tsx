@@ -134,11 +134,20 @@ export default function DeclareSessionScreen() {
     [group]
   );
   const minDuration = group?.min_duration_min ?? 0;
-  const { min: weekMin, max: weekMax } = useMemo(() => declarableDateRange(new Date()), []);
+  const { min: weekMin, max: weekMax } = useMemo(
+    () => declarableDateRange(new Date(), group?.challenge_start, group?.challenge_end),
+    [group?.challenge_start, group?.challenge_end]
+  );
 
   const schema = useMemo(
-    () => buildDeclareSessionSchema({ minDuration, acceptedActivities }),
-    [minDuration, acceptedActivities]
+    () =>
+      buildDeclareSessionSchema({
+        minDuration,
+        acceptedActivities,
+        challengeStart: group?.challenge_start,
+        challengeEnd: group?.challenge_end,
+      }),
+    [minDuration, acceptedActivities, group?.challenge_start, group?.challenge_end]
   );
 
   const {

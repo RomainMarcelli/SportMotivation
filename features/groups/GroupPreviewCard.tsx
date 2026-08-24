@@ -4,7 +4,20 @@ import { Text, View } from "react-native";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { colors } from "@/constants/colors";
+import {
+  challengePhase,
+  challengePhaseLabel,
+  type ChallengePhase,
+} from "@/features/groups/challenge-phase";
 import { daysUntil, formatDbDate } from "@/lib/date";
+
+// Palette du badge d'aperçu (surface `hero`).
+const PREVIEW_VARIANT: Record<ChallengePhase, "mint" | "amber" | "default"> = {
+  active: "mint",
+  upcoming: "amber",
+  ended: "default",
+  cancelled: "default",
+};
 
 type Props = {
   name: string;
@@ -27,14 +40,15 @@ export function GroupPreviewCard({
   challengeEnd,
   status,
 }: Props) {
-  const left = daysUntil(challengeEnd, new Date());
-  const active = status === "active";
+  const now = new Date();
+  const left = daysUntil(challengeEnd, now);
+  const phase = status ? challengePhase(status, challengeStart, challengeEnd, now) : null;
   return (
     <Card variant="hero">
       <View className="flex-row items-start justify-between gap-3">
         <Text className="flex-1 font-display text-[21px] tracking-tighter text-cream">{name}</Text>
-        {status ? (
-          <Badge label={active ? "En cours" : "À venir"} variant={active ? "mint" : "amber"} />
+        {phase ? (
+          <Badge label={challengePhaseLabel(phase)} variant={PREVIEW_VARIANT[phase]} />
         ) : null}
       </View>
       {description ? (

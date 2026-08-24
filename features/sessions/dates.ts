@@ -14,14 +14,49 @@ export function endOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
 
-/** Bornes sélectionnables : lundi 00h00 de la semaine de `now` → fin de la journée de `now`. */
-export function declarableDateRange(now: Date): { min: Date; max: Date } {
-  return { min: startOfWeekMonday(now), max: endOfDay(now) };
+/** Parse une date DB `YYYY-MM-DD` en minuit LOCAL (null si vide/illisible). */
+function parseLocalDay(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const dt = new Date(y, m - 1, d);
+  return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
-/** La date déclarée est-elle dans la semaine en cours (lundi→dimanche) et pas dans le futur ? */
-export function isDeclarableDate(date: Date, now: Date): boolean {
-  const { min, max } = declarableDateRange(now);
+/**
+ * Bornes sélectionnables pour déclarer une séance : lundi 00h00 de la semaine de
+ * `now` → fin de la journée de `now`, **resserrées à la période du défi** quand elle
+ * est connue (on ne déclare pas une séance AVANT le début du défi ni APRÈS sa fin —
+ * ex. défi démarré le mardi ⇒ le lundi d'avant n'est plus sélectionnable).
+ */
+export function declarableDateRange(
+  now: Date,
+  challengeStartISO?: string | null,
+  challengeEndISO?: string | null
+): { min: Date; max: Date } {
+  let min = startOfWeekMonday(now);
+  let max = endOfDay(now);
+  const start = parseLocalDay(challengeStartISO);
+  if (start && start.getTime() > min.getTime()) min = start; // pas avant le début du défi
+  const end = parseLocalDay(challengeEndISO);
+  if (end) {
+    const endMax = endOfDay(end);
+    if (endMax.getTime() < max.getTime()) max = endMax; // pas après la fin du défi
+  }
+  return { min, max };
+}
+
+/**
+ * La date déclarée est-elle dans la fenêtre autorisée ? (semaine en cours, pas dans
+ * le futur, et — si fournie — dans la période du défi).
+ */
+export function isDeclarableDate(
+  date: Date,
+  now: Date,
+  challengeStartISO?: string | null,
+  challengeEndISO?: string | null
+): boolean {
+  const { min, max } = declarableDateRange(now, challengeStartISO, challengeEndISO);
   const t = date.getTime();
   return t >= min.getTime() && t <= max.getTime();
 }

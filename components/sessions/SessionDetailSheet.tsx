@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import {
   CalendarDays,
   Check,
@@ -9,6 +10,7 @@ import {
   MapPin,
   MessageSquare,
   Timer,
+  Vote,
   X as XIcon,
 } from "lucide-react-native";
 import { useState } from "react";
@@ -38,6 +40,8 @@ const STATUS: Record<string, { label: string; tint: string; soft: string }> = {
 type Props = {
   session: SessionWithAuthor | null;
   onClose: () => void;
+  /** Mon id : sert à proposer « Voter cette séance » quand c'est celle d'un autre. */
+  meId?: string;
 };
 
 /**
@@ -47,7 +51,7 @@ type Props = {
  * relire, pas la retoucher. La fiche répond à « qu'est-ce que j'avais mis, au
  * juste ? » — durée, sport, date, preuve — et à « où en est le vote ? ».
  */
-export function SessionDetailSheet({ session, onClose }: Props) {
+export function SessionDetailSheet({ session, onClose, meId }: Props) {
   return (
     <BottomSheet
       visible={!!session}
@@ -56,7 +60,7 @@ export function SessionDetailSheet({ session, onClose }: Props) {
       subtitle={session ? formatDbDate(session.performed_at) : undefined}
       leading={session ? <SportTile activity={session.activity_type} /> : null}
     >
-      {session ? <Body session={session} /> : null}
+      {session ? <Body session={session} meId={meId} onClose={onClose} /> : null}
     </BottomSheet>
   );
 }
@@ -73,11 +77,32 @@ function SportTile({ activity }: { activity: string }) {
   );
 }
 
-function Body({ session }: { session: SessionWithAuthor }) {
+function Body({
+  session,
+  meId,
+  onClose,
+}: {
+  session: SessionWithAuthor;
+  meId?: string;
+  onClose: () => void;
+}) {
+  const router = useRouter();
   const status = STATUS[session.status] ?? STATUS.expired;
   const { data: votes } = useSessionVotes(session.id);
   const { data: members } = useGroupMembers(session.group_id);
   const { data: shared } = useSharedSessionGroups(session.shared_id);
+
+  // « Voter cette séance » : proposé si c'est une séance EN ATTENTE, d'un AUTRE
+  // membre, que je n'ai pas encore votée. (L'éligibilité fine — arrivé avant la
+  // publication — et le « déjà voté » définitif sont revérifiés côté deck/serveur.)
+  const votedByMe = !!meId && (votes ?? []).some((v) => v.voterId === meId);
+  const canVote =
+    session.status === "pending_vote" && !!meId && session.author.id !== meId && !votedByMe;
+
+  const goVote = () => {
+    onClose();
+    router.push({ pathname: "/group/[id]/vote", params: { id: session.group_id } } as never);
+  };
 
   const proof = session.proofs[0];
   const authorName = session.author.first_name || session.author.username || "Membre";
@@ -195,6 +220,22 @@ function Body({ session }: { session: SessionWithAuthor }) {
           </Text>
         )}
       </View>
+
+      {/* Vote DISCRET : un lien sobre (coral-soft), pas un gros bouton — l'action
+          « voter » principale vit dans l'onglet « À voter » du groupe. Ici on l'offre
+          juste au cas où on tombe sur la séance d'un autre pas encore votée (retour Romain). */}
+      {canVote ? (
+        <Pressable
+          onPress={goVote}
+          accessibilityRole="button"
+          accessibilityLabel="Voter cette séance"
+          className="flex-row items-center justify-center gap-2 rounded-[13px] border py-2.5 active:opacity-80"
+          style={{ borderColor: "rgba(255,106,69,0.35)", backgroundColor: colors.coralSoft }}
+        >
+          <Vote size={14} color={colors.coral} strokeWidth={2.4} />
+          <Text className="font-body-bold text-[12.5px] text-coral">Voter cette séance</Text>
+        </Pressable>
+      ) : null}
 
       {/* Où elle compte aussi */}
       {otherGroups.length > 0 ? (

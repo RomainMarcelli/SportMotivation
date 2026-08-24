@@ -10,6 +10,7 @@ import {
   parseStravaSession,
   type StravaSession,
 } from "@/features/settings/strava-session";
+import { useAuthStore, useCurrentUser } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import type { StravaActivity } from "@/features/sessions/strava";
 
@@ -20,8 +21,15 @@ const CLIENT_ID = process.env.EXPO_PUBLIC_STRAVA_CLIENT_ID;
 /** Strava est configuré si le client ID public est présent (le secret vit dans l'Edge Function). */
 export const isStravaConfigured = !!CLIENT_ID;
 
-const STORAGE_KEY = "strava-session";
+// ⚠ Clé de stockage PAR UTILISATEUR. Avant, une clé globale unique faisait que
+// l'athlète Strava du 1er compte connecté « collait » à tous les comptes du même
+// device (ex. un nouveau compte voyait « connecté en tant que Romain »). On isole
+// donc la connexion Strava par user id.
+const storageKeyFor = (userId: string) => `strava-session:${userId}`;
 export const STRAVA_QUERY_KEY = ["strava-session"];
+
+/** User id courant hors composant React (via le store Zustand). */
+const currentUserId = (): string | null => useAuthStore.getState().user?.id ?? null;
 
 const discovery: AuthSession.DiscoveryDocument = {
   // `/oauth/mobile/authorize` est réservé aux applications natives : ouvert dans
@@ -53,8 +61,10 @@ const redirectUri =
  * n'existe pas sur le web, il faudra donc un repli.
  */
 export async function loadStravaSession(): Promise<StravaSession | null> {
+  const uid = currentUserId();
+  if (!uid) return null; // pas de compte → pas de connexion Strava à afficher
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(storageKeyFor(uid));
     return raw ? parseStravaSession(JSON.parse(raw)) : null;
   } catch {
     return null;
@@ -62,8 +72,10 @@ export async function loadStravaSession(): Promise<StravaSession | null> {
 }
 
 async function saveStravaSession(session: StravaSession): Promise<void> {
+  const uid = currentUserId();
+  if (!uid) return;
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    await AsyncStorage.setItem(storageKeyFor(uid), JSON.stringify(session));
   } catch {
     // Un stockage indisponible ne doit pas faire échouer la connexion en cours :
     // elle reste valable pour cette session, simplement pas mémorisée.
@@ -71,8 +83,10 @@ async function saveStravaSession(session: StravaSession): Promise<void> {
 }
 
 export async function clearStravaSession(): Promise<void> {
+  const uid = currentUserId();
+  if (!uid) return;
   try {
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(storageKeyFor(uid));
   } catch {
     // Rien à faire : au pire la session reste, elle expirera d'elle-même.
   }
@@ -244,11 +258,13 @@ export function useStravaAuth() {
   return { isReady: !!request, ...state, connect };
 }
 
-/** État de la connexion Strava conservée (écran Paramètres, sélecteur de preuve). */
+/** État de la connexion Strava conservée (écran Paramètres, sélecteur de preuve).
+ *  Clé de cache indexée par user : changer de compte recharge la bonne connexion. */
 export function useStravaSession() {
+  const userId = useCurrentUser()?.id ?? null;
   return useQuery({
-    queryKey: STRAVA_QUERY_KEY,
-    enabled: isStravaConfigured,
+    queryKey: [...STRAVA_QUERY_KEY, userId],
+    enabled: isStravaConfigured && !!userId,
     staleTime: 60_000,
     queryFn: loadStravaSession,
   });

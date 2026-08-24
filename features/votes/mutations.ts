@@ -20,6 +20,7 @@ const VOTE_ERROR_MESSAGES: Record<string, string> = {
   CANNOT_VOTE_OWN: "Tu ne peux pas voter ta propre séance.",
   SESSION_NOT_PENDING: "Cette séance n'est plus en attente de vote.",
   ALREADY_VOTED: "Tu as déjà voté pour cette séance.",
+  JOINED_AFTER_PUBLICATION: "Cette séance a été publiée avant ton arrivée : tu n'as pas à la voter.",
 };
 
 export function mapVoteError(code: string): string {

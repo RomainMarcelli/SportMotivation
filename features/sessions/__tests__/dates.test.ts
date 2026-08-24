@@ -36,6 +36,27 @@ describe("declarableDateRange", () => {
     const { min } = declarableDateRange(sunday);
     expect(min.getDate()).toBe(8); // lundi 8
   });
+
+  it("resserre min au début du défi si le défi démarre en milieu de semaine", () => {
+    const now = new Date(2026, 5, 13, 14, 30); // vendredi 13
+    // Défi démarré le mercredi 10 → le lundi 8 et mardi 9 ne sont plus sélectionnables.
+    const { min } = declarableDateRange(now, "2026-06-10", "2026-09-10");
+    expect(min.getDate()).toBe(10);
+    expect(min.getMonth()).toBe(5);
+  });
+
+  it("ignore un début de défi antérieur au lundi de la semaine", () => {
+    const now = new Date(2026, 5, 13, 14, 30);
+    const { min } = declarableDateRange(now, "2026-05-01"); // bien avant → min reste lundi 8
+    expect(min.getDate()).toBe(8);
+  });
+
+  it("resserre max à la fin du défi si le défi se termine cette semaine", () => {
+    const now = new Date(2026, 5, 13, 14, 30); // vendredi 13
+    const { max } = declarableDateRange(now, "2026-06-01", "2026-06-11"); // fin jeudi 11
+    expect(max.getDate()).toBe(11);
+    expect(max.getHours()).toBe(23);
+  });
 });
 
 describe("isDeclarableDate", () => {

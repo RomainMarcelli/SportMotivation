@@ -1234,6 +1234,7 @@ export type Database = {
         | "session_refused_by_member"
         | "session_limit_request"
         | "session_limit_granted"
+        | "payment_reminder"
       penalty_type: "missed_session" | "blame_threshold"
       proof_type: "photo" | "strava" | "external_link"
       session_status: "pending_vote" | "validated" | "rejected" | "expired"
@@ -1400,6 +1401,7 @@ export const Constants = {
         "session_refused_by_member",
         "session_limit_request",
         "session_limit_granted",
+        "payment_reminder",
       ],
       penalty_type: ["missed_session", "blame_threshold"],
       proof_type: ["photo", "strava", "external_link"],

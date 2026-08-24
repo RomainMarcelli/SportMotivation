@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
-import { Plus } from "lucide-react-native";
+import { ChevronRight, Plus, Trophy, Vote } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { AppHeader } from "@/components/home/AppHeader";
 import { ChallengeHero } from "@/components/home/ChallengeHero";
@@ -17,11 +17,14 @@ import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TopFade } from "@/components/ui/TopFade";
+import { challengePhase } from "@/features/groups/challenge-phase";
 import { useGroupMembers, useMyGroups, usePot, type MyGroup } from "@/features/groups/queries";
 import { orderGroups } from "@/features/home/home-order";
 import { pickActiveGroup } from "@/features/groups/selectors";
 import { motivationLine, weekStats } from "@/features/home/home-stats";
 import { useGroupSessions, type SessionWithAuthor } from "@/features/sessions/queries";
+import { useVotableSessions } from "@/features/votes/queries";
+import { colors } from "@/constants/colors";
 import { useFocusReplay } from "@/hooks/useFocusReplay";
 import { useProfile } from "@/hooks/useProfile";
 import { useCurrentUser } from "@/lib/auth-store";
@@ -68,6 +71,12 @@ function HeroCard({
       groupName={item.group.name}
       challengeEnd={item.group.challenge_end}
       daysLeft={daysUntil(item.group.challenge_end, now)}
+      phase={challengePhase(
+        item.group.status,
+        item.group.challenge_start,
+        item.group.challenge_end,
+        now
+      )}
       stats={stats}
       potTotal={potTotal ?? null}
       members={members}
@@ -129,6 +138,8 @@ export default function HomeScreen() {
   const groupId = current?.group.id;
 
   const { data: sessions = [] } = useGroupSessions(groupId);
+  // Séances des autres à valider (pour la section « À valider » de l'accueil).
+  const { data: votable = [] } = useVotableSessions(groupId, me?.id);
   // Fiche détaillée d'une séance ouverte depuis « Dernières séances ».
   const [openedSession, setOpenedSession] = useState<SessionWithAuthor | null>(null);
 
@@ -139,6 +150,18 @@ export default function HomeScreen() {
     () => weekStats(sessions, me?.id, weekStartString(now), current?.weeklyTarget ?? 0),
     [sessions, me?.id, now, current?.weeklyTarget]
   );
+
+  // Défi mis en avant terminé → l'accueil bascule en mode « fin de défi » : on masque
+  // le planificateur de semaine et on remplace « Déclarer une séance » par l'accès au
+  // bilan (plus de nouvelle séance possible une fois le défi fini — retour Romain).
+  const currentEnded = current
+    ? challengePhase(
+        current.group.status,
+        current.group.challenge_start,
+        current.group.challenge_end,
+        now
+      ) === "ended"
+    : false;
 
   return (
     <View className="flex-1">
@@ -185,29 +208,46 @@ export default function HomeScreen() {
               </Reveal>
 
               <Reveal delay={150} className="mt-4">
-                <GradientButton
-                  icon={Plus}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/group/[id]/declare",
-                      params: { id: groupId },
-                    } as never)
-                  }
-                >
-                  Déclarer une séance
-                </GradientButton>
+                {currentEnded ? (
+                  <GradientButton
+                    icon={Trophy}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/group/[id]/fin-defi",
+                        params: { id: groupId },
+                      } as never)
+                    }
+                  >
+                    Voir le bilan du défi
+                  </GradientButton>
+                ) : (
+                  <GradientButton
+                    icon={Plus}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/group/[id]/declare",
+                        params: { id: groupId },
+                      } as never)
+                    }
+                  >
+                    Déclarer une séance
+                  </GradientButton>
+                )}
               </Reveal>
 
-              <Reveal delay={200} className="mt-5">
-                <WeekPlanner
-                  key={groupId}
-                  groupId={groupId}
-                  weeklyTarget={current.weeklyTarget}
-                  sessions={sessions}
-                  meId={me?.id}
-                  replay={replay}
-                />
-              </Reveal>
+              {/* Planificateur de semaine : sans objet une fois le défi terminé. */}
+              {!currentEnded ? (
+                <Reveal delay={200} className="mt-5">
+                  <WeekPlanner
+                    key={groupId}
+                    groupId={groupId}
+                    weeklyTarget={current.weeklyTarget}
+                    sessions={sessions}
+                    meId={me?.id}
+                    replay={replay}
+                  />
+                </Reveal>
+              ) : null}
 
               <Reveal delay={250} className="mt-5">
                 <RecentSessions
@@ -222,6 +262,37 @@ export default function HomeScreen() {
                   }
                 />
               </Reveal>
+
+              {votable.length > 0 ? (
+                <Reveal delay={275} className="mt-5">
+                  <Text className="mb-2 px-0.5 font-display text-[15px] tracking-tight text-cream">
+                    À valider
+                  </Text>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: "/group/[id]/vote",
+                        params: { id: groupId },
+                      } as never)
+                    }
+                    className="flex-row items-center gap-3 rounded-[16px] border p-3.5 active:opacity-80"
+                    style={{ backgroundColor: colors.coralSoft, borderColor: "rgba(255,106,69,0.4)" }}
+                  >
+                    <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface">
+                      <Vote size={20} color={colors.coral} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="font-display text-[15px] tracking-tight text-cream">
+                        {votable.length} séance{votable.length > 1 ? "s" : ""} à valider
+                      </Text>
+                      <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+                        Les séances des autres · donne ton vote
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color={colors.coral} />
+                  </Pressable>
+                </Reveal>
+              ) : null}
 
               <Reveal delay={300} className="mt-5">
                 <WeeklyHistory
@@ -252,7 +323,11 @@ export default function HomeScreen() {
         </ScrollView>
       </ScreenContainer>
 
-      <SessionDetailSheet session={openedSession} onClose={() => setOpenedSession(null)} />
+      <SessionDetailSheet
+        session={openedSession}
+        onClose={() => setOpenedSession(null)}
+        meId={me?.id}
+      />
     </View>
   );
 }

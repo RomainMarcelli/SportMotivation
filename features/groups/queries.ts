@@ -98,6 +98,9 @@ export function usePot(groupId: string | undefined) {
   return useQuery({
     queryKey: ["pot", groupId],
     enabled: !!groupId,
+    // Le total se met à jour côté serveur (clôture / blâmes) : re-fetch à l'ouverture
+    // pour que le montant affiché (dashboard, accueil) reste aligné sur la DB.
+    refetchOnMount: "always",
     queryFn: async (): Promise<number | null> => {
       const { data, error } = await supabase
         .from("pots")
@@ -109,6 +112,43 @@ export function usePot(groupId: string | undefined) {
         return null;
       }
       return data?.total_amount ?? null;
+    },
+  });
+}
+
+export type PotStatus = {
+  /** Montant total (null si la RLS bloque la lecture directe). */
+  total: number | null;
+  /** État de la cagnotte : `open` (par défaut) ou `unlocked` (déblocage de fin de défi). */
+  status: string | null;
+  /** Horodatage de déblocage (ISO) — non nul ⇒ cagnotte débloquée. */
+  unlockedAt: string | null;
+};
+
+/**
+ * Statut de la cagnotte (montant + déblocage), pour les écrans de fin de défi.
+ * Lecture directe de `pots` (best-effort, comme `usePot`) : dégrade proprement si la RLS
+ * refuse plutôt que d'échouer l'écran. `unlockedAt` non nul ⇒ afficher la clôture.
+ */
+export function usePotStatus(groupId: string | undefined) {
+  return useQuery({
+    queryKey: ["pot-status", groupId],
+    enabled: !!groupId,
+    queryFn: async (): Promise<PotStatus> => {
+      const { data, error } = await supabase
+        .from("pots")
+        .select("total_amount, status, unlocked_at")
+        .eq("group_id", groupId!)
+        .maybeSingle();
+      if (error) {
+        debugError("pots.status.select", error);
+        return { total: null, status: null, unlockedAt: null };
+      }
+      return {
+        total: data?.total_amount ?? null,
+        status: (data?.status as string | null) ?? null,
+        unlockedAt: (data?.unlocked_at as string | null) ?? null,
+      };
     },
   });
 }

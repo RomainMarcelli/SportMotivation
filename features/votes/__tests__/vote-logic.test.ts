@@ -19,19 +19,28 @@ describe("voteThreshold (majorité stricte des autres membres)", () => {
   });
 });
 
-describe("voteDeadline", () => {
-  it("same_day = fin de la journée de publication", () => {
+describe("voteDeadline (échéance effective = max(nominale, publication + 24h))", () => {
+  it("same_day : le filet +24h prend le dessus sur la fin de journée", () => {
     const pub = new Date(2026, 5, 13, 18, 5); // sam. 13 juin 18h05
     const d = voteDeadline(pub, "2026-06-08", "same_day");
-    expect(d.getDate()).toBe(13);
-    expect(d.getHours()).toBe(23);
-    expect(d.getMinutes()).toBe(59);
+    // max(sam 23h59, dim 18h05) = dim 18h05
+    expect(d.getDate()).toBe(14);
+    expect(d.getHours()).toBe(18);
+    expect(d.getMinutes()).toBe(5);
   });
-  it("end_of_week = fin du dimanche de la semaine", () => {
-    const pub = new Date(2026, 5, 10, 9, 0);
+  it("end_of_week : la fin du dimanche prend le dessus si publication tôt", () => {
+    const pub = new Date(2026, 5, 10, 9, 0); // mer. 10 juin
     const d = voteDeadline(pub, "2026-06-08", "end_of_week"); // lundi 8 → dimanche 14
+    // max(dim 23h59, jeu 09h00) = dim 23h59
     expect(d.getDate()).toBe(14);
     expect(d.getHours()).toBe(23);
+  });
+  it("end_of_week : le filet +24h prend le dessus si publication tardive le dimanche", () => {
+    const pub = new Date(2026, 5, 14, 20, 0); // dim. 14 juin 20h
+    const d = voteDeadline(pub, "2026-06-08", "end_of_week");
+    // max(dim 23h59, lun 20h00) = lun 20h00
+    expect(d.getDate()).toBe(15);
+    expect(d.getHours()).toBe(20);
   });
 });
 
@@ -43,25 +52,25 @@ describe("isVoteExpired", () => {
   });
 });
 
-describe("resolveVote", () => {
-  it("validée quand oui atteint le seuil", () => {
-    expect(resolveVote({ yes: 2, no: 0, otherMembers: 3, expired: false })).toBe("validated");
-  });
-  it("refusée quand non atteint le seuil", () => {
-    expect(resolveVote({ yes: 0, no: 2, otherMembers: 3, expired: false })).toBe("rejected");
-  });
-  it("reste en attente si le seuil n'est pas atteint et que tout le monde n'a pas voté", () => {
+describe("resolveVote (clôture anticipée seulement si participation complète)", () => {
+  it("reste en attente tant que tout le monde n'a pas voté, MÊME à la majorité", () => {
+    // Changement de modèle : on n'anticipe plus, pour garder les retardataires blâmables.
+    expect(resolveVote({ yes: 2, no: 0, otherMembers: 3, expired: false })).toBe("pending_vote");
+    expect(resolveVote({ yes: 0, no: 2, otherMembers: 3, expired: false })).toBe("pending_vote");
     expect(resolveVote({ yes: 1, no: 0, otherMembers: 4, expired: false })).toBe("pending_vote");
   });
-  it("tranche à la majorité simple si tout le monde a voté", () => {
+  it("tranche dès que tout le monde a voté (égalité = validée)", () => {
     expect(resolveVote({ yes: 2, no: 2, otherMembers: 4, expired: false })).toBe("validated");
+    expect(resolveVote({ yes: 3, no: 1, otherMembers: 4, expired: false })).toBe("validated");
     expect(resolveVote({ yes: 1, no: 3, otherMembers: 4, expired: false })).toBe("rejected");
   });
-  it("tranche à la majorité simple si le délai est écoulé", () => {
+  it("à l'échéance : refus majoritaire → refusée, sinon VALIDÉE par défaut", () => {
+    // seuil(4) = 3
+    expect(resolveVote({ yes: 0, no: 3, otherMembers: 4, expired: true })).toBe("rejected");
+    expect(resolveVote({ yes: 0, no: 2, otherMembers: 4, expired: true })).toBe("validated");
     expect(resolveVote({ yes: 1, no: 0, otherMembers: 4, expired: true })).toBe("validated");
-  });
-  it("expirée si délai écoulé sans aucun vote", () => {
-    expect(resolveVote({ yes: 0, no: 0, otherMembers: 4, expired: true })).toBe("expired");
+    // Plus de statut « expired » : zéro vote à l'échéance → validée par défaut.
+    expect(resolveVote({ yes: 0, no: 0, otherMembers: 4, expired: true })).toBe("validated");
   });
 });
 

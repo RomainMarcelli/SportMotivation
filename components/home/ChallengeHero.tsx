@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react-native";
+import { ArrowRight, Trophy } from "lucide-react-native";
 import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import Animated, {
@@ -13,6 +13,7 @@ import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from "re
 import { Avatar } from "@/components/ui/Avatar";
 import { CountUp } from "@/components/ui/CountUp";
 import { colors } from "@/constants/colors";
+import { challengePhaseLabel, type ChallengePhase } from "@/features/groups/challenge-phase";
 import type { GroupMemberWithUser } from "@/features/groups/queries";
 import { countdownLabel, type WeekStats } from "@/features/home/home-stats";
 import { ringSegments } from "@/features/home/ring";
@@ -138,6 +139,8 @@ type Props = {
   groupName: string;
   challengeEnd: string;
   daysLeft: number;
+  /** Phase du défi (dérivée des dates + statut) : pilote l'état « terminé » du héro. */
+  phase: ChallengePhase;
   stats: WeekStats;
   potTotal: number | null;
   members: GroupMemberWithUser[];
@@ -157,6 +160,7 @@ export function ChallengeHero({
   groupName,
   challengeEnd,
   daysLeft,
+  phase,
   stats,
   potTotal,
   members,
@@ -166,6 +170,19 @@ export function ChallengeHero({
 }: Props) {
   const shown = members.slice(0, 3);
   const extra = members.length - shown.length;
+
+  // Défi terminé → on bascule TOUT le héro en état « terminé » : plus de badge
+  // « EN COURS », plus d'anneau ni de « Encore X pour valider » (retour Romain :
+  // ces éléments d'un défi actif ne doivent plus s'afficher une fois le défi fini).
+  const ended = phase === "ended";
+  // Teinte du bandeau de statut selon la phase (le libellé vient de `challenge-phase`).
+  const TONE: Record<ChallengePhase, { dot: string; text: string; bg: string }> = {
+    upcoming: { dot: colors.amber, text: colors.amber, bg: colors.amberSoft },
+    active: { dot: colors.coral, text: colors.coral, bg: colors.coralSoft },
+    ended: { dot: colors.mint, text: colors.mint, bg: colors.mintSoft },
+    cancelled: { dot: colors.creamDim, text: colors.creamDim, bg: "rgba(255,238,221,0.07)" },
+  };
+  const tone = TONE[phase];
 
   // Justification du bloc du bas selon ce qui reste affiché (cagnotte à gauche,
   // membres à droite) : si un seul est visible, on l'aligne du bon côté.
@@ -180,17 +197,22 @@ export function ChallengeHero({
       <View className="flex-row items-start justify-between">
         <View
           className="flex-row items-center gap-1.5 rounded-full px-2.5 py-1.5"
-          style={{ backgroundColor: colors.coralSoft }}
+          style={{ backgroundColor: tone.bg }}
         >
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral }} />
-          <Text className="font-body-bold text-[10.5px] tracking-eyebrow text-coral">EN COURS</Text>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tone.dot }} />
+          <Text
+            className="font-body-bold text-[10.5px] tracking-eyebrow"
+            style={{ color: tone.text }}
+          >
+            {challengePhaseLabel(phase).toUpperCase()}
+          </Text>
         </View>
         <View className="items-end">
           <Text
             className="font-display text-[20px] tracking-tighter"
             style={{ color: colors.amber }}
           >
-            {countdownLabel(daysLeft)}
+            {ended ? "Terminé" : countdownLabel(daysLeft)}
           </Text>
           <Text className="mt-0.5 font-body text-[10.5px] text-cream-dim">
             fin le {formatDbDate(challengeEnd)}
@@ -205,33 +227,53 @@ export function ChallengeHero({
         {groupName}
       </Text>
 
-      <View className="mt-3 flex-row items-center gap-4">
-        <ProgressRing stats={stats} replay={replay} />
-        <View className="flex-1">
-          <Text className="font-body-bold text-[10px] tracking-eyebrow text-cream-dim">
-            CETTE SEMAINE
-          </Text>
-          <Text className="mt-1.5 font-display text-[16px] tracking-tight text-cream">
-            Objectif : {stats.target} séance{stats.target > 1 ? "s" : ""}
-          </Text>
-          <View className="mt-2 flex-row items-center gap-1.5">
-            <ArrowRight size={14} color={stats.remaining === 0 ? colors.mint : colors.coral} />
-            <Text
-              className="flex-1 font-body-bold text-[13px]"
-              style={{ color: stats.remaining === 0 ? colors.mint : colors.coral }}
-            >
-              {stats.remaining === 0
-                ? "Objectif atteint"
-                : `Encore ${stats.remaining} pour valider`}
+      {ended ? (
+        /* Défi terminé : bilan à la place de l'anneau de progression hebdo. */
+        <View
+          className="mt-3.5 flex-row items-center gap-3 rounded-[16px] border p-3.5"
+          style={{ backgroundColor: colors.amberSoft, borderColor: "rgba(255,178,62,0.35)" }}
+        >
+          <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface">
+            <Trophy size={20} color={colors.amber} strokeWidth={2.1} />
+          </View>
+          <View className="flex-1">
+            <Text className="font-display text-[15px] tracking-tight text-cream">
+              Défi terminé
+            </Text>
+            <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+              Classement final et cagnotte à débloquer
             </Text>
           </View>
-          {stats.pending > 0 ? (
-            <Text className="mt-1.5 font-body text-[11.5px] text-cream-dim">
-              {stats.pending} en attente de vote
-            </Text>
-          ) : null}
         </View>
-      </View>
+      ) : (
+        <View className="mt-3 flex-row items-center gap-4">
+          <ProgressRing stats={stats} replay={replay} />
+          <View className="flex-1">
+            <Text className="font-body-bold text-[10px] tracking-eyebrow text-cream-dim">
+              CETTE SEMAINE
+            </Text>
+            <Text className="mt-1.5 font-display text-[16px] tracking-tight text-cream">
+              Objectif : {stats.target} séance{stats.target > 1 ? "s" : ""}
+            </Text>
+            <View className="mt-2 flex-row items-center gap-1.5">
+              <ArrowRight size={14} color={stats.remaining === 0 ? colors.mint : colors.coral} />
+              <Text
+                className="flex-1 font-body-bold text-[13px]"
+                style={{ color: stats.remaining === 0 ? colors.mint : colors.coral }}
+              >
+                {stats.remaining === 0
+                  ? "Objectif atteint"
+                  : `Encore ${stats.remaining} pour valider`}
+              </Text>
+            </View>
+            {stats.pending > 0 ? (
+              <Text className="mt-1.5 font-body text-[11.5px] text-cream-dim">
+                {stats.pending} en attente de vote
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      )}
 
       {showPot || showMembers ? (
         <>
@@ -251,7 +293,7 @@ export function ChallengeHero({
                   style={{ color: colors.amber, lineHeight: 32 }}
                 />
                 <Text className="mt-1.5 font-body text-[10.5px] text-cream-dim">
-                  débloquée à la fin du défi
+                  {ended ? "à débloquer maintenant" : "débloquée à la fin du défi"}
                 </Text>
               </View>
             ) : null}

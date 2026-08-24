@@ -14,10 +14,10 @@ Rapports détaillés par étape dans `.claude/reports/`.
 | 6 | Déclarer une séance | ✅ | [etape-06-declarer.md](reports/etape-06-declarer.md) |
 | 7 | Voter (scrutin séances : deck, vote, résolution) | ✅ | [etape-07-voter.md](reports/etape-07-voter.md) |
 | 8 | Excuses (déclaration au vote du groupe + joker mensuel) | ✅ | [etape-08-excuses.md](reports/etape-08-excuses.md) |
-| 9 | Cagnotte (trésorier) — **écran à créer** | ⬜ | — |
+| 9 | Cagnotte (vue trésorier) : détail par membre, historique, trésorier coche, relance | ✅ | [etape-09-cagnotte.md](reports/etape-09-cagnotte.md) |
 | 10 | Gestion des invitations (statuts, renvoyer/annuler) | ✅ | [etape-08c-notifications-quitter-filtres.md](reports/etape-08c-notifications-quitter-filtres.md) |
 | 11 | Notifications in-app (liste à la DA) ✅ · temps réel / push ⬜ | 🔄 | [etape-08i-carrousel-notifs-regles.md](reports/etape-08i-carrousel-notifs-regles.md) |
-| 12 | Fin de défi / Clôture — **2 écrans à créer** | ⬜ | — |
+| 12 | Fin de défi / Clôture (bilan podium + déblocage cagnotte) | ✅ | [etape-12-fin-defi-cloture.md](reports/etape-12-fin-defi-cloture.md) |
 | 13 | Profil (avatars, stats, mes groupes) · **Paramètres** (notifs, mot de passe, e-mail, Strava, légal) | ✅ | [etape-13-parametres.md](reports/etape-13-parametres.md) |
 | 14 | Séances partagées entre défis · Strava · Aide & légal · Groupes | ✅ | [etape-14-seances-partagees.md](reports/etape-14-seances-partagees.md) |
 | 15 | Navigation, vote, Strava, invitations par pseudo, pénalités | ✅ | [etape-15-corrections-groupes.md](reports/etape-15-corrections-groupes.md) |
@@ -31,15 +31,21 @@ Rapports détaillés par étape dans `.claude/reports/`.
 
 | Maquette | Écran | État |
 |---|---|---|
-| `sport-motiv-cagnotte.html` | Cagnotte / vue trésorier | ⬜ à créer (Étape 9) |
-| `sport-motiv-cloture.html` | Clôture du défi | ⬜ à créer (Étape 12) |
-| `sport-motiv-fin-defi.html` | Bilan de fin de défi | ⬜ à créer (Étape 12) |
+| `sport-motiv-cagnotte.html` | Cagnotte / vue trésorier | ✅ fait (Étape 9) |
+| `sport-motiv-cloture.html` | Clôture du défi | ✅ fait (Étape 12) |
+| `sport-motiv-fin-defi.html` | Bilan de fin de défi | ✅ fait (Étape 12) |
 | `sport-motiv-parametres.html` | `app/settings.tsx` | ✅ fait |
 
-Les 14 autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'index, pas un écran).
-**3 écrans restants**, tous dépendants de la cagnotte (Étape 9).
+Les autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'index, pas un écran).
+**Toutes les maquettes V3 ont désormais leur écran.**
 
 ## Notes transverses
+- **Audit sécurité (9g — ✅ VALIDÉ, 32/32 pgTAP au vert sur la base réelle)** : sweep RLS (diagnostic live) + socle **pgTAP** (32 tests d'abus,
+  `supabase/tests/`). RLS **ON partout**, lectures OK. **Findings → corrigés `056`+`057`** : 🔴 `delete_account_internal`
+  appelable par anon/authenticated (suppression de compte par UUID) ; 🔴 auto-validation séance / vote direct /
+  auto-adhésion admin (policies d'écriture trop larges) ; 🟠 fonctions internes exposées + `search_path` manquant
+  (`is_group_admin`/`handle_new_user`). Leçon : `REVOKE FROM PUBLIC` insuffisant → `FROM PUBLIC, anon, authenticated`.
+  Rapport [etape-09g-audit-securite-rls-pgtap.md](reports/etape-09g-audit-securite-rls-pgtap.md).
 - Convention rapports : un fichier par étape `.claude/reports/etape-NN-nom.md`.
 - Vérifs avant clôture d'étape : `npx tsc --noEmit` ✅ + `jest` ✅.
 - **Passe qualité (17b)** : couverture unitaire de **toute la logique pure** exportée
@@ -52,10 +58,72 @@ Les 14 autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'inde
   commentaires de refus dans la fiche séance ; **Strava — erreur de connexion enfin visible**
   (connexion effective = déployer l'Edge Function `strava-token`) ; logo Strava ; icônes de réglages
   colorées. **479 tests / 59 suites**. Rapport [etape-18b-accueil-strava-rappels.md](reports/etape-18b-accueil-strava-rappels.md).
+- **Lot cagnotte (9)** : écran `sport-motiv-cagnotte.html` (héro réglé/en attente, vue trésorier =
+  admin en V1, détail par membre, historique par semaine, relance) ; accès = carte cagnotte du
+  dashboard cliquable ; RPC `get_group_cagnotte`/`get_pot_history`/`settle_member_pot`/
+  `remind_unpaid_members` (SQL 046) + notif `payment_reminder`. **502 tests / 60 suites**. Rapport
+  [etape-09-cagnotte.md](reports/etape-09-cagnotte.md).
+- **Clôture hebdo (9b)** : `run_weekly_closure()` + cron (SQL 047) — chaque lundi, séances manquées de
+  la semaine écoulée → pénalités (montant du membre) → **alimente la cagnotte** + notif `penalty_applied`.
+  Gère excuses (majeure = annulée, standard = −1) et joker (annule 1 manquée). **Idempotent**
+  (`weekly_closures`), **sûr même avec un trigger pot** (réconciliation), **DST-safe**. C'est ce qui
+  remplit enfin la cagnotte. Rapport [etape-09b-cloture-hebdo.md](reports/etape-09b-cloture-hebdo.md).
+- **Blâmes → pénalité (9c)** : trigger sur `sessions` (statut → `rejected`, SQL 048) — 1 blâme par
+  séance rejetée, et au **seuil** (`blame_threshold`) → pénalité `blame_threshold` + reset du compteur +
+  alimente la cagnotte. Réveille les pastilles « Blâmes » du dashboard (aucun code TS).
+  **Alimentation cagnotte = complète** (manquées + blâmes). Rapport
+  [etape-09c-blame-penalties.md](reports/etape-09c-blame-penalties.md). Reste : **déblocage** = Étape 12.
+  ⚠ **SUPERSEDED par 9d** : le trigger 048 est retiré, le blâme change de définition (voir ci-dessous).
+- **Refonte blâmes + Suspension (9d)** : ⚠ **change le sens du blâme**. Un blâme n'est plus « ta
+  séance refusée » mais « **tu n'as pas voté** une séance d'un autre avant l'échéance » (anti-collusion,
+  décision Romain). SQL **054** : échéance effective = `max(règle du groupe, publication + 24 h)`,
+  `resolve_session` v3 (clôture anticipée seulement si participation complète, plus de statut
+  `expired` → **validée par défaut** à l'échéance sans majorité de refus), cron horaire
+  `resolve_pending_votes` (résout + **+1 blâme aux non-votants** sauf auteur/suspendus, seuil →
+  pénalité + cascade), **trigger 048 retiré**. **Suspension** (Chantier 4) SQL **052/053** : table
+  `suspensions` + `is_suspended` + RPC (`admin_suspend_member`, `request_suspension`,
+  `decide_suspension`, `cancel_suspension`, `get_group_suspensions`) + notifs ; la clôture hebdo
+  **exonère les suspendus** des pénalités « séance manquée ». Front : hooks `features/suspensions/*`,
+  logique pure + tests, miroir `vote-logic` réaligné, rename **« Blâme atteint » → « Vote manqué »**,
+  visuels notifs des nouveaux types. #6 (notifs verdict/refus) était **déjà fait dans 043**.
+  **UI Suspension = FAITE (9f)** : écran `app/group/[id]/suspensions.tsx` (route + menu ⋮ + notifs
+  `suspension_*` qui l'ouvrent au tap) — admin suspend / accepte / refuse / lève, joueur demande /
+  retire. **559 tests / 63 suites.** Rapports
+  [etape-09d-blames-refonte-et-suspension.md](reports/etape-09d-blames-refonte-et-suspension.md) &
+  [etape-09e-lot-retours-vote-strava-dates.md](reports/etape-09e-lot-retours-vote-strava-dates.md).
+  Test manuel : `work-log/PHASE-14-tests-suspension-blames.md`.
+- **Fin de défi (12)** : écrans `fin-defi` (podium, classement, « ton bilan ») + `cloture` (confettis,
+  grand montant dégradé, « qui a rempli la cagnotte ») à la maquette. **Déblocage** `unlock_pot`
+  (admin/trésorier, idempotent) + auto-complétion des défis échus (SQL 049, cron `complete-challenges`,
+  DST-safe). Bilan **100 % côté client** (module pur `features/challenge-end/report.ts`, 25 tests) —
+  aucune RPC de reporting. Animations : confettis, « pop » du trophée, podium qui se dresse, compteurs —
+  **toutes coupées si `prefers-reduced-motion`**. **Toutes les maquettes V3 sont faites. 527 tests /
+  61 suites.** Rapport [etape-12-fin-defi-cloture.md](reports/etape-12-fin-defi-cloture.md).
 - Commits faits par Romain (jamais en automatique).
-- **SQL à jour attendu côté Supabase : jusqu'à `045_weekly_reminder.sql`**
-  (exécuter les fichiers d'enum **avant** ceux qui les utilisent : `038` avant 039, `042` avant 043/044).
-  `045` (rappel week-end) **nécessite l'extension `pg_cron`** et s'exécute après 044.
+- **SQL à jour attendu côté Supabase : jusqu'à `055_vote_eligibility_join_date.sql`**
+  (exécuter les fichiers d'enum **avant** ceux qui les utilisent : `038` avant 039, `042` avant 043/044 ;
+  `052` avant 053/054). `045` (rappel week-end), `047` (clôture hebdo), `049` (complétion des défis
+  échus) et `054` (résolution des votes à l'échéance) **nécessitent l'extension `pg_cron`**. `050`
+  corrige l'alerte linter « Security Definer View ». `051` : défi **actif dès la création**.
+  `052` : **suspensions** (table + `is_suspended` + RPC + enum notif). `053` : la clôture hebdo
+  **exonère les suspendus**. `054` : **refonte des blâmes** (blâme = vote manqué ; retire le trigger
+  048 ; cron `resolve-votes`). `055` : **éligibilité de vote** — on ne vote pas une séance publiée
+  avant son arrivée (`cast_vote` garde `JOINED_AFTER_PUBLICATION`).
+- **Lot retours (6 items, post-9d)** : (1) dates de déclaration **bornées à la période du défi**
+  (helper + schéma + écran + tests) ; (3) « Retour au groupe » après vote va **vraiment** au groupe ;
+  (6) un nouveau membre **ne vote pas** les séances d'avant son arrivée (deck + SQL 054/055) ;
+  (4) Strava **indexé par user** (plus de nom partagé entre comptes du device) ; (2) onglet groupe
+  **« À voter »** (conditionnel) + **CTA « Voter »** dans la fiche séance (règle « clic qui ne fait
+  rien ») + section **« À valider »** sur l'accueil ; (5) Organiser l'accueil : **glisser-déposer**
+  (voir 9g).
+- **Lot 9g** : **glisser-déposer réel** dans « Organiser l'accueil » (`SortableGroups`, rangs absolus
+  + reanimated + gesture-handler, web/iOS/Android, scroll coupé pendant le drag ; remplace les flèches)
+  + **badge « Suspendu »** sur les lignes membres du dashboard (`useGroupSuspensions` + `isSuspendedOn`).
+- **Cycle de vie d'un défi** : un défi est `active` dès sa création — **plus d'étape « lancer »**.
+  L'affichage (à venir / en cours / terminé) et les pénalités dérivent des **dates**
+  (`challenge_start`/`challenge_end`), via `features/groups/challenge-phase.ts` (pur, testé).
+  L'enum `setup` est conservé mais n'est plus produit. `completed` reste posé par le déblocage
+  (049) / la complétion auto (cron).
 - Décision produit : **inviter par pseudo est ouvert à tout membre** (SQL 040) ; seule la gestion
   des invitations (renvoyer/annuler) reste admin.
 - **Étape 18 (amis) — nuance à retenir** : une fois le système d'amis en place, le mode **privé**
@@ -65,6 +133,7 @@ Les 14 autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'inde
   d'un geste depuis sa liste, au lieu de le rechercher par pseudo à chaque défi.
 - **Demandé, à planifier** : écran Statistiques (Étape 20) — nb de séances/semaine, sport favori,
   cadence dans le temps, etc. Idée notée par Romain « pour plus tard ».
-- **Question ouverte (Romain décide)** : envoyer une notification à l'auteur quand sa séance est
-  validée / refusée par le groupe (types `session_validated` / `session_rejected` déjà dans l'enum,
-  rien ne les crée encore). Mon avis dans le rapport d'étape 16.
+- ~~**Question ouverte** : notifier l'auteur quand sa séance est validée / refusée~~ → **TRANCHÉ /
+  FAIT** : `resolve_session` (043) crée `session_validated` / `session_rejected` (1 notif au verdict)
+  et `cast_vote` v4 crée `session_refused_by_member` à chaque refus. C'était le retour **#6** — déjà
+  couvert avant même de le redemander.

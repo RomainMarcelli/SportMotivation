@@ -4,29 +4,21 @@ import { Pressable, Text, View } from "react-native";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { colors } from "@/constants/colors";
+import {
+  challengePhase,
+  challengePhaseLabel,
+  challengeTiming,
+  type ChallengePhase,
+} from "@/features/groups/challenge-phase";
 import type { MyGroup } from "@/features/groups/queries";
-import { daysUntil, formatDbDate } from "@/lib/date";
 
-type GroupStatus = MyGroup["group"]["status"];
-
-const STATUS_BADGE: Record<GroupStatus, { label: string; variant: "coral" | "amber" | "mint" | "default" }> = {
-  active: { label: "En cours", variant: "coral" },
-  setup: { label: "À venir", variant: "amber" },
-  completed: { label: "Terminé", variant: "mint" },
-  cancelled: { label: "Annulé", variant: "default" },
+// Couleur du badge selon la phase (dérivée des dates, cf. `challenge-phase.ts`).
+const PHASE_VARIANT: Record<ChallengePhase, "coral" | "amber" | "mint" | "default"> = {
+  upcoming: "amber",
+  active: "coral",
+  ended: "mint",
+  cancelled: "default",
 };
-
-/** Sous-titre temporel : compte à rebours si le défi est en cours, sinon plage de dates. */
-function timing(group: MyGroup["group"], now: Date): string {
-  if (group.status === "active") {
-    const left = daysUntil(group.challenge_end, now);
-    if (left > 0) return `J-${left} · fin le ${formatDbDate(group.challenge_end)}`;
-    if (left === 0) return `Dernier jour · ${formatDbDate(group.challenge_end)}`;
-    return `Terminé le ${formatDbDate(group.challenge_end)}`;
-  }
-  if (group.status === "setup") return `Démarre le ${formatDbDate(group.challenge_start)}`;
-  return `${formatDbDate(group.challenge_start)} → ${formatDbDate(group.challenge_end)}`;
-}
 
 type Props = {
   item: MyGroup;
@@ -36,7 +28,8 @@ type Props = {
 /** Carte DA d'un groupe dans la liste d'accueil. Réutilise la query `useMyGroups`. */
 export function GroupCard({ item, onPress }: Props) {
   const { group, role, weeklyTarget, memberCount } = item;
-  const badge = STATUS_BADGE[group.status] ?? STATUS_BADGE.active;
+  const now = new Date();
+  const phase = challengePhase(group.status, group.challenge_start, group.challenge_end, now);
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
@@ -51,13 +44,13 @@ export function GroupCard({ item, onPress }: Props) {
             </Text>
             {role === "admin" ? <Crown size={15} color={colors.amber} /> : null}
           </View>
-          <Badge label={badge.label} variant={badge.variant} />
+          <Badge label={challengePhaseLabel(phase)} variant={PHASE_VARIANT[phase]} />
         </View>
 
         <View className="mt-2.5 flex-row items-center gap-2">
           <CalendarDays size={14} color={colors.creamDim} />
           <Text className="flex-1 font-body text-[12.5px] text-cream-dim">
-            {timing(group, new Date())}
+            {challengeTiming(group.status, group.challenge_start, group.challenge_end, now)}
           </Text>
         </View>
 

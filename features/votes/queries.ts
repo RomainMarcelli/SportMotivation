@@ -23,15 +23,29 @@ export function useVotableSessions(groupId: string | undefined, meId: string | u
     queryKey: ["votes", groupId, meId],
     enabled: !!groupId && !!meId,
     queryFn: async (): Promise<VotableSession[]> => {
-      const { data: rows, error } = await supabase
+      // On ne vote QUE les séances publiées après notre arrivée dans le groupe :
+      // un nouveau membre n'a pas à juger une séance postée avant qu'il n'existe
+      // dans le défi (règle serveur miroir : `cast_vote` / `resolve_session`, SQL).
+      const { data: membership } = await supabase
+        .from("group_members")
+        .select("joined_at")
+        .eq("group_id", groupId!)
+        .eq("user_id", meId!)
+        .is("left_at", null)
+        .maybeSingle();
+      const joinedAt = membership?.joined_at ?? null;
+
+      let query = supabase
         .from("sessions")
         .select(
           "*, author:users(id, first_name, last_name, username, avatar_url, avatar_color, avatar_icon), proofs:session_proofs(*)"
         )
         .eq("group_id", groupId!)
         .eq("status", "pending_vote")
-        .neq("user_id", meId!)
-        .order("published_at", { ascending: true });
+        .neq("user_id", meId!);
+      if (joinedAt) query = query.gte("published_at", joinedAt);
+
+      const { data: rows, error } = await query.order("published_at", { ascending: true });
       if (error) throw error;
 
       const sessions = (rows ?? []).map((row) => {

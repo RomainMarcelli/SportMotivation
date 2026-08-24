@@ -14,6 +14,7 @@ import "react-native-reanimated";
 
 import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { useNotificationsRealtime } from "@/features/notifications/realtime";
 import { colors } from "@/constants/colors";
 import { fontsToLoad } from "@/constants/fonts";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -79,6 +80,16 @@ function Splash() {
   );
 }
 
+/**
+ * Abonnement temps réel aux notifications, monté une seule fois dans la zone
+ * authentifiée : les notifs (séance à voter, refus, invitation…) arrivent en
+ * direct sur tous les écrans. Composant sans rendu — juste le hook.
+ */
+function NotificationsRealtime() {
+  useNotificationsRealtime();
+  return null;
+}
+
 function RootContent() {
   const colorScheme = useColorScheme();
   const pref = useThemeStore((s) => s.pref);
@@ -126,6 +137,7 @@ function RootContent() {
         </View>
         {isAuthenticated ? <BottomNav /> : null}
       </View>
+      {isAuthenticated ? <NotificationsRealtime /> : null}
       <StatusBar style={isDark ? "light" : "dark"} />
     </ThemeProvider>
   );

@@ -149,12 +149,23 @@ Chaque accent a sa version `…Soft` (~15 % d'opacité) pour les fonds de pastil
    `checkProofDate`). Autres preuves : **Strava** (données récupérées) ou **lien externe** (+
    description). Anti-triche = preuve + vote collectif + blâmes.
 5. **Vote** : tous les membres votent **OUI/NON** ; l'**auteur ne vote pas** sa séance. Vote
-   **public** (on voit qui a voté quoi). **Majorité simple**. **Égalité = validé** (bénéfice du
-   doute). **Absence de vote = OUI** par défaut à l'échéance. Délai = paramètre du groupe (jour
-   même 23 h 59 **ou** dimanche 23 h 59).
-6. **Blâmes** : **1 blâme par séance rejetée** au vote (jamais pour absence de vote). Au **seuil**
-   (3 par défaut, réglable admin) → **pénalité supplémentaire** (montant d'une séance manquée) +
-   **reset du compteur**. Cumul sur toute la durée du défi.
+   **public** (on voit qui a voté quoi). **Égalité = validé** (bénéfice du doute). **Échéance
+   effective = max(règle du groupe, publication + 24 h)** — règle = jour même 23 h 59 **ou**
+   dimanche 23 h 59, le +24 h garantit toujours 24 h pour voter (SQL 054). On ne clôt **avant
+   l'échéance que si TOUT LE MONDE a voté** ; sinon on attend l'échéance (pour que les retardataires
+   restent blâmables). **À l'échéance : refus majoritaire → refusée, sinon VALIDÉE par défaut**
+   (plus de statut « expired »). Notifs de verdict à l'auteur + notif à chaque refus (043).
+6. **Blâmes = VOTES MANQUÉS** ⚠ (refonte 054, ancien modèle « séance rejetée » abandonné) :
+   **1 blâme quand tu ne votes PAS** une séance d'un autre avant l'échéance (anti-collusion : ne pas
+   voter aide l'auteur — validée par défaut — et te pénalise). Distribués par le cron horaire
+   `resolve_pending_votes`, sauf **auteur** et **suspendus**. Au **seuil** (`blame_threshold`, 3 par
+   défaut) → **pénalité** (montant du membre) + on solde `seuil` blâmes (cascade : 7 = 2 pénalités) +
+   **notif à l'admin**. L'**excuse ne dispense PAS** de voter ; seule la **suspension** exonère.
+   Libellé cagnotte : **« Vote manqué »**.
+6bis. **Suspension** (Chantier 4, SQL 052/053) : un membre **suspendu** (période à date de fin) est
+   **exonéré de tout** (blâmes ET pénalités « séance manquée »). L'**admin** suspend directement, ou
+   un **joueur demande** (motif obligatoire) → l'admin **accepte / refuse**. Notifs à chaque étape.
+   Table `suspensions` + helper `is_suspended`. (UI DA : en cours.)
 7. **Excuses** (déclarées à l'avance, motif obligatoire, soumises au vote majoritaire) :
    - **standard** acceptée → objectif de la semaine **réduit de 1** ;
    - **majeure** acceptée (hospitalisation, blessure grave…) → **semaine remise à zéro**, aucune
@@ -284,7 +295,8 @@ app/profile-edit.tsx            Modifier le profil (avatar, prénom, pseudo)
 ### Tables (schéma déjà en place)
 `users`, `groups`, `group_members`, `rule_acceptances`, `sessions`, `session_proofs`, `votes`,
 `excuses`, `penalties`, `blames`, `pots`, `pot_transactions`, `weekly_plans`, `notifications`,
-`group_invitations`, `member_penalty_changes`. Vues : `v_member_weekly_status`,
+`group_invitations`, `member_penalty_changes`, `activity_proposals`, `activity_proposal_votes`,
+`weekly_closures`, `suspensions` (SQL 052). Vues : `v_member_weekly_status`,
 `v_member_unsettled_blames`.
 
 Colonnes ajoutées en cours de route (retenir) : `group_members.penalty_amount` (pénalité par
@@ -334,17 +346,30 @@ préférences). Demandes : `request_group_activity`, `add_group_activity`, `requ
 
 ## 9. État des migrations SQL
 
-Fichiers dans `supabase/sql/` numérotés `000`→`045`. **Romain les exécute lui-même, dans l'ordre.**
-État attendu à jour : **jusqu'à `045`** (`045_weekly_reminder.sql` = rappel week-end, **requiert
-l'extension `pg_cron`**). Points d'attention pour les prochaines :
+Fichiers dans `supabase/sql/` numérotés `000`→`056`. **Romain les exécute lui-même, dans l'ordre.**
+**Lot en attente d'exécution : `052`→`057`** (Suspension + refonte blâmes + éligibilité vote +
+durcissement grants **056** + durcissement RLS **057** — cf. audit 9g). Avant ça, état attendu jusqu'à `049`.
+Points d'attention :
 
 - Les `ALTER TYPE … ADD VALUE` (nouvelles valeurs d'enum) doivent être dans un **fichier séparé
   exécuté avant** celui qui les utilise — Postgres refuse d'utiliser une valeur d'enum ajoutée dans
   la **même transaction**, et l'éditeur SQL de Supabase enveloppe un onglet dans une transaction.
   (C'est pour ça que `038_notification_types.sql` précède `039`, comme `003`/`008` avant eux.)
+- **Fonctions de cron/interne = `REVOKE ALL … FROM PUBLIC`** (elles tournent sous le propriétaire,
+  jamais depuis le client). Précédents : `send_weekly_reminders` (045), `delete_account_internal`
+  (031/033), et `resolve_pending_votes`/`apply_session_blames` (**056**, correctif : sinon appelables
+  via PostgREST avec un `lookback` qui contourne le garde-fou anti-blâme-rétroactif).
 - Avant la prod : **supprimer** `dev_reset_excuse_joker` (outil de test, `027`), et **remplacer les
   textes légaux provisoires** (`constants/legal.ts`).
 - Checklist d'exécution : [`docs/guides/SQL_CHECKLIST.md`](../docs/guides/SQL_CHECKLIST.md).
+- **Sécurité (audit 9g — ✅ VALIDÉ 32/32)** : `supabase/tests/` = diagnostic lecture seule (`rls_posture.sql`,
+  `rls_policies.sql`) + socle **pgTAP** (`security_abuse.test.sql`, 32 tests d'abus, **tous verts sur la base
+  réelle**). Diagnostic → RLS **ON partout**, lectures correctes. **Findings corrigés par `056`+`057`** :
+  🔴 `delete_account_internal` appelable par anon/authenticated (suppression de compte par UUID !) ;
+  🔴 auto-validation de séance / bourrage de votes / auto-adhésion admin (policies d'écriture trop larges) ;
+  🟠 fonctions internes exposées ; `search_path` manquant sur `is_group_admin`/`handle_new_user`.
+  **Leçon** : le `REVOKE … FROM PUBLIC` NE suffit PAS (Supabase re-grant anon/authenticated) → toujours
+  `REVOKE … FROM PUBLIC, anon, authenticated`. Rapport : [`reports/etape-09g-audit-securite-rls-pgtap.md`](reports/etape-09g-audit-securite-rls-pgtap.md).
 
 ---
 
@@ -391,8 +416,44 @@ Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.c
 - **6** Déclarer une séance (preuves photo/Strava/lien, **publication multi-défis**).
 - **7** Voter (deck séances + excuses, résolution).
 - **8** Excuses (standard/majeure + joker mensuel).
+- **9** Cagnotte (vue trésorier) : détail par membre, historique par semaine, trésorier (= admin en V1)
+  coche les paiements, relance des retardataires (SQL 046). Accès = carte cagnotte du dashboard cliquable.
+- **9b** Clôture hebdo (SQL 047, cron `weekly-closure`) : chaque lundi, séances manquées de la semaine
+  écoulée → pénalités (montant du membre) → **alimente la cagnotte** + notif. Gère excuses (majeure =
+  annulée, standard −1) et joker (annule 1 manquée). Idempotent, sûr même avec trigger pot, DST-safe.
+- **9c** ~~Blâmes → pénalité (SQL 048, trigger « rejeté »)~~ **SUPERSEDED par 9d.**
+- **9d** ⚠ **Refonte blâmes + Suspension.** Blâme = **vote manqué** (ne pas voter à l'échéance), plus
+  « séance rejetée ». SQL **054** : échéance effective (+24 h), `resolve_session` v3 (clôture anticipée
+  seulement si participation complète, plus d'`expired`, validée par défaut), cron horaire
+  `resolve_pending_votes` (résout + blâme les non-votants sauf auteur/suspendus, seuil → pénalité +
+  cascade + notif admin), **trigger 048 retiré**. **Suspension** SQL **052/053** : table `suspensions`,
+  `is_suspended`, RPC (admin_suspend / request / decide / cancel / get_group_suspensions), clôture hebdo
+  qui **exonère les suspendus**. Front : `features/suspensions/*` (logique pure + hooks), miroir
+  `vote-logic` réaligné, rename **« Blâme atteint » → « Vote manqué »**, visuels notifs. **#6 déjà fait
+  en 043.**
+- **9f** **UI Suspension** : écran `app/group/[id]/suspensions.tsx` (route + menu ⋮ + notifs `suspension_*`
+  qui l'ouvrent au tap). Admin : suspendre (picker membre + dates `DateField` + motif), Accepter/Refuser
+  les demandes, Lever. Joueur : demander (dates + motif obligatoire), retirer. Branché sur les hooks
+  `features/suspensions/*`. Chantier 4 **complet** (backend 052/053 + front).
+- **9e** Lot retours (6 items) : (1) dates de déclaration **bornées à la période du défi** ;
+  (3) « Retour au groupe » après vote → **vrai** dashboard du défi ; (6) **éligibilité de vote** : un
+  membre ne vote pas une séance publiée **avant son arrivée** (deck `useVotableSessions` + SQL **054/055**,
+  garde serveur `JOINED_AFTER_PUBLICATION`) ; (4) **Strava indexé par user id** (clé `strava-session:<uid>`
+  au lieu d'une clé globale → plus de « connecté en tant que Romain » pour un autre compte) ; (2) onglet
+  groupe **« À voter »** (conditionnel, séances des autres) + **CTA « Voter »** dans `SessionDetailSheet`
+  (règle « je clique, rien ne se passe ») + section **« À valider »** sur l'accueil ; (5) **animation
+  « switch »** (reanimated `LinearTransition`) dans Organiser l'accueil — vrai glisser-déposer = lib à évaluer.
 - **10** Gestion des invitations (statuts, renvoyer/annuler).
 - **11** Notifications in-app (liste DA, actions inline). *(Temps réel / push : à faire.)*
+- **12** Fin de défi / Clôture : écrans `fin-defi` (podium, classement, « ton bilan ») et `cloture`
+  (confettis, grand montant dégradé, « qui a rempli la cagnotte »). **Déblocage** `unlock_pot`
+  (admin/trésorier, idempotent) + **auto-complétion** des défis échus (SQL 049, cron
+  `complete-challenges`, DST-safe). Bilan **calculé côté client** (module pur testé, aucune RPC de
+  reporting). Entrée = bannière « Défi terminé » du dashboard. **Toutes les maquettes V3 sont faites.**
+- **Cycle de vie du défi** : un défi est `active` **dès la création** (plus d'étape « lancer »).
+  L'affichage (à venir / en cours / terminé) et les pénalités dérivent des **dates**
+  (`challenge_start`/`challenge_end`), via `features/groups/challenge-phase.ts` (pur, testé). SQL 051
+  migre les `setup` existants et change le défaut ; l'enum `setup` est conservé mais plus produit.
 - **13** Profil + **Paramètres** (notifs en base, mot de passe, e-mail, Strava, légal, thème
   verrouillé sombre).
 - **14** Séances partagées entre défis · Strava · Aide & légal.
@@ -403,12 +464,20 @@ Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.c
   d'invitation** (remplace l'ancienne page hors DA), durées en `1h10`, anneau tracé.
 
 ### ⬜ Reste à faire
-- **9 — Cagnotte / trésorier** : écran `sport-motiv-cagnotte.html` à créer (montant, qui doit quoi,
-  historique, trésorier coche les paiements, déblocage admin).
-- **12 — Fin de défi / Clôture** : écrans `sport-motiv-fin-defi.html` + `sport-motiv-cloture.html`
-  (bilan, classement final, déblocage cagnotte, relance d'un défi).
-- **Clôture hebdo automatique + rappels** : Edge Functions Supabase + cron (dimanche 23 h 59 :
-  calcul des pénalités, alimentation cagnotte, récap ; rappels de séances planifiées).
+- ~~**UI DA — Suspension**~~ **FAIT (9f)** : écran `app/group/[id]/suspensions.tsx` (admin : suspendre
+  un membre = picker + dates + motif, + Accepter/Refuser les demandes, + Lever ; joueur : demander +
+  retirer). Accès via le **menu ⋮** du dashboard ; les notifs `suspension_*` ouvrent l'écran au tap.
+  **Badge « Suspendu »** sur les lignes membres du dashboard (9g).
+- ~~**Glisser-déposer**~~ **FAIT (9g)** : « Organiser l'accueil » réordonne les défis en
+  **glisser-déposer** (poignée), rangs absolus + reanimated + gesture-handler (web/iOS/Android, sans
+  lib tierce), scroll de page coupé pendant le drag. Composant `SortableGroups` dans
+  `app/account/home-layout.tsx` (les flèches ↑/↓ sont remplacées).
+- **Cagnotte — cycle complet fait** : écran (9), alimentation (clôture hebdo 047 + blâmes 054) et
+  **déblocage** en fin de défi (`unlock_pot`, SQL 049, Étape 12). Reste éventuellement un flux de
+  **dépense** de la cagnotte (`pots.usage_date`/`usage_description`) — pas de maquette à ce jour.
+- ~~**Résolution à l'échéance**~~ **FAIT** (SQL 054, cron `resolve-votes`) : résout les séances échues
+  (validée par défaut) + distribue les blâmes aux non-votants. Voir 9d.
+- **Rappels de séances planifiées** : distinct du rappel week-end (045) ; + notifications temps réel/push.
 - **Notifications temps réel / push** (Expo Notifications) — aujourd'hui seulement in-app.
 - **17 — Système d'amis** (demandé) : ajouter quelqu'un en ami puis l'inviter d'un geste, au lieu
   de le rechercher par pseudo à chaque défi.
@@ -418,15 +487,19 @@ Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.c
   cadence dans le temps, etc.
 
 ### ❓ Questions ouvertes (Romain décide)
-- **Notifier l'auteur quand sa séance est validée/refusée** par le groupe ? Avis retenu : **oui,
-  mais seulement au résultat *final*** (à la résolution du scrutin, pas à chaque vote), via
-  `session_validated`/`session_rejected` — types déjà dans l'enum, rien ne les crée. À rattacher
-  logiquement à l'étape Cagnotte. **En attente du feu vert de Romain.**
+- ~~Notifier l'auteur quand sa séance est validée/refusée ?~~ **TRANCHÉ + FAIT (043)** : notif au
+  résultat final (`session_validated`/`session_rejected`) + notif à chaque refus
+  (`session_refused_by_member`). C'était le retour **#6**.
+- **`same_day` devient de fait « ≥ 24 h »** avec le filet +24 h (max l'emporte toujours). Fidèle à
+  la spec ; si Romain préfère un vrai « jour même » strict pour les publications matinales, à ajuster.
+- **Clôture anticipée d'un scrutin** : on n'anticipe plus sur simple majorité (seulement si tout le
+  monde a voté), pour garder les non-votants blâmables. Si Romain trouve ça trop lent en petit
+  groupe, on pourra ré-autoriser la majorité anticipée (mais ça rouvre une petite faille anti-blâme).
 
 ### Maquettes → écran
-14 des 17 maquettes ont leur écran. **Restent 3**, toutes liées à la cagnotte :
-`sport-motiv-cagnotte.html`, `sport-motiv-fin-defi.html`, `sport-motiv-cloture.html`
-(`sport-motiv-maquettes.html` est l'index, pas un écran).
+**Toutes les maquettes V3 ont désormais leur écran** (les 2 dernières, `sport-motiv-fin-defi.html`
+et `sport-motiv-cloture.html`, faites à l'Étape 12). `sport-motiv-maquettes.html` est l'index, pas
+un écran.
 
 ---
 

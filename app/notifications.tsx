@@ -14,10 +14,12 @@ import {
   HeartPulse,
   LogOut,
   Mail,
+  PauseCircle,
   Plus,
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
+  TriangleAlert,
   UserPlus,
   Vote,
   Wallet,
@@ -71,6 +73,7 @@ function notifVisual(type: string): { icon: typeof Bell; color: string; soft: st
       return { icon: LogOut, color: colors.creamDim, soft: colors.surface2 };
     case "penalty_change_request":
     case "penalty_applied":
+    case "payment_reminder":
       return { icon: Wallet, color: colors.amber, soft: colors.amberSoft };
     case "vote_pending_excuse":
       return { icon: HeartPulse, color: colors.amber, soft: colors.amberSoft };
@@ -94,6 +97,18 @@ function notifVisual(type: string): { icon: typeof Bell; color: string; soft: st
     case "activity_rejected":
       return { icon: XCircle, color: colors.creamDim, soft: colors.surface2 };
     case "session_refused_by_member":
+      return { icon: XCircle, color: colors.red, soft: colors.redSoft };
+    case "blame_received":
+      // « Vote manqué » : tu n'as pas voté à temps → +1 blâme (avertissement).
+      return { icon: Vote, color: colors.amber, soft: colors.amberSoft };
+    case "blame_threshold_reached":
+      return { icon: TriangleAlert, color: colors.amber, soft: colors.amberSoft };
+    case "suspension_requested":
+    case "suspension_set":
+      return { icon: PauseCircle, color: colors.amber, soft: colors.amberSoft };
+    case "suspension_accepted":
+      return { icon: CheckCircle2, color: colors.mint, soft: colors.mintSoft };
+    case "suspension_rejected":
       return { icon: XCircle, color: colors.red, soft: colors.redSoft };
     case "session_limit_request":
       return { icon: Plus, color: colors.amber, soft: colors.amberSoft };
@@ -181,6 +196,37 @@ export default function NotificationsScreen() {
       // Une demande à voter → directement le deck de vote du groupe. Déjà voté :
       // on tombe dans le cas suivant (dashboard), pas sur un deck vide.
       router.push({ pathname: "/group/[id]/vote", params: { id: data.group_id } } as never);
+    } else if (
+      (n.type === "payment_reminder" || n.type === "penalty_applied") &&
+      data.group_id
+    ) {
+      // Relance de cagnotte / pénalité appliquée (clôture hebdo) → droit sur l'écran
+      // Cagnotte (le solde à régler et le détail des pénalités y sont).
+      router.push({ pathname: "/group/[id]/cagnotte", params: { id: data.group_id } } as never);
+    } else if (
+      // Les valeurs d'enum suspension_* ne sont pas encore dans les types générés
+      // (SQL 052) → on compare en `string`, comme pour les RPC pas encore typées.
+      ["suspension_requested", "suspension_set", "suspension_accepted", "suspension_rejected"].includes(
+        n.type as string
+      ) &&
+      data.group_id
+    ) {
+      // Suspension → l'écran dédié : l'admin y accepte/refuse la demande, le joueur
+      // y voit son statut (pas de bouton dans la notif, la décision se prend là-bas).
+      router.push({ pathname: "/group/[id]/suspensions", params: { id: data.group_id } } as never);
+    } else if (
+      (n.type === "session_refused_by_member" || n.type === "session_rejected") &&
+      data.group_id &&
+      data.session_id
+    ) {
+      // Refus d'une séance → on ouvre directement la FICHE de la séance concernée
+      // (le détail du refus + tous les commentaires des votants y sont), plutôt que
+      // le dashboard du groupe. `openSession` est lu par l'écran du groupe pour
+      // rouvrir la fiche à l'arrivée (retour Romain : « voir le pourquoi »).
+      router.push({
+        pathname: "/group/[id]",
+        params: { id: data.group_id, openSession: data.session_id },
+      } as never);
     } else if (data.group_id) {
       // Résultat (excuse/séance acceptée ou refusée…) → dashboard du groupe.
       router.push({ pathname: "/group/[id]", params: { id: data.group_id } } as never);

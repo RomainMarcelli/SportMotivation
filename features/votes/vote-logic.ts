@@ -10,21 +10,28 @@ export type VoteDeadlineType = "same_day" | "end_of_week";
 export type VoteOutcome = "pending_vote" | "validated" | "rejected" | "expired";
 
 /**
- * Date limite de vote selon la règle du groupe :
- * - `same_day` : fin de la journée de publication ;
- * - `end_of_week` : fin du dimanche de la semaine de la séance.
+ * Échéance EFFECTIVE de vote (miroir de `session_effective_deadline`, SQL 054) :
+ * `max(échéance nominale du groupe, publication + 24 h)`.
+ * - nominale `same_day` : fin de la journée de publication ;
+ * - nominale `end_of_week` : fin du dimanche de la semaine de la séance ;
+ * - le filet +24 h garantit qu'une séance publiée tard laisse quand même 24 h
+ *   pour voter (et, en `same_day`, revient à « au moins 24 h »).
  */
 export function voteDeadline(
   publishedAt: Date,
   weekStartISO: string,
   type: VoteDeadlineType
 ): Date {
+  let nominal: Date;
   if (type === "end_of_week") {
     const [y, m, d] = weekStartISO.split("-").map(Number);
     const sunday = new Date(y, m - 1, d + 6); // lundi + 6 = dimanche
-    return endOfDay(sunday);
+    nominal = endOfDay(sunday);
+  } else {
+    nominal = endOfDay(publishedAt);
   }
-  return endOfDay(publishedAt);
+  const floor = new Date(publishedAt.getTime() + 24 * 60 * 60 * 1000);
+  return nominal.getTime() >= floor.getTime() ? nominal : floor;
 }
 
 /** Le délai de vote est-il écoulé ? */
@@ -39,10 +46,12 @@ export function voteThreshold(otherMembers: number): number {
 }
 
 /**
- * Résolution basique d'un scrutin :
- * - oui ≥ seuil → validée ; non ≥ seuil → refusée ;
- * - sinon, si tout le monde a voté OU délai écoulé → majorité simple (0 vote → expirée) ;
- * - sinon → toujours en attente.
+ * Résolution d'un scrutin (miroir de `resolve_session`, SQL 054) :
+ * - si TOUT LE MONDE a voté → on tranche à la majorité simple (égalité = validée) ;
+ * - sinon, si l'échéance est atteinte → refus majoritaire → refusée, sinon
+ *   VALIDÉE PAR DÉFAUT (plus de statut « expired ») ;
+ * - sinon → en attente (on n'anticipe plus sur simple majorité : les non-votants
+ *   doivent rester blâmables jusqu'à l'échéance).
  */
 export function resolveVote(opts: {
   yes: number;
@@ -51,15 +60,9 @@ export function resolveVote(opts: {
   expired: boolean;
 }): VoteOutcome {
   const { yes, no, otherMembers, expired } = opts;
-  const threshold = voteThreshold(otherMembers);
-  if (yes >= threshold) return "validated";
-  if (no >= threshold) return "rejected";
-
   const everyoneVoted = otherMembers > 0 && yes + no >= otherMembers;
-  if (everyoneVoted || expired) {
-    if (yes === 0 && no === 0) return "expired";
-    return yes >= no ? "validated" : "rejected";
-  }
+  if (everyoneVoted) return yes >= no ? "validated" : "rejected";
+  if (expired) return no >= voteThreshold(otherMembers) ? "rejected" : "validated";
   return "pending_vote";
 }
 

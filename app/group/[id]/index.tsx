@@ -8,14 +8,17 @@ import {
   HeartPulse,
   LogOut,
   MoreVertical,
+  PauseCircle,
   Pencil,
   Plus,
+  Trash2,
   TriangleAlert,
+  Trophy,
   UserPlus,
   Users,
   Vote,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Avatar } from "@/components/ui/Avatar";
@@ -35,6 +38,7 @@ import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { TopFade } from "@/components/ui/TopFade";
 import { getActivityLabel } from "@/constants/activities";
 import { colors } from "@/constants/colors";
+import { challengePhase, challengePhaseLabel } from "@/features/groups/challenge-phase";
 import { classifyGroupError } from "@/features/groups/errors";
 import { RulesRecap } from "@/features/groups/RulesRecap";
 import {
@@ -46,8 +50,11 @@ import {
 } from "@/features/groups/queries";
 import { useGroupSessions, type SessionWithAuthor } from "@/features/sessions/queries";
 import { useVotableSessions } from "@/features/votes/queries";
+import { useGroupSuspensions } from "@/features/suspensions/queries";
+import { isSuspendedOn } from "@/features/suspensions/suspension";
 import { useMyWeekExcuse, useVotableExcuses } from "@/features/excuses/queries";
 import { mapLeaveError, useLeaveGroup } from "@/features/groups/leave";
+import { useDeleteGroup } from "@/features/groups/penalty-mutations";
 import { canTransferAdmin, eligibleNewAdmins, mapTransferAdminError } from "@/features/groups/admin-transfer";
 import { useTransferAdmin } from "@/features/groups/transfer-mutations";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
@@ -68,7 +75,13 @@ export default function GroupDashboardScreen() {
   // `solo` : ouvert automatiquement parce que c'est le SEUL défi du joueur.
   // Dans ce cas l'écran remplace l'onglet Groupes — une flèche de retour y
   // renverrait, et l'onglet rouvrirait aussitôt le défi.
-  const { id, solo, tab } = useLocalSearchParams<{ id: string; solo?: string; tab?: string }>();
+  const { id, solo, tab, openSession } = useLocalSearchParams<{
+    id: string;
+    solo?: string;
+    tab?: string;
+    /** Id d'une séance à rouvrir directement (depuis une notif de refus). */
+    openSession?: string;
+  }>();
   const isSolo = solo === "1";
   const router = useRouter();
   const me = useCurrentUser();
@@ -78,15 +91,20 @@ export default function GroupDashboardScreen() {
   const { data: sessions } = useGroupSessions(id);
   const { data: pot } = usePot(id);
   const { data: blames } = useUnsettledBlames(id);
+  const { data: suspensions } = useGroupSuspensions(id);
   const { data: votable } = useVotableSessions(id, me?.id);
   const { data: votableExcuses } = useVotableExcuses(id, me?.id);
   const { data: myExcuse } = useMyWeekExcuse(id);
   const leaveGroup = useLeaveGroup();
+  const deleteGroup = useDeleteGroup(id!);
   const transferAdmin = useTransferAdmin(id);
   const { confirm, toast } = useFeedback();
 
-  // `tab=seances` (depuis « Voir tout » de l'accueil) ouvre directement l'onglet Séances.
-  const [view, setView] = useState<"infos" | "seances">(tab === "seances" ? "seances" : "infos");
+  // `tab=seances` (depuis « Voir tout » de l'accueil) ouvre directement l'onglet Séances ;
+  // `tab=a_voter` (depuis la section « À valider » de l'accueil) ouvre l'onglet des votes.
+  const [view, setView] = useState<"infos" | "seances" | "a_voter">(
+    tab === "seances" ? "seances" : tab === "a_voter" ? "a_voter" : "infos"
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   /** Séance ouverte en fiche détaillée (lecture seule) depuis l'onglet Séances. */
@@ -95,6 +113,19 @@ export default function GroupDashboardScreen() {
   const [transferPending, setTransferPending] = useState<string | null>(null);
   // Filtre de l'onglet Séances : 0 = semaine en cours, 1 = semaine précédente, etc.
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // Notif de refus (param `openSession`) → on rouvre la fiche de LA séance visée dès
+  // que le feed du groupe est chargé. Le ref garde-fou évite de la faire resurgir
+  // après qu'on l'ait fermée (le param reste dans l'URL).
+  const openedFromParam = useRef(false);
+  useEffect(() => {
+    if (!openSession || openedFromParam.current) return;
+    const found = (sessions ?? []).find((s) => s.id === openSession);
+    if (found) {
+      setOpenedSession(found);
+      openedFromParam.current = true;
+    }
+  }, [openSession, sessions]);
 
   // Retour : on revient à l'écran précédent (liste des groupes), sinon repli sur l'onglet Groupes.
   const goBack = () =>
@@ -147,14 +178,41 @@ export default function GroupDashboardScreen() {
   const memberList = members ?? [];
   const sessionList = sessions ?? [];
   const isAdmin = memberList.some((m) => m.user.id === me?.id && m.role === "admin");
+  // Seul MEMBRE du groupe (moi et personne d'autre) : « quitter » = dissoudre, donc on
+  // propose « Supprimer le groupe » à la place. (À ne pas confondre avec `isSolo` plus
+  // haut = ce défi est le seul du joueur, un flag de navigation.) Faux tant que les
+  // membres ne sont pas chargés → jamais de « Supprimer » par erreur.
+  const isOnlyMember = memberList.length === 1 && memberList.some((m) => m.user.id === me?.id);
   // Objectif hebdo et pénalité sont réglés PAR MEMBRE : le récap des règles doit
   // montrer les miens, pas les valeurs par défaut du groupe.
   const myMembership = memberList.find((m) => m.user.id === me?.id);
   const left = daysUntil(group.challenge_end, now);
-  const active = group.status === "active";
+  // Phase dérivée des dates (le défi est actif dès sa création ; ce sont les dates qui
+  // disent s'il est à venir / en cours / terminé — cf. `challenge-phase.ts`).
+  const phase = challengePhase(group.status, group.challenge_start, group.challenge_end, now);
+  const isActive = phase === "active";
+  const isUpcoming = phase === "upcoming";
+  // Défi terminé → débloque l'accès au bilan de fin de défi (podium + cagnotte à débloquer).
+  const isOver = phase === "ended";
+  const goFinDefi = () =>
+    router.push({ pathname: "/group/[id]/fin-defi", params: { id: id! } } as never);
+  const goVote = () =>
+    router.push({ pathname: "/group/[id]/vote", params: { id: id! } } as never);
+
+  // Onglet « À voter » = séances des AUTRES en attente de mon vote. Il n'apparaît
+  // que s'il y en a ; s'il disparaît alors qu'on y était, on retombe sur « Séances ».
+  const votableList = votable ?? [];
+  const hasVotable = votableList.length > 0;
+  const activeView = view === "a_voter" && !hasVotable ? "seances" : view;
 
   const stats = memberStats(memberList, sessionList, now);
   const groupProg = groupWeeklyProgress(memberList, sessionList, now);
+
+  // Membres actuellement suspendus (badge « Suspendu » sur la liste des membres).
+  const todayISO = toDateOnly(now);
+  const suspendedIds = new Set(
+    (suspensions ?? []).filter((s) => isSuspendedOn(s, todayISO)).map((s) => s.userId)
+  );
 
   const blameByUser = new Map((blames ?? []).map((b) => [b.userId, b.count]));
   const blamed = memberList
@@ -241,6 +299,26 @@ export default function GroupDashboardScreen() {
     });
   };
 
+  // Solo → supprimer le groupe (RPC delete_group) plutôt que le quitter : sans autre
+  // membre, un départ le laisserait vide, autant l'effacer proprement.
+  const onDelete = async () => {
+    setMenuOpen(false);
+    const ok = await confirm({
+      title: "Supprimer le groupe ?",
+      message: `Tu es seul dans « ${group.name} ». Le quitter revient à le supprimer : toutes ses données (séances, cagnotte) seront effacées. Action irréversible.`,
+      confirmLabel: "Supprimer le groupe",
+      destructive: true,
+    });
+    if (!ok) return;
+    deleteGroup.mutate(undefined, {
+      onSuccess: () => {
+        toast(`« ${group.name} » supprimé.`, "success");
+        router.navigate("/groups" as never);
+      },
+      onError: (e) => toast(e.message, "error"),
+    });
+  };
+
   return (
     <View className="flex-1">
       <AppBackground />
@@ -263,7 +341,7 @@ export default function GroupDashboardScreen() {
             </Text>
             <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
               {memberList.length} membre{memberList.length > 1 ? "s" : ""}
-              {active && left > 0 ? ` · J-${left}` : ""}
+              {isActive && left > 0 ? ` · J-${left}` : ""}
             </Text>
           </View>
           <Pressable
@@ -281,23 +359,70 @@ export default function GroupDashboardScreen() {
           contentContainerStyle={{ paddingBottom: 96 }}
           showsVerticalScrollIndicator={false}
         >
+          {/* Défi terminé : bannière d'accès au bilan (podium + déblocage cagnotte). */}
+          {isOver ? (
+            <Reveal delay={0}>
+              <Pressable
+                onPress={goFinDefi}
+                accessibilityLabel="Voir le bilan du défi"
+                className="flex-row items-center gap-3 rounded-[18px] border p-3.5 active:opacity-90"
+                style={{ backgroundColor: colors.amberSoft, borderColor: "rgba(255,178,62,0.35)" }}
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface">
+                  <Trophy size={20} color={colors.amber} strokeWidth={2.1} />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-display text-[15px] tracking-tight text-cream">
+                    Défi terminé
+                  </Text>
+                  <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+                    Classement final et cagnotte à débloquer
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={colors.amber} />
+              </Pressable>
+            </Reveal>
+          ) : null}
+
           {/* Hero */}
-          <Reveal delay={0}>
+          <Reveal delay={isOver ? 60 : 0}>
             <Card variant="hero">
               <View className="flex-row items-center justify-between">
-                <Badge label={active ? "En cours" : "À venir"} variant={active ? "coral" : "amber"} />
+                <Badge
+                  label={challengePhaseLabel(phase)}
+                  variant={isActive ? "coral" : "amber"}
+                />
                 <View className="items-end">
                   <Text className="font-display text-[19px] text-amber">
-                    {active && left > 0 ? `J-${left}` : "—"}
+                    {isOver
+                      ? "Terminé"
+                      : isUpcoming
+                        ? `J-${daysUntil(group.challenge_start, now)}`
+                        : `J-${Math.max(0, left)}`}
                   </Text>
                   <Text className="mt-0.5 font-body text-[10px] text-cream-dim">
-                    fin le {formatDbDate(group.challenge_end)}
+                    {isUpcoming
+                      ? `début le ${formatDbDate(group.challenge_start)}`
+                      : `fin le ${formatDbDate(group.challenge_end)}`}
                   </Text>
                 </View>
               </View>
 
-              <View className="mt-4">
-                <Text className="font-body text-[11.5px] text-cream-dim">Cagnotte du groupe</Text>
+              {/* Bloc cagnotte cliquable → écran Cagnotte (détail par membre, trésorier). */}
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: "/group/[id]/cagnotte", params: { id: id! } } as never)
+                }
+                accessibilityLabel="Voir la cagnotte"
+                className="mt-4 active:opacity-80"
+              >
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-body text-[11.5px] text-cream-dim">Cagnotte du groupe</Text>
+                  <View className="flex-row items-center gap-0.5">
+                    <Text className="font-body-semibold text-[11px] text-amber">Détail</Text>
+                    <ChevronRight size={15} color={colors.amber} />
+                  </View>
+                </View>
                 {pot !== null && pot !== undefined ? (
                   <CountUp
                     to={pot}
@@ -310,20 +435,24 @@ export default function GroupDashboardScreen() {
                 <Text className="mt-1 font-body text-[10.5px] text-cream-dim">
                   débloquée à la fin du défi
                 </Text>
-              </View>
+              </Pressable>
 
-              <View className="mt-4">
-                <View className="mb-2 flex-row items-baseline justify-between">
-                  <Text className="font-body text-[11.5px] text-cream-dim">
-                    Séances du groupe cette semaine
-                  </Text>
-                  <Text className="font-display text-[14px] text-cream">
-                    {groupProg.done}
-                    <Text className="text-[12px] text-cream-dim">/{groupProg.target}</Text>
-                  </Text>
+              {/* Suivi hebdo : uniquement tant que le défi n'est pas terminé (retour
+                  Romain : une fois fini, plus de progression de la semaine en cours). */}
+              {!isOver ? (
+                <View className="mt-4">
+                  <View className="mb-2 flex-row items-baseline justify-between">
+                    <Text className="font-body text-[11.5px] text-cream-dim">
+                      Séances du groupe cette semaine
+                    </Text>
+                    <Text className="font-display text-[14px] text-cream">
+                      {groupProg.done}
+                      <Text className="text-[12px] text-cream-dim">/{groupProg.target}</Text>
+                    </Text>
+                  </View>
+                  <ProgressBar ratio={groupProg.target > 0 ? groupProg.done / groupProg.target : 0} />
                 </View>
-                <ProgressBar ratio={groupProg.target > 0 ? groupProg.done / groupProg.target : 0} />
-              </View>
+              ) : null}
 
               <View className="mt-4 flex-row items-center justify-between">
                 <View className="flex-row">
@@ -380,23 +509,34 @@ export default function GroupDashboardScreen() {
           {/* Bascule Infos / Séances (soulignement glissant, façon maquette) */}
           <Reveal delay={60}>
             <GroupTabs
-              value={view}
+              value={activeView}
               onChange={setView}
               tabs={[
                 { value: "infos", label: "Infos" },
                 { value: "seances", label: "Séances", count: weekSessions.length },
+                ...(hasVotable
+                  ? [{ value: "a_voter" as const, label: "À voter", count: votableList.length }]
+                  : []),
               ]}
             />
           </Reveal>
 
-          {view === "infos" ? (
+          {activeView === "infos" ? (
             <InfosPanel
               group={group}
               stats={stats}
               blamed={blamed}
+              suspendedIds={suspendedIds}
               meId={me?.id}
               me={myMembership}
               onOpenInvite={() => setInviteOpen(true)}
+            />
+          ) : activeView === "a_voter" ? (
+            <AVoterPanel
+              votable={votableList.map((v) => v.session)}
+              meId={me?.id}
+              onOpenSession={setOpenedSession}
+              onVote={goVote}
             />
           ) : (
             <SeancesPanel
@@ -405,9 +545,7 @@ export default function GroupDashboardScreen() {
               meId={me?.id}
               onOpenSession={setOpenedSession}
               votableCount={(votable?.length ?? 0) + (votableExcuses?.length ?? 0)}
-              onVote={() =>
-                router.push({ pathname: "/group/[id]/vote", params: { id: id! } } as never)
-              }
+              onVote={goVote}
               weekLabel={weekLabel}
               canPrev={weekOffset < maxOffset}
               canNext={weekOffset > 0}
@@ -433,12 +571,18 @@ export default function GroupDashboardScreen() {
             paddingBottom: 12,
           }}
         >
-          <GradientButton
-            icon={Plus}
-            onPress={() => router.push({ pathname: "/group/[id]/declare", params: { id: id! } } as never)}
-          >
-            Déclarer une séance
-          </GradientButton>
+          {isOver ? (
+            <GradientButton icon={Trophy} onPress={goFinDefi}>
+              Voir le bilan du défi
+            </GradientButton>
+          ) : (
+            <GradientButton
+              icon={Plus}
+              onPress={() => router.push({ pathname: "/group/[id]/declare", params: { id: id! } } as never)}
+            >
+              Déclarer une séance
+            </GradientButton>
+          )}
         </View>
       </ScreenContainer>
 
@@ -468,6 +612,15 @@ export default function GroupDashboardScreen() {
                   setInviteOpen(true);
                 }}
               />
+              {/* Suspensions : l'admin gère / suspend, un joueur y fait sa demande. */}
+              <MenuItem
+                icon={PauseCircle}
+                label={isAdmin ? "Suspensions" : "Demander une suspension"}
+                onPress={() => {
+                  setMenuOpen(false);
+                  router.push({ pathname: "/group/[id]/suspensions", params: { id: id! } } as never);
+                }}
+              />
               {isAdmin ? (
                 <MenuItem
                   icon={Pencil}
@@ -488,7 +641,12 @@ export default function GroupDashboardScreen() {
                   }}
                 />
               ) : null}
-              <MenuItem icon={LogOut} label="Quitter le groupe" tone="danger" onPress={onLeave} />
+              <MenuItem
+                icon={isOnlyMember ? Trash2 : LogOut}
+                label={isOnlyMember ? "Supprimer le groupe" : "Quitter le groupe"}
+                tone="danger"
+                onPress={isOnlyMember ? onDelete : onLeave}
+              />
             </View>
 
             {/* Un joueur qui n'a qu'un défi arrive ici directement : sans ces
@@ -531,7 +689,11 @@ export default function GroupDashboardScreen() {
         isAdmin={isAdmin}
       />
 
-      <SessionDetailSheet session={openedSession} onClose={() => setOpenedSession(null)} />
+      <SessionDetailSheet
+        session={openedSession}
+        onClose={() => setOpenedSession(null)}
+        meId={me?.id}
+      />
 
       <AdminTransferSheet
         visible={transferOpen}
@@ -596,6 +758,7 @@ function InfosPanel({
   group,
   stats,
   blamed,
+  suspendedIds,
   meId,
   me,
   onOpenInvite,
@@ -603,6 +766,8 @@ function InfosPanel({
   group: ReturnType<typeof useGroup>["data"] & {};
   stats: Stat[];
   blamed: { m: GroupMemberWithUser; count: number }[];
+  /** Ids des membres actuellement suspendus (badge). */
+  suspendedIds: Set<string>;
   meId: string | undefined;
   /** Mon adhésion : objectif et pénalité sont RÉGLÉS PAR MEMBRE. */
   me: GroupMemberWithUser | undefined;
@@ -644,6 +809,14 @@ function InfosPanel({
                       {st.member.role === "admin" ? (
                         <Text className="rounded-full bg-coral-soft px-2 py-0.5 font-body-bold text-[9.5px] uppercase tracking-label text-coral">
                           Admin
+                        </Text>
+                      ) : null}
+                      {suspendedIds.has(st.member.user.id) ? (
+                        <Text
+                          className="rounded-full px-2 py-0.5 font-body-bold text-[9.5px] uppercase tracking-label"
+                          style={{ backgroundColor: colors.amberSoft, color: colors.amber }}
+                        >
+                          Suspendu
                         </Text>
                       ) : null}
                     </View>
@@ -978,6 +1151,52 @@ function SeancesPanel({
           ))}
         </>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * Onglet « À voter » : les séances des AUTRES membres en attente de mon vote.
+ * N'est monté que quand il y en a (cf. `hasVotable`). Le bandeau ouvre le deck de
+ * vote (swipe) ; taper une ligne ouvre la fiche (qui porte aussi un bouton « Voter »).
+ */
+function AVoterPanel({
+  votable,
+  meId,
+  onOpenSession,
+  onVote,
+}: {
+  votable: SessionWithAuthor[];
+  meId: string | undefined;
+  onOpenSession: (session: SessionWithAuthor) => void;
+  onVote: () => void;
+}) {
+  return (
+    <View className="gap-2.5">
+      <Pressable
+        onPress={onVote}
+        className="flex-row items-center gap-3 rounded-[16px] border p-3.5 active:opacity-80"
+        style={{ backgroundColor: colors.coralSoft, borderColor: "rgba(255,106,69,0.4)" }}
+      >
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface">
+          <Vote size={20} color={colors.coral} />
+        </View>
+        <View className="flex-1">
+          <Text className="font-display text-[15px] tracking-tight text-cream">
+            {votable.length} séance{votable.length > 1 ? "s" : ""} à valider
+          </Text>
+          <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
+            Les séances des autres · donne ton vote
+          </Text>
+        </View>
+        <ChevronRight size={20} color={colors.coral} />
+      </Pressable>
+
+      {votable.map((s, i) => (
+        <Reveal key={s.id} delay={i * 40}>
+          <SessionRow session={s} meId={meId} index={i} onPress={() => onOpenSession(s)} />
+        </Reveal>
+      ))}
     </View>
   );
 }

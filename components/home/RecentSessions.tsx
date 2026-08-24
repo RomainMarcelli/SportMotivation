@@ -43,7 +43,9 @@ type Props = {
  */
 export function RecentSessions({ sessions, meId, onSeeAll, onOpenSession }: Props) {
   const now = new Date();
-  const latest = sessions.slice(0, 3);
+  // Accueil « Dernières séances » = MES séances uniquement. Les séances des autres
+  // se valident dans l'onglet « À voter » du groupe, pas ici (retour Romain).
+  const latest = sessions.filter((s) => s.author.id === meId).slice(0, 3);
 
   return (
     <View>

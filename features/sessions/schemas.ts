@@ -10,6 +10,10 @@ export type DeclareSessionSchemaOptions = {
   minDuration: number;
   /** Liste des activités acceptées (sert au warning côté écran, plus à bloquer la validation). */
   acceptedActivities: string[];
+  /** Début du défi `YYYY-MM-DD` : borne basse de la date déclarable (optionnel). */
+  challengeStart?: string | null;
+  /** Fin du défi `YYYY-MM-DD` : borne haute de la date déclarable (optionnel). */
+  challengeEnd?: string | null;
 };
 
 /**
@@ -18,7 +22,11 @@ export type DeclareSessionSchemaOptions = {
  * affiche un avertissement avec choix de continuer) ; la validation finale (membre actif,
  * fenêtre de publication) reste faite côté serveur par `declare_session`.
  */
-export function buildDeclareSessionSchema({ minDuration }: DeclareSessionSchemaOptions) {
+export function buildDeclareSessionSchema({
+  minDuration,
+  challengeStart,
+  challengeEnd,
+}: DeclareSessionSchemaOptions) {
   return z
     .object({
       activityType: z.string().min(1, "Choisis une activité"),
@@ -46,11 +54,12 @@ export function buildDeclareSessionSchema({ minDuration }: DeclareSessionSchemaO
       stravaActivityDate: z.date().nullable().optional(),
     })
     .superRefine((data, ctx) => {
-      // Date : semaine en cours (lundi→dimanche), jamais dans le futur.
-      if (!isDeclarableDate(data.performedAt, new Date())) {
+      // Date : semaine en cours (lundi→dimanche), jamais dans le futur, et dans la
+      // période du défi (pas avant son début ni après sa fin).
+      if (!isDeclarableDate(data.performedAt, new Date(), challengeStart, challengeEnd)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Choisis une date de cette semaine (sans aller dans le futur)",
+          message: "Choisis une date de cette semaine, dans la période du défi",
           path: ["performedAt"],
         });
       }
