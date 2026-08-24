@@ -1,4 +1,9 @@
-import { isEmailTakenError, isUsernameTakenError } from "../username";
+import {
+  buildUsernameCandidates,
+  isEmailTakenError,
+  isUsernameTakenError,
+  sanitizeUsernameBase,
+} from "../username";
 
 describe("isUsernameTakenError", () => {
   it("reconnaît une violation de contrainte unique PostgreSQL", () => {
@@ -67,5 +72,50 @@ describe("isEmailTakenError", () => {
   it("ignore le reste", () => {
     expect(isEmailTakenError({ message: "boom" })).toBe(false);
     expect(isEmailTakenError({})).toBe(false);
+  });
+});
+
+describe("sanitizeUsernameBase", () => {
+  it("retire les caractères interdits", () => {
+    expect(sanitizeUsernameBase("romain!!")).toBe("romain");
+    expect(sanitizeUsernameBase("ro m@in")).toBe("romin");
+  });
+
+  it("conserve les caractères autorisés et enlève les espaces autour", () => {
+    expect(sanitizeUsernameBase("  rom_z.a-b  ")).toBe("rom_z.a-b");
+  });
+
+  it("borne la longueur à 26 caractères", () => {
+    expect(sanitizeUsernameBase("a".repeat(40))).toHaveLength(26);
+  });
+});
+
+describe("buildUsernameCandidates", () => {
+  it("propose la base suivie de numéros, dans l'ordre", () => {
+    const out = buildUsernameCandidates("romain");
+    expect(out[0]).toBe("romain1");
+    expect(out[1]).toBe("romain2");
+    expect(out.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("ne génère que des candidats valides (≤ 30 car., jeu de caractères du schéma)", () => {
+    for (const cand of buildUsernameCandidates("a".repeat(40))) {
+      expect(cand.length).toBeLessThanOrEqual(30);
+      expect(cand).toMatch(/^[a-zA-Z0-9_.-]+$/);
+    }
+  });
+
+  it("nettoie la base avant de suffixer", () => {
+    expect(buildUsernameCandidates("rom@in")[0]).toBe("romin1");
+  });
+
+  it("ne renvoie rien pour une base trop courte / vide", () => {
+    expect(buildUsernameCandidates("!")).toEqual([]);
+    expect(buildUsernameCandidates("  ")).toEqual([]);
+  });
+
+  it("ne contient pas de doublon", () => {
+    const out = buildUsernameCandidates("romain");
+    expect(new Set(out).size).toBe(out.length);
   });
 });

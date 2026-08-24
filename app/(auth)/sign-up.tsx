@@ -34,6 +34,7 @@ import {
   isEmailTakenError,
   isUsernameTakenError,
   useUsernameAvailability,
+  useUsernameSuggestions,
 } from "@/features/auth/username";
 import { DEFAULT_IS_SEARCHABLE } from "@/features/settings/privacy";
 import { setFinishingSignUp } from "@/lib/auth-store";
@@ -67,6 +68,7 @@ export default function SignUpScreen() {
     handleSubmit,
     watch,
     setError,
+    setValue,
     clearErrors,
     formState: { errors, isValid },
   } = useForm<SignUpInput>({
@@ -85,6 +87,9 @@ export default function SignUpScreen() {
   // deviner après coup à partir d'une violation de contrainte.
   const { data: usernameFree } = useUsernameAvailability(usernameValue);
   const usernameTaken = usernameFree === false && !errors.username;
+  // Pseudo pris → on propose des alternatives DISPONIBLES (base + numéro),
+  // cliquables pour remplir le champ. N'interroge le réseau que si c'est pris.
+  const { data: usernameSuggestions = [] } = useUsernameSuggestions(usernameValue, usernameTaken);
 
   const avatarPreviewUri = avatar.photo?.uri ?? avatar.generatedUrl;
 
@@ -289,6 +294,37 @@ export default function SignUpScreen() {
                   />
                 )}
               />
+
+              {/* Pseudo déjà pris → alternatives disponibles, cliquables pour
+                  remplir le champ (retour Romain : proposer une variante plutôt
+                  que de laisser le joueur en inventer une à l'aveugle). */}
+              {usernameTaken && usernameSuggestions.length > 0 ? (
+                <View className="mt-2.5">
+                  <Text className="mb-1.5 font-body text-[11.5px] text-cream-dim">
+                    Pseudos disponibles :
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {usernameSuggestions.map((s) => (
+                      <Pressable
+                        key={s}
+                        testID="username-suggestion"
+                        onPress={() => {
+                          setValue("username", s, { shouldValidate: true, shouldDirty: true });
+                          clearErrors("username");
+                        }}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Choisir le pseudo ${s}`}
+                        className="flex-row items-center gap-1 rounded-full px-3 py-1.5 active:opacity-80"
+                        style={{ backgroundColor: colors.coralSoft }}
+                      >
+                        <AtSign size={12} color={colors.coral} strokeWidth={2.4} />
+                        <Text className="font-body-bold text-[12.5px] text-coral">{s}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
             </Reveal>
 
             <Reveal delay={180}>
