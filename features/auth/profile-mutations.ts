@@ -66,7 +66,10 @@ export function useUpdateProfile() {
       const userId = userData.user?.id;
       if (!userId) throw new Error("Aucun utilisateur connecté.");
 
-      let avatarUrl: string | null = args.generatedAvatarUrl ?? null;
+      // `undefined` (et non `null`) : les params RPC à défaut NULL sont typés
+      // `string | undefined` (gen types) → on omet plutôt que d'envoyer null explicite
+      // (même effet côté SQL : la valeur par défaut NULL s'applique).
+      let avatarUrl: string | undefined = args.generatedAvatarUrl ?? undefined;
 
       if (args.avatarBase64) {
         const mime = args.avatarMimeType ?? "image/jpeg";
@@ -88,15 +91,15 @@ export function useUpdateProfile() {
       }
 
       const { data, error } = await supabase.rpc("upsert_my_profile", {
-        p_first_name: args.firstName ?? null,
-        p_last_name: args.lastName ?? null,
-        p_username: args.username ?? null,
+        p_first_name: args.firstName ?? undefined,
+        p_last_name: args.lastName ?? undefined,
+        p_username: args.username ?? undefined,
         p_avatar_url: avatarUrl,
-        p_avatar_color: args.avatarColor ?? null,
-        p_avatar_icon: args.avatarIcon ?? null,
+        p_avatar_color: args.avatarColor ?? undefined,
+        p_avatar_icon: args.avatarIcon ?? undefined,
         p_clear_avatar_url: args.clearAvatarImage ?? false,
         p_clear_avatar_icon: args.clearAvatarIcon ?? false,
-        p_is_searchable: args.isSearchable ?? null,
+        p_is_searchable: args.isSearchable ?? undefined,
       });
 
       if (error) {

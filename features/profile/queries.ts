@@ -6,10 +6,32 @@ import type { Database } from "@/types/database.types";
 
 export type ProfileStats = {
   sessionsDone: number;
-  streakWeeks: number;
+  /** Meilleure série EN COURS (max des défis actifs). */
+  bestCurrentStreak: number;
+  /** Record historique de série (tous défis). */
+  recordStreak: number;
   targetRate: number;
   penaltiesPaid: number;
+  penaltiesDue: number;
+  penaltiesAvoided: number;
+  challengesFinished: number;
+  challengesWon: number;
+  challengesPlayed: number;
   groupsCount: number;
+};
+
+type ProfileStatsRow = {
+  sessions_done: number | null;
+  best_current_streak: number | null;
+  record_streak: number | null;
+  target_rate: number | null;
+  penalties_paid: number | null;
+  penalties_due: number | null;
+  penalties_avoided: number | null;
+  challenges_finished: number | null;
+  challenges_won: number | null;
+  challenges_played: number | null;
+  groups_count: number | null;
 };
 
 export type ProfileGroup = {
@@ -24,9 +46,15 @@ export type ProfileGroup = {
 
 const EMPTY_STATS: ProfileStats = {
   sessionsDone: 0,
-  streakWeeks: 0,
+  bestCurrentStreak: 0,
+  recordStreak: 0,
   targetRate: 0,
   penaltiesPaid: 0,
+  penaltiesDue: 0,
+  penaltiesAvoided: 0,
+  challengesFinished: 0,
+  challengesWon: 0,
+  challengesPlayed: 0,
   groupsCount: 0,
 };
 
@@ -44,13 +72,19 @@ export function useProfileStats() {
     queryFn: async (): Promise<ProfileStats> => {
       const { data, error } = await supabase.rpc("get_my_profile_stats");
       if (error) return EMPTY_STATS;
-      const row = (data ?? [])[0];
+      const row = ((data ?? []) as unknown as ProfileStatsRow[])[0];
       if (!row) return EMPTY_STATS;
       return {
         sessionsDone: row.sessions_done ?? 0,
-        streakWeeks: row.streak_weeks ?? 0,
+        bestCurrentStreak: row.best_current_streak ?? 0,
+        recordStreak: row.record_streak ?? 0,
         targetRate: row.target_rate ?? 0,
         penaltiesPaid: Number(row.penalties_paid ?? 0),
+        penaltiesDue: Number(row.penalties_due ?? 0),
+        penaltiesAvoided: Number(row.penalties_avoided ?? 0),
+        challengesFinished: row.challenges_finished ?? 0,
+        challengesWon: row.challenges_won ?? 0,
+        challengesPlayed: row.challenges_played ?? 0,
         groupsCount: row.groups_count ?? 0,
       };
     },

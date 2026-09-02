@@ -2,18 +2,25 @@ import { useRouter } from "expo-router";
 import {
   Activity,
   Bell,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   CircleDollarSign,
+  Flag,
   Flame,
   LogOut,
+  Medal,
   Moon,
   Pencil,
   Settings,
+  ShieldCheck,
   Sun,
   SunMoon,
   Target,
   Trash2,
+  Trophy,
 } from "lucide-react-native";
+import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Switch, Text, View } from "react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
@@ -157,6 +164,8 @@ export default function ProfileScreen() {
   const { alert, confirm, toast } = useFeedback();
   const { pref, setPref } = useThemeStore();
   const unread = useUnreadCount();
+  // Stats : on n'affiche que les 4 essentielles ; « Voir plus » révèle les 4 autres.
+  const [showAllStats, setShowAllStats] = useState(false);
   // Les onglets restent montés : sans ce compteur, les nombres ne grimperaient
   // qu’à la toute première visite de l’écran.
   const replay = useFocusReplay();
@@ -320,7 +329,10 @@ export default function ProfileScreen() {
         </Reveal>
 
         {/* Stats */}
-        <SectionHead title="Mes stats" meta="depuis le début" />
+        <SectionHead
+          title="Mes stats"
+          meta={`${stats?.challengesPlayed ?? 0} défi${(stats?.challengesPlayed ?? 0) > 1 ? "s" : ""} au total`}
+        />
         <Reveal delay={140}>
           <View className="gap-2.5">
             <View className="flex-row gap-2.5">
@@ -337,14 +349,24 @@ export default function ProfileScreen() {
                 icon={Flame}
                 tint={colors.amber}
                 soft={colors.amberSoft}
-                value={stats?.streakWeeks ?? 0}
+                value={stats?.bestCurrentStreak ?? 0}
                 suffix=" sem."
-                caption="série en cours"
+                caption="meilleure série en cours"
                 delay={90}
                 replay={replay}
               />
             </View>
             <View className="flex-row gap-2.5">
+              <StatCard
+                icon={Trophy}
+                tint={colors.amber}
+                soft={colors.amberSoft}
+                value={stats?.recordStreak ?? 0}
+                suffix=" sem."
+                caption="record de série"
+                delay={150}
+                replay={replay}
+              />
               <StatCard
                 icon={Target}
                 tint={colors.mint}
@@ -352,22 +374,75 @@ export default function ProfileScreen() {
                 value={stats?.targetRate ?? 0}
                 suffix=" %"
                 caption="objectifs atteints"
-                delay={180}
-                replay={replay}
-              />
-              <StatCard
-                icon={CircleDollarSign}
-                tint={colors.coral}
-                soft={colors.coralSoft}
-                // Les centimes n'apportent rien ici, et un compteur animé sur des
-                // décimales est illisible.
-                value={Math.round(stats?.penaltiesPaid ?? 0)}
-                suffix=" €"
-                caption="versés en pénalités"
-                delay={270}
+                delay={210}
                 replay={replay}
               />
             </View>
+            {showAllStats ? (
+              <>
+                <View className="flex-row gap-2.5">
+                  <StatCard
+                    icon={CircleDollarSign}
+                    tint={colors.coral}
+                    soft={colors.coralSoft}
+                    // Les centimes n'apportent rien ici, et un compteur animé sur des
+                    // décimales est illisible.
+                    value={Math.round(stats?.penaltiesPaid ?? 0)}
+                    suffix=" €"
+                    caption="versés en pénalités"
+                    delay={0}
+                    replay={replay}
+                  />
+                  <StatCard
+                    icon={ShieldCheck}
+                    tint={colors.mint}
+                    soft={colors.mintSoft}
+                    value={Math.round(stats?.penaltiesAvoided ?? 0)}
+                    suffix=" €"
+                    caption="pénalités évitées"
+                    delay={60}
+                    replay={replay}
+                  />
+                </View>
+                <View className="flex-row gap-2.5">
+                  <StatCard
+                    icon={Flag}
+                    tint={colors.coral}
+                    soft={colors.coralSoft}
+                    value={stats?.challengesFinished ?? 0}
+                    caption="défis terminés"
+                    delay={120}
+                    replay={replay}
+                  />
+                  <StatCard
+                    icon={Medal}
+                    tint={colors.amber}
+                    soft={colors.amberSoft}
+                    value={stats?.challengesWon ?? 0}
+                    caption="défis remportés"
+                    delay={180}
+                    replay={replay}
+                  />
+                </View>
+              </>
+            ) : null}
+
+            {/* Voir plus / Fermer — révèle les 4 stats secondaires. */}
+            <Pressable
+              onPress={() => setShowAllStats((v) => !v)}
+              accessibilityRole="button"
+              className="mt-0.5 flex-row items-center justify-center gap-1.5 rounded-[14px] border py-2.5 active:opacity-80"
+              style={{ backgroundColor: colors.surface, borderColor: colors.line2 }}
+            >
+              <Text className="font-body-semibold text-[12.5px] text-cream-dim">
+                {showAllStats ? "Fermer" : "Voir plus"}
+              </Text>
+              {showAllStats ? (
+                <ChevronUp size={15} color={colors.creamDim} strokeWidth={2.2} />
+              ) : (
+                <ChevronDown size={15} color={colors.creamDim} strokeWidth={2.2} />
+              )}
+            </Pressable>
           </View>
         </Reveal>
 
@@ -381,7 +456,7 @@ export default function ProfileScreen() {
                 style={{ backgroundColor: colors.surface, borderColor: colors.line }}
               >
                 <Text className="font-body text-[13px] text-cream-dim">
-                  Tu ne fais partie d'aucun groupe pour l'instant.
+                  Tu ne fais partie d&apos;aucun groupe pour l&apos;instant.
                 </Text>
               </View>
             ) : null}
@@ -456,6 +531,22 @@ export default function ProfileScreen() {
                 </Pressable>
               );
             })}
+          </View>
+        </Reveal>
+
+        {/* Récompenses */}
+        <SectionHead title="Récompenses" />
+        <Reveal delay={230}>
+          <View
+            className="overflow-hidden rounded-card border"
+            style={{ backgroundColor: colors.surface, borderColor: colors.line }}
+          >
+            <SettingRow
+              icon={Trophy}
+              label="Mes trophées"
+              onPress={() => router.push("/trophies")}
+              last
+            />
           </View>
         </Reveal>
 

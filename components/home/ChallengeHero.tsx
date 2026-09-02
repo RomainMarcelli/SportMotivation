@@ -1,4 +1,4 @@
-import { ArrowRight, Trophy } from "lucide-react-native";
+import { ArrowRight, Flame, Trophy } from "lucide-react-native";
 import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import Animated, {
@@ -149,7 +149,45 @@ type Props = {
   showMembers?: boolean;
   /** Change de valeur à chaque arrivée sur l'écran → rejoue les animations. */
   replay: number;
+  /** Série (streak) de ce défi — bandeau discret sous l'anneau. Nul = pas de série. */
+  streak?: { currentStreak: number; currentWeekCompleted: boolean; remainingSessions: number } | null;
 };
+
+/**
+ * Bandeau « série » discret (DA existante) : flamme ambre + nombre de semaines, et
+ * une ligne d'état (objectif atteint / séances restantes pour la conserver).
+ */
+function StreakBanner({
+  currentStreak,
+  currentWeekCompleted,
+  remainingSessions,
+}: {
+  currentStreak: number;
+  currentWeekCompleted: boolean;
+  remainingSessions: number;
+}) {
+  return (
+    <View
+      className="mt-3 flex-row items-center gap-3 rounded-[14px] border px-3.5 py-2.5"
+      style={{ backgroundColor: colors.amberSoft, borderColor: "rgba(255,178,62,0.28)" }}
+    >
+      <Flame size={19} color={colors.amber} strokeWidth={2.2} />
+      <View className="flex-1">
+        <Text className="font-display text-[14px] tracking-tight text-cream">
+          Série de {currentStreak} semaine{currentStreak > 1 ? "s" : ""}
+        </Text>
+        <Text
+          className="mt-0.5 font-body text-[11px]"
+          style={{ color: currentWeekCompleted ? colors.mint : colors.creamDim }}
+        >
+          {currentWeekCompleted
+            ? "Objectif de la semaine atteint"
+            : `Encore ${remainingSessions} séance${remainingSessions > 1 ? "s" : ""} pour la conserver`}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 /**
  * Hero « défi en cours » de l'accueil (maquette `sport-motiv-accueil.html`) :
@@ -167,6 +205,7 @@ export function ChallengeHero({
   showPot = true,
   showMembers = true,
   replay,
+  streak,
 }: Props) {
   const shown = members.slice(0, 3);
   const extra = members.length - shown.length;
@@ -246,33 +285,44 @@ export function ChallengeHero({
           </View>
         </View>
       ) : (
-        <View className="mt-3 flex-row items-center gap-4">
-          <ProgressRing stats={stats} replay={replay} />
-          <View className="flex-1">
-            <Text className="font-body-bold text-[10px] tracking-eyebrow text-cream-dim">
-              CETTE SEMAINE
-            </Text>
-            <Text className="mt-1.5 font-display text-[16px] tracking-tight text-cream">
-              Objectif : {stats.target} séance{stats.target > 1 ? "s" : ""}
-            </Text>
-            <View className="mt-2 flex-row items-center gap-1.5">
-              <ArrowRight size={14} color={stats.remaining === 0 ? colors.mint : colors.coral} />
-              <Text
-                className="flex-1 font-body-bold text-[13px]"
-                style={{ color: stats.remaining === 0 ? colors.mint : colors.coral }}
-              >
-                {stats.remaining === 0
-                  ? "Objectif atteint"
-                  : `Encore ${stats.remaining} pour valider`}
+        <>
+          <View className="mt-3 flex-row items-center gap-4">
+            <ProgressRing stats={stats} replay={replay} />
+            <View className="flex-1">
+              <Text className="font-body-bold text-[10px] tracking-eyebrow text-cream-dim">
+                CETTE SEMAINE
               </Text>
+              <Text className="mt-1.5 font-display text-[16px] tracking-tight text-cream">
+                Objectif : {stats.target} séance{stats.target > 1 ? "s" : ""}
+              </Text>
+              <View className="mt-2 flex-row items-center gap-1.5">
+                <ArrowRight size={14} color={stats.remaining === 0 ? colors.mint : colors.coral} />
+                <Text
+                  className="flex-1 font-body-bold text-[13px]"
+                  style={{ color: stats.remaining === 0 ? colors.mint : colors.coral }}
+                >
+                  {stats.remaining === 0
+                    ? "Objectif atteint"
+                    : `Encore ${stats.remaining} pour valider`}
+                </Text>
+              </View>
+              {stats.pending > 0 ? (
+                <Text className="mt-1.5 font-body text-[11.5px] text-cream-dim">
+                  {stats.pending} en attente de vote
+                </Text>
+              ) : null}
             </View>
-            {stats.pending > 0 ? (
-              <Text className="mt-1.5 font-body text-[11.5px] text-cream-dim">
-                {stats.pending} en attente de vote
-              </Text>
-            ) : null}
           </View>
-        </View>
+
+          {/* Série du défi (masquée tant qu'aucune semaine n'a été réussie). */}
+          {streak && streak.currentStreak > 0 ? (
+            <StreakBanner
+              currentStreak={streak.currentStreak}
+              currentWeekCompleted={streak.currentWeekCompleted}
+              remainingSessions={streak.remainingSessions}
+            />
+          ) : null}
+        </>
       )}
 
       {showPot || showMembers ? (

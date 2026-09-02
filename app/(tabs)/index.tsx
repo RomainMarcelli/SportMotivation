@@ -23,6 +23,7 @@ import { orderGroups } from "@/features/home/home-order";
 import { pickActiveGroup } from "@/features/groups/selectors";
 import { motivationLine, weekStats } from "@/features/home/home-stats";
 import { useGroupSessions, type SessionWithAuthor } from "@/features/sessions/queries";
+import { useGroupStreak } from "@/features/streaks/queries";
 import { useVotableSessions } from "@/features/votes/queries";
 import { colors } from "@/constants/colors";
 import { useFocusReplay } from "@/hooks/useFocusReplay";
@@ -60,6 +61,7 @@ function HeroCard({
   const { data: sessions = [] } = useGroupSessions(groupId);
   const { data: members = [] } = useGroupMembers(groupId);
   const { data: potTotal } = usePot(groupId);
+  const { data: streak } = useGroupStreak(groupId);
 
   const stats = useMemo(
     () => weekStats(sessions, meId, weekStartString(now), item.weeklyTarget),
@@ -83,6 +85,7 @@ function HeroCard({
       showPot={showPot}
       showMembers={showMembers}
       replay={replay}
+      streak={streak ?? null}
     />
   );
 }

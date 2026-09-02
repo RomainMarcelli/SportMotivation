@@ -55,10 +55,12 @@ export function useDeclareSession() {
       if (!userId) throw new Error("Utilisateur non connecté");
 
       // Pour un lien externe, la description obligatoire est stockée dans le commentaire.
+      // `undefined` (pas `null`) : `p_comment` a un défaut NULL côté RPC (typé
+      // `string | undefined`) → l'omettre revient au même.
       const comment =
         args.proofType === "external_link"
-          ? (args.externalDescription ?? args.comment ?? null)
-          : (args.comment ?? null);
+          ? (args.externalDescription ?? args.comment ?? undefined)
+          : (args.comment ?? undefined);
 
       const { data: sessionId, error: rpcError } = await supabase.rpc("declare_session", {
         p_group_id: args.groupId,
@@ -103,7 +105,7 @@ export function useDeclareSession() {
       let groups: PublishedGroup[] = [];
       const { data: published, error: publishError } = await supabase.rpc(
         "publish_session_to_my_groups",
-        { p_session_id: id, p_group_ids: args.publishGroupIds ?? null }
+        { p_session_id: id, p_group_ids: args.publishGroupIds ?? undefined }
       );
       if (publishError) {
         // La séance existe déjà dans le groupe d'origine : on ne fait pas

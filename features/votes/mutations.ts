@@ -35,7 +35,7 @@ export function useCastVote() {
       const { data, error } = await supabase.rpc("cast_vote", {
         p_session_id: args.sessionId,
         p_value: args.value,
-        p_comment: args.comment ?? null,
+        p_comment: args.comment ?? undefined,
       });
       if (error) throw error;
       return (data as unknown as VoteResult) ?? "pending_vote";

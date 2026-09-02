@@ -5,6 +5,7 @@ import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler"
 import Animated, { FadeOutRight, LinearTransition } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  Award,
   Bell,
   Check,
   CheckCheck,
@@ -18,6 +19,7 @@ import {
   Plus,
   ShieldCheck,
   SlidersHorizontal,
+  Target,
   Trash2,
   TriangleAlert,
   UserPlus,
@@ -117,6 +119,12 @@ function notifVisual(type: string): { icon: typeof Bell; color: string; soft: st
     case "session_reminder":
       // Rappel hebdo « n'oublie pas tes séances » (cron SQL 045).
       return { icon: Dumbbell, color: colors.amber, soft: colors.amberSoft };
+    case "badge_unlocked":
+      // Trophée débloqué (SQL 065).
+      return { icon: Award, color: colors.amber, soft: colors.amberSoft };
+    case "objective_reached":
+      // Objectif hebdo atteint — célébration positive (SQL 069).
+      return { icon: Target, color: colors.mint, soft: colors.mintSoft };
     default:
       return { icon: Bell, color: colors.creamDim, soft: colors.surface2 };
   }

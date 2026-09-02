@@ -52,7 +52,7 @@ import { useGroupSessions, type SessionWithAuthor } from "@/features/sessions/qu
 import { useVotableSessions } from "@/features/votes/queries";
 import { useGroupSuspensions } from "@/features/suspensions/queries";
 import { isSuspendedOn } from "@/features/suspensions/suspension";
-import { useMyWeekExcuse, useVotableExcuses } from "@/features/excuses/queries";
+import { useMyWeekExcuse } from "@/features/excuses/queries";
 import { mapLeaveError, useLeaveGroup } from "@/features/groups/leave";
 import { useDeleteGroup } from "@/features/groups/penalty-mutations";
 import { canTransferAdmin, eligibleNewAdmins, mapTransferAdminError } from "@/features/groups/admin-transfer";
@@ -93,7 +93,6 @@ export default function GroupDashboardScreen() {
   const { data: blames } = useUnsettledBlames(id);
   const { data: suspensions } = useGroupSuspensions(id);
   const { data: votable } = useVotableSessions(id, me?.id);
-  const { data: votableExcuses } = useVotableExcuses(id, me?.id);
   const { data: myExcuse } = useMyWeekExcuse(id);
   const leaveGroup = useLeaveGroup();
   const deleteGroup = useDeleteGroup(id!);
@@ -544,8 +543,6 @@ export default function GroupDashboardScreen() {
               recent={recent}
               meId={me?.id}
               onOpenSession={setOpenedSession}
-              votableCount={(votable?.length ?? 0) + (votableExcuses?.length ?? 0)}
-              onVote={goVote}
               weekLabel={weekLabel}
               canPrev={weekOffset < maxOffset}
               canNext={weekOffset > 0}
@@ -1055,8 +1052,6 @@ function SeancesPanel({
   recent,
   meId,
   onOpenSession,
-  votableCount,
-  onVote,
   weekLabel,
   canPrev,
   canNext,
@@ -1068,8 +1063,6 @@ function SeancesPanel({
   recent: SessionWithAuthor[];
   meId: string | undefined;
   onOpenSession: (session: SessionWithAuthor) => void;
-  votableCount: number;
-  onVote: () => void;
   weekLabel: string;
   canPrev: boolean;
   canNext: boolean;
@@ -1077,28 +1070,8 @@ function SeancesPanel({
   onNext: () => void;
   excuse: ExcuseRow | null;
 }) {
-  const banner =
-    votableCount > 0 ? (
-      <Pressable
-        onPress={onVote}
-        className="flex-row items-center gap-3 rounded-[16px] border p-3.5 active:opacity-80"
-        style={{ backgroundColor: colors.coralSoft, borderColor: "rgba(255,106,69,0.4)" }}
-      >
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface">
-          <Vote size={20} color={colors.coral} />
-        </View>
-        <View className="flex-1">
-          <Text className="font-display text-[15px] tracking-tight text-cream">
-            {votableCount} à valider
-          </Text>
-          <Text className="mt-0.5 font-body text-[11.5px] text-cream-dim">
-            Séances et excuses · donne ton vote
-          </Text>
-        </View>
-        <ChevronRight size={20} color={colors.coral} />
-      </Pressable>
-    ) : null;
-
+  // Le bandeau « à valider » a été retiré d'ici : l'onglet dédié « À voter » est le
+  // seul point d'entrée du vote (évite le doublon dans l'onglet Séances).
   const weekNav = (
     <WeekNav label={weekLabel} canPrev={canPrev} canNext={canNext} onPrev={onPrev} onNext={onNext} />
   );
@@ -1106,7 +1079,6 @@ function SeancesPanel({
   if (pending.length === 0 && recent.length === 0) {
     return (
       <View className="gap-3">
-        {banner}
         {weekNav}
         {excuse ? <ExcuseBanner excuse={excuse} /> : null}
         <View className="mt-6 items-center">
@@ -1122,7 +1094,6 @@ function SeancesPanel({
 
   return (
     <View className="gap-2.5">
-      {banner}
       {weekNav}
       {excuse ? <ExcuseBanner excuse={excuse} /> : null}
       {pending.length > 0 ? (

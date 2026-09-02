@@ -375,6 +375,28 @@ function Proof({ proof }: { proof: SessionWithAuthor["proofs"][number] | undefin
               />
             ) : null}
           </Pressable>
+
+          {/* Croix de fermeture explicite (en plus du tap n'importe où). En overlay,
+              hors du Pressable plein écran, avec sa propre zone tactile. */}
+          <Pressable
+            onPress={() => setZoom(false)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Fermer le plein écran"
+            style={{
+              position: "absolute",
+              top: 48,
+              right: 20,
+              height: 40,
+              width: 40,
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 20,
+              backgroundColor: "rgba(0,0,0,0.55)",
+            }}
+          >
+            <XIcon size={22} color={colors.cream} strokeWidth={2.4} />
+          </Pressable>
         </Modal>
       </View>
     );

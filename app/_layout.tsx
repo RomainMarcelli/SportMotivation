@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import "react-native-reanimated";
 
+import { BadgeCelebration } from "@/components/badges/BadgeCelebration";
 import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { useNotificationsRealtime } from "@/features/notifications/realtime";
@@ -132,12 +133,16 @@ function RootContent() {
               <Stack.Screen name="profile-edit" />
               <Stack.Screen name="account" />
               <Stack.Screen name="legal" />
+              {/* Écran Trophées : entête maison (back + compteur). */}
+              <Stack.Screen name="trophies" />
             </Stack.Protected>
           </Stack>
         </View>
         {isAuthenticated ? <BottomNav /> : null}
       </View>
       {isAuthenticated ? <NotificationsRealtime /> : null}
+      {/* Célébration groupée des trophées fraîchement débloqués (une seule modale). */}
+      {isAuthenticated ? <BadgeCelebration /> : null}
       <StatusBar style={isDark ? "light" : "dark"} />
     </ThemeProvider>
   );

@@ -56,7 +56,7 @@ export function useSubmitExcuse() {
         p_group_id: args.groupId,
         p_excuse_type: args.excuseType,
         p_reason: args.reason,
-        p_justification_url: justificationUrl,
+        p_justification_url: justificationUrl ?? undefined,
       });
       if (error) throw error;
       return data as unknown as string;
@@ -83,7 +83,7 @@ export function useCastExcuseVote() {
       const { data, error } = await supabase.rpc("cast_excuse_vote", {
         p_excuse_id: args.excuseId,
         p_value: args.value,
-        p_comment: args.comment ?? null,
+        p_comment: args.comment ?? undefined,
       });
       if (error) throw error;
       return (data as unknown as string) ?? "pending_vote";

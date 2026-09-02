@@ -56,7 +56,7 @@ export function useAddActivity(groupId: string) {
       const { error } = await supabase.rpc("add_group_activity", {
         p_group_id: groupId,
         p_activity: activity,
-        p_requester_id: requesterId ?? null,
+        p_requester_id: requesterId ?? undefined,
       });
       if (error) throw error;
     },
@@ -114,7 +114,7 @@ export function useRejectActivity(groupId: string) {
         p_group_id: groupId,
         p_activity: args.activity,
         p_requester_id: args.requesterId ?? "",
-        p_comment: args.comment ?? null,
+        p_comment: args.comment ?? undefined,
       });
       if (error) throw new Error(mapRequestError(error.message));
     },
@@ -133,7 +133,7 @@ export function useStartActivityVote(groupId: string) {
       const { error } = await supabase.rpc("start_activity_vote", {
         p_group_id: groupId,
         p_activity: args.activity,
-        p_requester_id: args.requesterId ?? null,
+        p_requester_id: args.requesterId ?? undefined,
       });
       if (error) throw new Error(mapRequestError(error.message));
     },

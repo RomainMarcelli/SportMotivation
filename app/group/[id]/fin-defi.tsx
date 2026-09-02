@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ChevronLeft,
   Coins,
+  Compass,
   Crown,
   Dumbbell,
   Flame,
@@ -301,8 +302,35 @@ export default function FinDefiScreen() {
             </View>
           </Reveal>
 
+          {/* Découvrir des activités (Phase 7) — prolonger l'aventure hors ligne. */}
+          <Reveal delay={450}>
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: "/group/[id]/activites", params: { id: id! } } as never)
+              }
+              className="flex-row items-center gap-3 overflow-hidden rounded-[18px] border p-4 active:opacity-90"
+              style={{ backgroundColor: colors.surface, borderColor: colors.line2 }}
+            >
+              <View
+                className="h-11 w-11 items-center justify-center rounded-[13px]"
+                style={{ backgroundColor: colors.coralSoft }}
+              >
+                <Compass size={22} color={colors.coral} strokeWidth={2} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-display text-[15px] tracking-tight text-cream">
+                  Découvrir des activités
+                </Text>
+                <Text className="mt-0.5 font-body text-[12px] text-cream-dim">
+                  Des idées de sorties pour fêter la fin du défi ensemble.
+                </Text>
+              </View>
+              <ChevronLeft size={20} color={colors.creamDim} style={{ transform: [{ rotate: "180deg" }] }} />
+            </Pressable>
+          </Reveal>
+
           {/* Relancer / partager */}
-          <Reveal delay={480} className="mt-1 gap-3">
+          <Reveal delay={520} className="mt-1 gap-3">
             <GradientButton icon={RotateCcw} onPress={() => router.push("/group/create" as never)}>
               Relancer un défi
             </GradientButton>

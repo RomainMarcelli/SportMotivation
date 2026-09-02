@@ -30,6 +30,7 @@ export default function GroupDetailLayout() {
       <Stack.Screen name="cagnotte" options={{ headerShown: false }} />
       {/* Fin de défi : bilan + clôture (headers custom, maquettes) */}
       <Stack.Screen name="fin-defi" options={{ headerShown: false }} />
+      <Stack.Screen name="activites" options={{ title: "Découvrir des activités" }} />
       <Stack.Screen name="cloture" options={{ headerShown: false }} />
     </Stack>
   );

@@ -14,86 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
-      activity_proposals: {
-        Row: {
-          id: string
-          group_id: string
-          activity: string
-          requested_by: string | null
-          started_by: string
-          status: string
-          created_at: string
-          resolved_at: string | null
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          activity: string
-          requested_by?: string | null
-          started_by: string
-          status?: string
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          activity?: string
-          requested_by?: string | null
-          started_by?: string
-          status?: string
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Relationships: []
-      }
       activity_proposal_votes: {
         Row: {
-          proposal_id: string
-          voter_id: string
-          value: boolean
           created_at: string
-        }
-        Insert: {
           proposal_id: string
-          voter_id: string
           value: boolean
-          created_at?: string
-        }
-        Update: {
-          proposal_id?: string
-          voter_id?: string
-          value?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
-      session_day_grants: {
-        Row: {
-          group_id: string
-          user_id: string
-          day: string
-          extra: number
-          granted_by: string | null
-          updated_at: string
+          voter_id: string
         }
         Insert: {
-          group_id: string
-          user_id: string
-          day: string
-          extra?: number
-          granted_by?: string | null
-          updated_at?: string
+          created_at?: string
+          proposal_id: string
+          value: boolean
+          voter_id: string
         }
         Update: {
-          group_id?: string
-          user_id?: string
-          day?: string
-          extra?: number
-          granted_by?: string | null
-          updated_at?: string
+          created_at?: string
+          proposal_id?: string
+          value?: boolean
+          voter_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_proposal_votes_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "activity_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_proposal_votes_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_proposals: {
+        Row: {
+          activity: string
+          created_at: string
+          group_id: string
+          id: string
+          requested_by: string | null
+          resolved_at: string | null
+          started_by: string
+          status: string
+        }
+        Insert: {
+          activity: string
+          created_at?: string
+          group_id: string
+          id?: string
+          requested_by?: string | null
+          resolved_at?: string | null
+          started_by: string
+          status?: string
+        }
+        Update: {
+          activity?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          requested_by?: string | null
+          resolved_at?: string | null
+          started_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_proposals_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_proposals_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_proposals_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       blames: {
         Row: {
@@ -137,6 +147,45 @@ export type Database = {
           },
           {
             foreignKeyName: "blames_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_champions: {
+        Row: {
+          created_at: string
+          group_id: string
+          rate: number | null
+          user_id: string
+          validated: number | null
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          rate?: number | null
+          user_id: string
+          validated?: number | null
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          rate?: number | null
+          user_id?: string
+          validated?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_champions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_champions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -198,34 +247,54 @@ export type Database = {
           },
         ]
       }
-      jokers: {
+      group_invitations: {
         Row: {
           created_at: string
           group_id: string
           id: string
-          month_start: string
-          user_id: string
+          invited_by: string
+          invited_user_id: string
+          resolved_at: string | null
+          status: string
         }
         Insert: {
           created_at?: string
           group_id: string
           id?: string
-          month_start: string
-          user_id: string
+          invited_by: string
+          invited_user_id: string
+          resolved_at?: string | null
+          status?: string
         }
         Update: {
           created_at?: string
           group_id?: string
           id?: string
-          month_start?: string
-          user_id?: string
+          invited_by?: string
+          invited_user_id?: string
+          resolved_at?: string | null
+          status?: string
         }
         Relationships: [
           {
-            foreignKeyName: "jokers_group_id_fkey"
+            foreignKeyName: "group_invitations_group_id_fkey"
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_invited_user_id_fkey"
+            columns: ["invited_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -281,75 +350,10 @@ export type Database = {
           },
         ]
       }
-      group_invitations: {
-        Row: {
-          id: string
-          group_id: string
-          invited_user_id: string
-          invited_by: string
-          status: string
-          created_at: string
-          resolved_at: string | null
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          invited_user_id: string
-          invited_by: string
-          status?: string
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          invited_user_id?: string
-          invited_by?: string
-          status?: string
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Relationships: []
-      }
-      member_penalty_changes: {
-        Row: {
-          id: string
-          group_id: string
-          group_member_id: string
-          old_amount: number | null
-          new_amount: number
-          status: string
-          requested_by: string
-          created_at: string
-          resolved_at: string | null
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          group_member_id: string
-          old_amount?: number | null
-          new_amount: number
-          status?: string
-          requested_by: string
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          group_member_id?: string
-          old_amount?: number | null
-          new_amount?: number
-          status?: string
-          requested_by?: string
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Relationships: []
-      }
       groups: {
         Row: {
           accepted_activities: Json
+          badges_finalized_at: string | null
           blame_threshold: number
           challenge_end: string
           challenge_start: string
@@ -357,7 +361,11 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          interests: Json
           invite_code: string
+          location_label: string | null
+          location_lat: number | null
+          location_lng: number | null
           max_excuses: number | null
           max_members: number
           max_sessions_per_day: number | null
@@ -372,6 +380,7 @@ export type Database = {
         }
         Insert: {
           accepted_activities?: Json
+          badges_finalized_at?: string | null
           blame_threshold?: number
           challenge_end: string
           challenge_start: string
@@ -379,7 +388,11 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          interests?: Json
           invite_code: string
+          location_label?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
           max_excuses?: number | null
           max_members?: number
           max_sessions_per_day?: number | null
@@ -394,6 +407,7 @@ export type Database = {
         }
         Update: {
           accepted_activities?: Json
+          badges_finalized_at?: string | null
           blame_threshold?: number
           challenge_end?: string
           challenge_start?: string
@@ -401,7 +415,11 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          interests?: Json
           invite_code?: string
+          location_label?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
           max_excuses?: number | null
           max_members?: number
           max_sessions_per_day?: number | null
@@ -418,6 +436,211 @@ export type Database = {
           {
             foreignKeyName: "groups_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jokers: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          group_id: string
+          id: string
+          month_start: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          month_start: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          month_start?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jokers_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jokers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_group_progress: {
+        Row: {
+          best_streak: number
+          current_streak: number
+          group_id: string
+          last_processed_week: string | null
+          last_success_week: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          best_streak?: number
+          current_streak?: number
+          group_id: string
+          last_processed_week?: string | null
+          last_success_week?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          best_streak?: number
+          current_streak?: number
+          group_id?: string
+          last_processed_week?: string | null
+          last_success_week?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_group_progress_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_group_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_penalty_changes: {
+        Row: {
+          created_at: string
+          group_id: string
+          group_member_id: string
+          id: string
+          new_amount: number
+          old_amount: number | null
+          requested_by: string
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          group_member_id: string
+          id?: string
+          new_amount: number
+          old_amount?: number | null
+          requested_by: string
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          group_member_id?: string
+          id?: string
+          new_amount?: number
+          old_amount?: number | null
+          requested_by?: string
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_penalty_changes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_penalty_changes_group_member_id_fkey"
+            columns: ["group_member_id"]
+            isOneToOne: false
+            referencedRelation: "group_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_penalty_changes_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_weekly_outcomes: {
+        Row: {
+          effective_target: number
+          finalized_at: string
+          group_id: string
+          initial_target: number
+          joker_used: boolean
+          major_excuse: boolean
+          neutral_reason: string | null
+          standard_excuses: number
+          status: string
+          user_id: string
+          validated_sessions: number
+          week_start: string
+        }
+        Insert: {
+          effective_target: number
+          finalized_at?: string
+          group_id: string
+          initial_target: number
+          joker_used?: boolean
+          major_excuse?: boolean
+          neutral_reason?: string | null
+          standard_excuses?: number
+          status: string
+          user_id: string
+          validated_sessions: number
+          week_start: string
+        }
+        Update: {
+          effective_target?: number
+          finalized_at?: string
+          group_id?: string
+          initial_target?: number
+          joker_used?: boolean
+          major_excuse?: boolean
+          neutral_reason?: string | null
+          standard_excuses?: number
+          status?: string
+          user_id?: string
+          validated_sessions?: number
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_weekly_outcomes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_weekly_outcomes_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -680,6 +903,55 @@ export type Database = {
           },
         ]
       }
+      session_day_grants: {
+        Row: {
+          day: string
+          extra: number
+          granted_by: string | null
+          group_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          day: string
+          extra?: number
+          granted_by?: string | null
+          group_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          day?: string
+          extra?: number
+          granted_by?: string | null
+          group_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_day_grants_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_day_grants_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_day_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_proofs: {
         Row: {
           captured_at: string | null
@@ -787,6 +1059,128 @@ export type Database = {
           },
         ]
       }
+      suspensions: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_comment: string | null
+          end_date: string
+          group_id: string
+          id: string
+          origin: string
+          reason: string | null
+          requested_by: string | null
+          start_date: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_comment?: string | null
+          end_date: string
+          group_id: string
+          id?: string
+          origin: string
+          reason?: string | null
+          requested_by?: string | null
+          start_date: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_comment?: string | null
+          end_date?: string
+          group_id?: string
+          id?: string
+          origin?: string
+          reason?: string | null
+          requested_by?: string | null
+          start_date?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suspensions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspensions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspensions_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspensions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_badges: {
+        Row: {
+          badge_key: string
+          group_id: string | null
+          id: string
+          metadata: Json
+          seen_at: string | null
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_key: string
+          group_id?: string | null
+          id?: string
+          metadata?: Json
+          seen_at?: string | null
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_key?: string
+          group_id?: string | null
+          id?: string
+          metadata?: Json
+          seen_at?: string | null
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           avatar_color: string | null
@@ -797,10 +1191,9 @@ export type Database = {
           expo_push_token: string | null
           first_name: string | null
           id: string
+          is_searchable: boolean
           last_name: string | null
           notification_prefs: Json
-          /** FALSE = profil privé : invisible dans la recherche par pseudo (cf. 039). */
-          is_searchable: boolean
           updated_at: string
           username: string | null
         }
@@ -813,9 +1206,9 @@ export type Database = {
           expo_push_token?: string | null
           first_name?: string | null
           id: string
+          is_searchable?: boolean
           last_name?: string | null
           notification_prefs?: Json
-          is_searchable?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -828,9 +1221,9 @@ export type Database = {
           expo_push_token?: string | null
           first_name?: string | null
           id?: string
+          is_searchable?: boolean
           last_name?: string | null
           notification_prefs?: Json
-          is_searchable?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -884,6 +1277,32 @@ export type Database = {
             columns: ["voter_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_closures: {
+        Row: {
+          closed_at: string
+          group_id: string
+          week_start: string
+        }
+        Insert: {
+          closed_at?: string
+          group_id: string
+          week_start: string
+        }
+        Update: {
+          closed_at?: string
+          group_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_closures_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
             referencedColumns: ["id"]
           },
         ]
@@ -988,6 +1407,187 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invitation: {
+        Args: {
+          p_invitation_id: string
+          p_penalty_amount?: number
+          p_weekly_target: number
+        }
+        Returns: string
+      }
+      add_group_activity: {
+        Args: {
+          p_activity: string
+          p_group_id: string
+          p_requester_id?: string
+        }
+        Returns: Json
+      }
+      admin_suspend_member: {
+        Args: {
+          p_end: string
+          p_group_id: string
+          p_reason?: string
+          p_start: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      apply_session_blames: { Args: { p_session_id: string }; Returns: number }
+      award_progress_badges: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      award_session_badges: { Args: { p_user_id: string }; Returns: undefined }
+      award_streak_badges: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      backfill_weekly_outcomes: {
+        Args: { p_group_id?: string }
+        Returns: number
+      }
+      cancel_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: undefined
+      }
+      cancel_suspension: {
+        Args: { p_suspension_id: string }
+        Returns: undefined
+      }
+      cast_activity_vote: {
+        Args: { p_proposal_id: string; p_value: boolean }
+        Returns: string
+      }
+      cast_excuse_vote: {
+        Args: { p_comment?: string; p_excuse_id: string; p_value: boolean }
+        Returns: string
+      }
+      cast_vote: {
+        Args: { p_comment?: string; p_session_id: string; p_value: boolean }
+        Returns: string
+      }
+      celebrate_weekly_objective: {
+        Args: { p_group_id: string; p_user_id: string; p_week_start: string }
+        Returns: undefined
+      }
+      complete_expired_challenges: { Args: never; Returns: number }
+      daily_session_allowance: {
+        Args: { p_day: string; p_group_id: string; p_user_id: string }
+        Returns: number
+      }
+      decide_suspension: {
+        Args: { p_accept: boolean; p_comment?: string; p_suspension_id: string }
+        Returns: string
+      }
+      declare_session: {
+        Args: {
+          p_activity_type: string
+          p_comment?: string
+          p_duration_min: number
+          p_group_id: string
+          p_performed_at: string
+        }
+        Returns: string
+      }
+      delete_account_internal: {
+        Args: { p_delete_auth?: boolean; p_user_id: string }
+        Returns: string
+      }
+      delete_group: { Args: { p_group_id: string }; Returns: undefined }
+      delete_my_account: { Args: never; Returns: string }
+      dev_reset_excuse_joker: { Args: { p_group_id: string }; Returns: string }
+      finalize_challenge_badges: {
+        Args: { p_group_id: string }
+        Returns: undefined
+      }
+      get_group_cagnotte: {
+        Args: { p_group_id: string }
+        Returns: {
+          avatar_color: string
+          avatar_icon: string
+          avatar_url: string
+          first_name: string
+          is_paid: boolean
+          last_name: string
+          paid_amount: number
+          penalty_count: number
+          role: Database["public"]["Enums"]["member_role"]
+          total_amount: number
+          user_id: string
+          username: string
+        }[]
+      }
+      get_group_dashboard: {
+        Args: { p_group_id: string }
+        Returns: {
+          accepted_activities: Json
+          badges_finalized_at: string | null
+          blame_threshold: number
+          challenge_end: string
+          challenge_start: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          interests: Json
+          invite_code: string
+          location_label: string | null
+          location_lat: number | null
+          location_lng: number | null
+          max_excuses: number | null
+          max_members: number
+          max_sessions_per_day: number | null
+          min_duration_min: number
+          name: string
+          penalty_amount: number
+          photo_url: string | null
+          publication_deadline: Database["public"]["Enums"]["deadline_type"]
+          status: Database["public"]["Enums"]["group_status"]
+          updated_at: string
+          vote_deadline: Database["public"]["Enums"]["deadline_type"]
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "groups"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_group_invitations: {
+        Args: { p_group_id: string }
+        Returns: {
+          avatar_color: string
+          avatar_icon: string
+          avatar_url: string
+          created_at: string
+          first_name: string
+          id: string
+          invited_user_id: string
+          last_name: string
+          resolved_at: string
+          status: string
+          username: string
+        }[]
+      }
+      get_group_members: {
+        Args: { p_group_id: string }
+        Returns: {
+          avatar_color: string
+          avatar_icon: string
+          avatar_url: string
+          first_name: string
+          id: string
+          joined_at: string
+          last_name: string
+          penalty_amount: number
+          role: Database["public"]["Enums"]["member_role"]
+          target_locked: boolean
+          user_id: string
+          username: string
+          weekly_target: number
+        }[]
+      }
       get_group_preview_by_code: {
         Args: { p_code: string }
         Returns: {
@@ -1009,197 +1609,341 @@ export type Database = {
           vote_deadline: Database["public"]["Enums"]["deadline_type"]
         }[]
       }
-      cast_vote: {
-        Args: { p_session_id: string; p_value: boolean; p_comment?: string | null }
-        Returns: string
-      }
-      cast_excuse_vote: {
-        Args: { p_excuse_id: string; p_value: boolean; p_comment?: string | null }
-        Returns: string
-      }
-      submit_excuse: {
-        Args: {
-          p_group_id: string
-          p_excuse_type: Database["public"]["Enums"]["excuse_type"]
-          p_reason: string
-          p_justification_url?: string | null
-        }
-        Returns: string
-      }
-      use_joker: { Args: { p_group_id: string }; Returns: string }
-      leave_group: { Args: { p_group_id: string }; Returns: string | null }
-      transfer_admin: {
-        Args: { p_group_id: string; p_new_admin_id: string }
-        Returns: string
-      }
-      upsert_my_profile: {
-        Args: {
-          p_first_name?: string | null
-          p_last_name?: string | null
-          p_username?: string | null
-          p_avatar_url?: string | null
-          p_avatar_color?: string | null
-          p_avatar_icon?: string | null
-          p_clear_avatar_url?: boolean
-          p_clear_avatar_icon?: boolean
-          p_is_searchable?: boolean | null
-        }
-        /** v3 (039) : renvoie la ligne écrite, pour la poser directement dans le cache. */
-        Returns: Database["public"]["Tables"]["users"]["Row"]
-      }
-      /** Demande à l'admin d'ajouter un sport. `false` = rien envoyé (doublon). */
-      request_group_activity: {
-        Args: { p_group_id: string; p_activity: string }
-        Returns: boolean
-      }
-      /** L'admin ajoute le sport ; renvoie la liste complète mise à jour. */
-      add_group_activity: {
-        Args: { p_group_id: string; p_activity: string; p_requester_id?: string | null }
-        Returns: Json
-      }
-      /** Demande à l'admin de revoir une règle du défi. */
-      request_rule_change: {
-        Args: { p_group_id: string; p_rule: string }
-        Returns: boolean
-      }
-      /** L'admin refuse l'ajout d'un sport (commentaire facultatif). */
-      reject_group_activity: {
-        Args: { p_group_id: string; p_activity: string; p_requester_id: string; p_comment?: string | null }
-        Returns: undefined
-      }
-      /** L'admin ouvre un vote de groupe pour ajouter un sport. */
-      start_activity_vote: {
-        Args: { p_group_id: string; p_activity: string; p_requester_id?: string | null }
-        Returns: string
-      }
-      /** Vote oui/non sur l'ajout d'un sport ; renvoie le statut de la proposition. */
-      cast_activity_vote: {
-        Args: { p_proposal_id: string; p_value: boolean }
-        Returns: string
-      }
-      /** Le joueur demande à dépasser sa limite de séances pour un jour. */
-      request_session_limit: {
-        Args: { p_group_id: string; p_day: string }
-        Returns: boolean
-      }
-      /** L'admin accorde une séance de plus ce jour-là. */
-      grant_session_limit: {
-        Args: { p_group_id: string; p_user_id: string; p_day: string }
-        Returns: undefined
-      }
-      /** Séances déjà déclarées par un membre un jour donné (hors refusées). */
-      sessions_used_on: {
-        Args: { p_group_id: string; p_user_id: string; p_day: string }
-        Returns: number
-      }
-      /** Quota effectif du jour (règle + dérogations). NULL = illimité. */
-      daily_session_allowance: {
-        Args: { p_group_id: string; p_user_id: string; p_day: string }
-        Returns: number | null
-      }
-      /** 'deleted' (effacement réel) | 'anonymized' (argent engagé) — cf. 031. */
-      delete_my_account: { Args: Record<string, never>; Returns: string }
-      is_username_available: { Args: { p_username: string }; Returns: boolean }
-      set_notification_prefs: { Args: { p_prefs: Json }; Returns: Json }
-      publish_session_to_my_groups: {
-        Args: { p_session_id: string }
-        Returns: { group_id: string; group_name: string; session_id: string }[]
-      }
-      notify_session_declared: { Args: { p_session_id: string }; Returns: number }
-      set_my_penalty: { Args: { p_group_id: string; p_amount: number }; Returns: number }
-      notify_join_from_invitation: { Args: { p_group_id: string }; Returns: undefined }
-      get_my_profile_stats: {
-        Args: Record<string, never>
+      get_group_preview_by_id: {
+        Args: { p_group_id: string }
         Returns: {
-          sessions_done: number
-          streak_weeks: number
-          target_rate: number
-          penalties_paid: number
-          groups_count: number
+          accepted_activities: Json
+          blame_threshold: number
+          challenge_end: string
+          challenge_start: string
+          description: string
+          id: string
+          max_excuses: number
+          max_members: number
+          member_count: number
+          min_duration_min: number
+          name: string
+          penalty_amount: number
+          photo_url: string
+          publication_deadline: Database["public"]["Enums"]["deadline_type"]
+          status: Database["public"]["Enums"]["group_status"]
+          vote_deadline: Database["public"]["Enums"]["deadline_type"]
+        }[]
+      }
+      get_group_streak: {
+        Args: { p_group_id: string }
+        Returns: {
+          best_streak: number
+          current_streak: number
+          current_week_completed: boolean
+          remaining_sessions: number
+        }[]
+      }
+      get_group_suspensions: {
+        Args: { p_group_id: string }
+        Returns: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_comment: string | null
+          end_date: string
+          group_id: string
+          id: string
+          origin: string
+          reason: string | null
+          requested_by: string | null
+          start_date: string
+          status: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "suspensions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_my_groups: {
+        Args: never
+        Returns: {
+          challenge_end: string
+          challenge_start: string
+          description: string
+          group_id: string
+          max_members: number
+          member_count: number
+          membership_id: string
+          name: string
+          penalty_amount: number
+          photo_url: string
+          role: Database["public"]["Enums"]["member_role"]
+          status: Database["public"]["Enums"]["group_status"]
+          weekly_target: number
         }[]
       }
       get_my_profile_groups: {
-        Args: Record<string, never>
+        Args: never
         Returns: {
           group_id: string
+          members_count: number
           name: string
-          role: Database["public"]["Enums"]["member_role"]
-          weekly_target: number
           penalty_amount: number
           pot_total: number
-          members_count: number
+          role: Database["public"]["Enums"]["member_role"]
+          weekly_target: number
         }[]
       }
-      /** Outil de test — à supprimer avant la prod (voir 027_dev_reset_excuse_joker.sql). */
-      dev_reset_excuse_joker: { Args: { p_group_id: string }; Returns: string }
-      is_group_admin: { Args: { p_group_id: string }; Returns: boolean }
-      is_group_member: { Args: { p_group_id: string }; Returns: boolean }
-      join_group_by_code: {
-        Args: { p_code: string; p_weekly_target: number; p_penalty_amount?: number | null }
-        Returns: string
-      }
-      search_users_by_username: {
-        Args: { p_query: string }
+      get_my_profile_stats: {
+        Args: never
         Returns: {
-          id: string
-          username: string | null
-          first_name: string | null
-          last_name: string | null
-          avatar_url: string | null
-          avatar_color: string | null
-          avatar_icon: string | null
+          best_current_streak: number
+          challenges_finished: number
+          challenges_played: number
+          challenges_won: number
+          groups_count: number
+          penalties_avoided: number
+          penalties_due: number
+          penalties_paid: number
+          record_streak: number
+          sessions_done: number
+          target_rate: number
         }[]
+      }
+      get_my_trophies: { Args: never; Returns: Json }
+      get_pot_history: {
+        Args: { p_group_id: string }
+        Returns: {
+          amount: number
+          created_at: string
+          first_name: string
+          id: string
+          penalty_type: Database["public"]["Enums"]["penalty_type"]
+          user_id: string
+          username: string
+          week_start: string
+        }[]
+      }
+      grant_badge: {
+        Args: {
+          p_badge_key: string
+          p_desc: string
+          p_group_id?: string
+          p_metadata?: Json
+          p_title: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      grant_session_limit: {
+        Args: { p_day: string; p_group_id: string; p_user_id: string }
+        Returns: undefined
       }
       invite_user_to_group: {
         Args: { p_group_id: string; p_user_id: string }
         Returns: string
       }
-      get_group_preview_by_id: {
-        Args: { p_group_id: string }
-        Returns: {
-          id: string
-          name: string
-          description: string | null
-          photo_url: string | null
-          challenge_start: string
-          challenge_end: string
-          penalty_amount: number
-          accepted_activities: Json
-          min_duration_min: number
-          publication_deadline: Database["public"]["Enums"]["deadline_type"]
-          vote_deadline: Database["public"]["Enums"]["deadline_type"]
-          blame_threshold: number
-          max_excuses: number | null
-          max_members: number
-          status: Database["public"]["Enums"]["group_status"]
-          member_count: number
-        }[]
+      is_group_admin: { Args: { p_group_id: string }; Returns: boolean }
+      is_group_creator: { Args: { p_group_id: string }; Returns: boolean }
+      is_group_member: { Args: { p_group_id: string }; Returns: boolean }
+      is_suspended: {
+        Args: { p_group_id: string; p_on: string; p_user_id: string }
+        Returns: boolean
       }
-      accept_invitation: {
+      is_username_available: { Args: { p_username: string }; Returns: boolean }
+      join_group_by_code: {
         Args: {
-          p_invitation_id: string
+          p_code: string
+          p_penalty_amount?: number
           p_weekly_target: number
-          p_penalty_amount?: number | null
         }
         Returns: string
+      }
+      leave_group: { Args: { p_group_id: string }; Returns: string }
+      live_streak_for: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: number
+      }
+      mark_badges_seen: { Args: { p_keys?: string[] }; Returns: undefined }
+      notification_category: {
+        Args: { p_type: Database["public"]["Enums"]["notification_type"] }
+        Returns: string
+      }
+      notify_join_from_invitation: {
+        Args: { p_group_id: string }
+        Returns: undefined
+      }
+      notify_member_joined: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      notify_member_left: {
+        Args: { p_deleted?: boolean; p_group_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      notify_session_declared: {
+        Args: { p_session_id: string }
+        Returns: number
       }
       propose_penalty_change: {
         Args: { p_group_member_id: string; p_new_amount: number }
         Returns: string
       }
-      respond_penalty_change: {
-        Args: { p_change_id: string; p_accept: boolean }
+      publish_session_to_my_groups: {
+        Args: { p_group_ids?: string[]; p_session_id: string }
+        Returns: {
+          group_id: string
+          group_name: string
+          session_id: string
+        }[]
+      }
+      rebuild_member_group_progress: {
+        Args: { p_group_id: string; p_user_id: string }
         Returns: undefined
       }
-      declare_session: {
+      reject_group_activity: {
         Args: {
+          p_activity: string
+          p_comment?: string
           p_group_id: string
-          p_activity_type: string
-          p_duration_min: number
-          p_performed_at: string
-          p_comment?: string | null
+          p_requester_id: string
+        }
+        Returns: undefined
+      }
+      remind_unpaid_members: { Args: { p_group_id: string }; Returns: number }
+      request_group_activity: {
+        Args: { p_activity: string; p_group_id: string }
+        Returns: boolean
+      }
+      request_rule_change: {
+        Args: { p_group_id: string; p_rule: string }
+        Returns: boolean
+      }
+      request_session_limit: {
+        Args: { p_day: string; p_group_id: string }
+        Returns: boolean
+      }
+      request_suspension: {
+        Args: {
+          p_end: string
+          p_group_id: string
+          p_reason: string
+          p_start: string
         }
         Returns: string
+      }
+      resolve_group_pending_votes: {
+        Args: { p_group_id: string }
+        Returns: number
+      }
+      resolve_pending_votes: {
+        Args: { p_lookback_days?: number }
+        Returns: number
+      }
+      resolve_session: {
+        Args: { p_session_id: string }
+        Returns: Database["public"]["Enums"]["session_status"]
+      }
+      respond_penalty_change: {
+        Args: { p_accept: boolean; p_change_id: string }
+        Returns: undefined
+      }
+      run_weekly_closure: {
+        Args: { p_force?: boolean; p_week_start?: string }
+        Returns: number
+      }
+      search_users_by_username: {
+        Args: { p_query: string }
+        Returns: {
+          avatar_color: string
+          avatar_icon: string
+          avatar_url: string
+          first_name: string
+          id: string
+          last_name: string
+          username: string
+        }[]
+      }
+      send_weekly_reminders: { Args: { p_force?: boolean }; Returns: number }
+      session_effective_deadline: {
+        Args: { p_session_id: string }
+        Returns: string
+      }
+      sessions_used_on: {
+        Args: { p_day: string; p_group_id: string; p_user_id: string }
+        Returns: number
+      }
+      set_my_penalty: {
+        Args: { p_amount: number; p_group_id: string }
+        Returns: number
+      }
+      set_notification_prefs: { Args: { p_prefs: Json }; Returns: Json }
+      settle_member_pot: {
+        Args: { p_group_id: string; p_paid: boolean; p_user_id: string }
+        Returns: number
+      }
+      start_activity_vote: {
+        Args: {
+          p_activity: string
+          p_group_id: string
+          p_requester_id?: string
+        }
+        Returns: string
+      }
+      submit_excuse: {
+        Args: {
+          p_excuse_type: Database["public"]["Enums"]["excuse_type"]
+          p_group_id: string
+          p_justification_url?: string
+          p_reason: string
+        }
+        Returns: string
+      }
+      transfer_admin: {
+        Args: { p_group_id: string; p_new_admin_id: string }
+        Returns: string
+      }
+      unlock_pot: { Args: { p_group_id: string }; Returns: string }
+      upsert_my_profile: {
+        Args: {
+          p_avatar_color?: string
+          p_avatar_icon?: string
+          p_avatar_url?: string
+          p_clear_avatar_icon?: boolean
+          p_clear_avatar_url?: boolean
+          p_first_name?: string
+          p_is_searchable?: boolean
+          p_last_name?: string
+          p_username?: string
+        }
+        Returns: {
+          avatar_color: string | null
+          avatar_icon: string | null
+          avatar_url: string | null
+          created_at: string
+          email: string
+          expo_push_token: string | null
+          first_name: string | null
+          id: string
+          is_searchable: boolean
+          last_name: string | null
+          notification_prefs: Json
+          updated_at: string
+          username: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "users"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      use_joker: { Args: { p_group_id: string }; Returns: string }
+      wants_notification: {
+        Args: {
+          p_type: Database["public"]["Enums"]["notification_type"]
+          p_user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
@@ -1213,8 +1957,6 @@ export type Database = {
         | "weekly_recap"
         | "vote_pending_session"
         | "vote_pending_excuse"
-        | "excuse_accepted"
-        | "excuse_rejected"
         | "blame_received"
         | "penalty_applied"
         | "member_joined"
@@ -1224,6 +1966,8 @@ export type Database = {
         | "session_rejected"
         | "group_invitation"
         | "penalty_change_request"
+        | "excuse_accepted"
+        | "excuse_rejected"
         | "admin_transferred"
         | "member_left"
         | "activity_request"
@@ -1235,6 +1979,13 @@ export type Database = {
         | "session_limit_request"
         | "session_limit_granted"
         | "payment_reminder"
+        | "suspension_requested"
+        | "suspension_set"
+        | "suspension_accepted"
+        | "suspension_rejected"
+        | "blame_threshold_reached"
+        | "badge_unlocked"
+        | "objective_reached"
       penalty_type: "missed_session" | "blame_threshold"
       proof_type: "photo" | "strava" | "external_link"
       session_status: "pending_vote" | "validated" | "rejected" | "expired"
@@ -1380,8 +2131,6 @@ export const Constants = {
         "weekly_recap",
         "vote_pending_session",
         "vote_pending_excuse",
-        "excuse_accepted",
-        "excuse_rejected",
         "blame_received",
         "penalty_applied",
         "member_joined",
@@ -1391,6 +2140,8 @@ export const Constants = {
         "session_rejected",
         "group_invitation",
         "penalty_change_request",
+        "excuse_accepted",
+        "excuse_rejected",
         "admin_transferred",
         "member_left",
         "activity_request",
@@ -1402,6 +2153,13 @@ export const Constants = {
         "session_limit_request",
         "session_limit_granted",
         "payment_reminder",
+        "suspension_requested",
+        "suspension_set",
+        "suspension_accepted",
+        "suspension_rejected",
+        "blame_threshold_reached",
+        "badge_unlocked",
+        "objective_reached",
       ],
       penalty_type: ["missed_session", "blame_threshold"],
       proof_type: ["photo", "strava", "external_link"],
