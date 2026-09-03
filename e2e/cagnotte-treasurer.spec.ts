@@ -18,7 +18,7 @@ test.describe("Cagnotte — trésorier", () => {
     const groupId = currentGroupId(page);
     await seedCagnottePenalty(groupId, 15);
 
-    await page.goto(`/group/${groupId}/cagnotte`);
+    await page.goto(`/group/${groupId}/cagnotte`, { waitUntil: "domcontentloaded" });
     // Le membre à régler apparaît (montant 15 €).
     await expect(page.getByText(/15\s*€/).first()).toBeVisible({ timeout: 30_000 });
 

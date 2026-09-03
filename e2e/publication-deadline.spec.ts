@@ -46,7 +46,7 @@ test.describe("Assouplir le délai de publication", () => {
 
       // Bob ouvre la déclaration et choisit HIER (jour passé, dans la semaine courante
       // dès lors qu'on n'est pas lundi — garanti par le skip ci-dessus).
-      await bob.goto(`/group/${groupId}/declare`);
+      await bob.goto(`/group/${groupId}/declare`, { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("Course", { exact: true })).toBeVisible({ timeout: 30_000 });
       await setWebDate(bob, "Date", isoOffsetDays(-1));
 
@@ -59,7 +59,7 @@ test.describe("Assouplir le délai de publication", () => {
       });
 
       // Alice reçoit la demande de changement de règle (action « Modifier le défi »).
-      await alice.goto("/notifications");
+      await alice.goto("/notifications", { waitUntil: "domcontentloaded" });
       await expect(alice.getByText("Une règle à revoir ?")).toBeVisible({ timeout: 30_000 });
       await expect(alice.getByText("Modifier le défi")).toBeVisible({ timeout: 15_000 });
 

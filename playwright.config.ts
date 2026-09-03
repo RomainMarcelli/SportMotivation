@@ -20,7 +20,10 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
-  timeout: 90_000,
+  // Les parcours multi-comptes dépassent parfois 90 s lorsque Metro compile une
+  // nouvelle route en arrière-plan. Ce plafond reste borné mais évite de tuer un
+  // scénario dont l'UI continue de progresser normalement.
+  timeout: 150_000,
   expect: { timeout: 15_000 },
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
@@ -29,7 +32,9 @@ export default defineConfig({
     // Viewport mobile (~390px) : on teste ce que Romain voit en revue web.
     viewport: { width: 390, height: 844 },
     actionTimeout: 15_000,
-    navigationTimeout: 60_000,
+    // Une passe complète peut provoquer une compilation de route > 60 s, même si
+    // la même navigation à froid termine ensuite en moins de 40 s.
+    navigationTimeout: 120_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -42,9 +47,14 @@ export default defineConfig({
   webServer: {
     command: `npx expo start --web --port ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
+    // Un Metro réutilisé après plusieurs passes finit près du heap Node de 4 Go et
+    // rend les dernières navigations aléatoires. Le port est dédié : chaque passe
+    // doit donc posséder un serveur neuf, arrêté automatiquement par Playwright.
+    reuseExistingServer: false,
+    // Le bundle froid SDK 54 dépasse parfois 3 minutes sur la machine de revue.
+    timeout: 360_000,
     // CI=1 → Expo non-interactif ; BROWSER=none → n'ouvre pas de navigateur en plus.
-    env: { CI: "1", BROWSER: "none" },
+    // La suite complète monte à ~3,8 Go : garder une marge évite les GC bloquants.
+    env: { CI: "1", BROWSER: "none", NODE_OPTIONS: "--max-old-space-size=8192" },
   },
 });

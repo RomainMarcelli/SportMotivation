@@ -50,14 +50,14 @@ test.describe("Séance supplémentaire", () => {
       await seedTodaySession(groupId, bobId);
 
       // Bob tente une déclaration → le serveur refuse (DAILY_LIMIT_REACHED) → modale.
-      await bob.goto(`/group/${groupId}`);
+      await bob.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
       await declareRunSession(bob);
       await expect(bob.getByText("Limite du jour atteinte")).toBeVisible({ timeout: 20_000 });
       await bob.getByText("Demander une séance de plus").click();
       await expect(bob.getByText(/Demande envoyée à l'admin/)).toBeVisible({ timeout: 20_000 });
 
       // Alice reçoit la demande et accorde la séance depuis ses notifications.
-      await alice.goto("/notifications");
+      await alice.goto("/notifications", { waitUntil: "domcontentloaded" });
       const grantBtn = alice.getByText("Accorder une séance");
       await expect(grantBtn).toBeVisible({ timeout: 30_000 });
       await grantBtn.click();

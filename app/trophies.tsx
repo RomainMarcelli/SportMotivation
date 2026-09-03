@@ -31,7 +31,7 @@ function longDate(iso: string): string {
  */
 export default function TrophiesScreen() {
   const router = useRouter();
-  const { data, isLoading } = useTrophies();
+  const { data, isLoading, isError, refetch } = useTrophies();
 
   const views = useMemo(
     () => buildBadgeViews(data?.unlocked ?? {}, data?.ctx ?? { validatedSessions: 0, bestStreak: 0 }),
@@ -65,6 +65,18 @@ export default function TrophiesScreen() {
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator color={colors.coral} />
+          </View>
+        ) : isError ? (
+          <View className="flex-1 items-center justify-center px-[18px]">
+            <Text className="text-center font-body text-[13px] text-cream-dim">
+              Impossible de charger les trophées pour le moment.
+            </Text>
+            <Pressable
+              onPress={() => void refetch()}
+              className="mt-3 rounded-chip border border-line-2 bg-surface px-4 py-2.5 active:opacity-80"
+            >
+              <Text className="font-body-semibold text-[12px] text-cream">Réessayer</Text>
+            </Pressable>
           </View>
         ) : (
           <ScrollView

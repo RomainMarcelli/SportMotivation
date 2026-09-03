@@ -14,7 +14,7 @@ test.describe("Supprimer le défi", () => {
     await createGroup(page, uniqueGroupName());
     const groupId = currentGroupId(page);
 
-    await page.goto(`/group/${groupId}/edit`);
+    await page.goto(`/group/${groupId}/edit`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Supprimer le défi")).toBeVisible({ timeout: 30_000 });
     await page.getByText("Supprimer le défi").click();
 

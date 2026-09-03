@@ -30,17 +30,18 @@ export function GroupTabs<T extends string>({ tabs, value, onChange }: Props<T>)
   const x = useSharedValue(0);
   const w = useSharedValue(0);
 
-  const active = layouts[value];
+  const activeX = layouts[value]?.x;
+  const activeWidth = layouts[value]?.width;
   useEffect(() => {
-    if (!active) return;
+    if (activeX == null || activeWidth == null) return;
     if (reduce) {
-      x.value = active.x;
-      w.value = active.width;
+      x.value = activeX;
+      w.value = activeWidth;
       return;
     }
-    x.value = withTiming(active.x, { duration: 260, easing: Easing.out(Easing.cubic) });
-    w.value = withTiming(active.width, { duration: 260, easing: Easing.out(Easing.cubic) });
-  }, [active?.x, active?.width, reduce, x, w]);
+    x.value = withTiming(activeX, { duration: 260, easing: Easing.out(Easing.cubic) });
+    w.value = withTiming(activeWidth, { duration: 260, easing: Easing.out(Easing.cubic) });
+  }, [activeX, activeWidth, reduce, x, w]);
 
   const underlineStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }],

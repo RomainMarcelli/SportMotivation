@@ -61,10 +61,10 @@ import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { useCurrentUser } from "@/lib/auth-store";
 import { daysUntil, formatDbDate, startOfWeekMonday, toDateOnly } from "@/lib/date";
 import { formatDuration } from "@/lib/duration";
+import { groupWeeklyProgress, memberStats, type MemberStat } from "@/lib/group-stats";
 import type { Database } from "@/types/database.types";
 
 type ExcuseRow = Database["public"]["Tables"]["excuses"]["Row"];
-import { groupWeeklyProgress, memberStats, type MemberStat } from "@/lib/group-stats";
 
 function memberName(m: GroupMemberWithUser, meId: string | undefined): string {
   if (m.user.id === meId) return "Toi";

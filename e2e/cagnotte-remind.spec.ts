@@ -41,7 +41,7 @@ test.describe("Cagnotte — relance", () => {
       const bobId = await nonAdminMemberId(groupId);
       await seedCagnottePenalty(groupId, 20, bobId);
 
-      await alice.goto(`/group/${groupId}/cagnotte`);
+      await alice.goto(`/group/${groupId}/cagnotte`, { waitUntil: "domcontentloaded" });
       // Le pied de page trésorier propose la relance (badge = nb de membres à relancer).
       const relanceBtn = alice.getByText("Relancer les retardataires");
       await expect(relanceBtn).toBeVisible({ timeout: 30_000 });

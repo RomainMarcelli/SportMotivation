@@ -24,7 +24,7 @@ test.describe("Fin de défi", () => {
     await seedCagnottePenalty(groupId, 30);
     await endChallenge(groupId);
 
-    await page.goto(`/group/${groupId}/fin-defi`);
+    await page.goto(`/group/${groupId}/fin-defi`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Défi terminé")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/30\s*€/).first()).toBeVisible({ timeout: 20_000 });
 

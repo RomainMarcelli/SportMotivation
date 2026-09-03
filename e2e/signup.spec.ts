@@ -41,7 +41,7 @@ test.describe("Inscription", () => {
     //    et on retape le MÊME pseudo.
     const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const guest = await guestContext.newPage();
-    await guest.goto("/sign-up");
+    await guest.goto("/sign-up", { waitUntil: "domcontentloaded" });
     await expect(guest.getByText("Crée ton compte")).toBeVisible({ timeout: 60_000 });
     await guest.getByPlaceholder("romz").fill(u.username);
 

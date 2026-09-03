@@ -14,7 +14,7 @@ test.describe("Profil", () => {
 
     // Onglet Profil : le prénom initial (« Test ») s'affiche en gros, et le bouton
     // « Modifier le profil » sert de repère de chargement (unique sur l'écran).
-    await page.goto("/profile");
+    await page.goto("/profile", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Modifier le profil")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(user.firstName).first()).toBeVisible({ timeout: 20_000 });
 
@@ -30,7 +30,7 @@ test.describe("Profil", () => {
     await expect(page.getByText("Profil mis à jour")).toBeVisible({ timeout: 20_000 });
 
     // Persistance : on recharge l'onglet Profil → le nouveau prénom est bien là.
-    await page.goto("/profile");
+    await page.goto("/profile", { waitUntil: "domcontentloaded" });
     await expect(page.getByText(newFirstName).first()).toBeVisible({ timeout: 20_000 });
 
     await deleteCurrentAccount(page);

@@ -40,6 +40,18 @@ Les autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'index, 
 **Toutes les maquettes V3 ont désormais leur écran.**
 
 ## Notes transverses
+- **Audit stabilisation streaks/badges/stats (03/09/2026)** : audit Git en lecture seule, SQL
+  060–070, streaks/badges/stats/notifs/clôture/fin de défi, TypeScript, lint, Jest et Playwright.
+  Corrections critiques forward-only dans **071** : restaure `resolve_session` 054 écrasée par 069,
+  fermeture hebdo atomique et différée tant qu'un vote reste ouvert, dernière semaine clôturée avant
+  `completed`, badges réévalués après outcome/backfill, classement aligné sur
+  `member_weekly_outcomes`, droits `SECURITY DEFINER` resserrés. Dernière revue : aucun `+1` live pour
+  un ancien membre ; les défis déjà `completed` et `unlock_pot` ferment aussi les semaines manquantes
+  avant finalisation. **071 reste à exécuter** ; 3 tests d'abus T33–T35 et 12 tests métier dédiés
+  restent à valider après déploiement. Contrôles locaux : TypeScript et lint verts,
+  Jest **68 suites / 624 tests**, Playwright **33/35 en passe complète puis 2/2 ciblés** (les deux
+  échecs étaient des timeouts de navigation Expo avant assertion). Rapport
+  [audit-stabilisation-streaks-badges-stats.md](reports/audit-stabilisation-streaks-badges-stats.md).
 - **Audit sécurité (9g — ✅ VALIDÉ, 32/32 pgTAP au vert sur la base réelle)** : sweep RLS (diagnostic live) + socle **pgTAP** (32 tests d'abus,
   `supabase/tests/`). RLS **ON partout**, lectures OK. **Findings → corrigés `056`+`057`** : 🔴 `delete_account_internal`
   appelable par anon/authenticated (suppression de compte par UUID) ; 🔴 auto-validation séance / vote direct /
@@ -100,7 +112,9 @@ Les autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'index, 
   **toutes coupées si `prefers-reduced-motion`**. **Toutes les maquettes V3 sont faites. 527 tests /
   61 suites.** Rapport [etape-12-fin-defi-cloture.md](reports/etape-12-fin-defi-cloture.md).
 - Commits faits par Romain (jamais en automatique).
-- **SQL à jour attendu côté Supabase : jusqu'à `055_vote_eligibility_join_date.sql`**
+- **SQL exécuté côté Supabase : jusqu'à `070_group_interests_location.sql`** ; le correctif
+  **`071_stabilize_gamification.sql` est à exécuter** après revue (ne pas rejouer 060–070).
+  Historique utile des prérequis : jusqu'à `055_vote_eligibility_join_date.sql`,
   (exécuter les fichiers d'enum **avant** ceux qui les utilisent : `038` avant 039, `042` avant 043/044 ;
   `052` avant 053/054). `045` (rappel week-end), `047` (clôture hebdo), `049` (complétion des défis
   échus) et `054` (résolution des votes à l'échéance) **nécessitent l'extension `pg_cron`**. `050`

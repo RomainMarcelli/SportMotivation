@@ -25,7 +25,9 @@ export function uniqueUser(tag = "e2e"): TestUser {
 
 /** Ouvre l'écran d'inscription et attend qu'il soit prêt (bundle web lent au 1er chargement). */
 export async function gotoSignUp(page: Page) {
-  await page.goto("/sign-up");
+  // Expo Router peut garder des sous-ressources Metro ouvertes alors que le DOM est
+  // déjà interactif. Attendre `load` rend la suite complète aléatoirement bloquante.
+  await page.goto("/sign-up", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Crée ton compte")).toBeVisible({ timeout: 60_000 });
 }
 
@@ -54,7 +56,7 @@ export async function signUpAndLand(page: Page, u: TestUser) {
  * l'arrivée sur l'accueil (« Salut … »).
  */
 export async function signIn(page: Page, u: Pick<TestUser, "email" | "password">) {
-  await page.goto("/sign-in");
+  await page.goto("/sign-in", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Content de te revoir")).toBeVisible({ timeout: 60_000 });
   await page.getByPlaceholder("ton@email.com").fill(u.email);
   await page.getByPlaceholder("Ton mot de passe").fill(u.password);
@@ -67,7 +69,7 @@ export async function signIn(page: Page, u: Pick<TestUser, "email" | "password">
  * « Me déconnecter ». Attend le retour sur l'écran de connexion.
  */
 export async function signOut(page: Page) {
-  await page.goto("/settings");
+  await page.goto("/settings", { waitUntil: "domcontentloaded" });
   await page.getByText("Se déconnecter").click({ timeout: 30_000 });
   await page.getByText("Me déconnecter").click();
   // La déconnexion (async) fait quitter la zone authentifiée : on attend que
@@ -76,7 +78,7 @@ export async function signOut(page: Page) {
   // Selon l'état d'onboarding LOCAL, l'app atterrit sur /onboarding ou /sign-in :
   // on rejoint explicitement la connexion. Si on était encore connecté, le guard
   // de route redirigerait vers l'app → l'assertion échouerait (donc c'est un vrai test).
-  await page.goto("/sign-in");
+  await page.goto("/sign-in", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Content de te revoir")).toBeVisible({ timeout: 30_000 });
 }
 
@@ -90,9 +92,9 @@ export async function deleteCurrentAccount(page: Page) {
     // Marge élargie : en suite complète le serveur web ralentit et un `goto` par
     // défaut (60 s) pouvait expirer → compte de test non nettoyé. Le nettoyage est
     // best-effort (try/catch), mais autant lui laisser le temps d'aboutir.
-    await page.goto("/settings", { timeout: 90_000 });
-    await page.getByText("Supprimer définitivement").click({ timeout: 30_000 });
-    await page.getByText("Supprimer", { exact: true }).click();
+    await page.goto("/settings", { timeout: 90_000, waitUntil: "domcontentloaded" });
+    await page.getByText("Supprimer définitivement").click({ timeout: 30_000, force: true });
+    await page.getByText("Supprimer", { exact: true }).click({ force: true });
     await expect(page.getByText("Compte supprimé")).toBeVisible({ timeout: 30_000 });
     await page.getByText("Fermer").click();
   } catch (err) {

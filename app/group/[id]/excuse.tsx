@@ -15,7 +15,6 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Platform,
   Pressable,
   ScrollView,
   Text,

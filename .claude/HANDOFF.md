@@ -11,8 +11,11 @@
 > guides Strava/Google/Storage), [`maquette/V3/*.html`](../maquette/V3/) (les maquettes,
 > **source de vérité UI**).
 >
-> Dernière mise à jour : étape 18b (accueil « Ma semaine »/historique/perso, Strava, rappels week-end).
-> État SQL attendu côté Supabase : **jusqu'à `045_weekly_reminder.sql`** (`045` requiert `pg_cron`).
+> Dernière mise à jour : audit de stabilisation streaks/badges/stats du 3 septembre 2026.
+> État SQL constaté côté Supabase : **jusqu'à `070_group_interests_location.sql`**.
+> Correctif forward-only **`071_stabilize_gamification.sql` à exécuter** après revue ; ne pas rejouer 060–070.
+> Après 071, exécuter aussi `security_abuse.test.sql` (35 assertions) puis
+> `gamification_stabilization.test.sql` (12 assertions), tous deux transactionnels avec rollback.
 
 ---
 

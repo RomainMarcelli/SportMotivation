@@ -1,4 +1,8 @@
-import { pickObjectiveCelebration, type CelebrationNotif } from "../celebration";
+import {
+  pickObjectiveCelebration,
+  pickObjectiveCelebrations,
+  type CelebrationNotif,
+} from "../celebration";
 
 /** Fabrique une notification `objective_reached` (surchargée au besoin). */
 function objectiveNotif(over: Partial<CelebrationNotif> = {}): CelebrationNotif {
@@ -53,6 +57,14 @@ describe("pickObjectiveCelebration", () => {
     expect(res?.notificationId).toBe("recent");
     expect(res?.groupId).toBe("g2");
     expect(res?.streak).toBe(5);
+  });
+
+  it("regroupe plusieurs objectifs simultanés dans l'ordre reçu", () => {
+    const list = [
+      objectiveNotif({ id: "g2", data: { group_id: "g2", streak: 5 } }),
+      objectiveNotif({ id: "g1", data: { group_id: "g1", streak: 2 } }),
+    ];
+    expect(pickObjectiveCelebrations(list).map((item) => item.notificationId)).toEqual(["g2", "g1"]);
   });
 
   it("streak = 0 par défaut si la donnée est absente ou invalide", () => {

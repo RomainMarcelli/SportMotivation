@@ -36,7 +36,7 @@ test.describe("Transfert d'admin", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Alice ouvre le menu ⋮ et transfère l'admin à Bob.
-      await alice.goto(`/group/${groupId}`);
+      await alice.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
       await alice.getByLabel("Options du groupe").click();
       await alice.getByText("Changer d'admin").click();
       await expect(alice.getByText("Choisir le nouvel admin")).toBeVisible({ timeout: 15_000 });

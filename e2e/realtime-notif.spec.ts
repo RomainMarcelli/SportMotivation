@@ -35,7 +35,7 @@ test.describe("Notifications temps réel", () => {
       const code = await revealInviteCode(alice);
 
       // Alice s'installe sur l'écran Notifications (vide au départ), abonnée au Realtime.
-      await alice.goto("/notifications");
+      await alice.goto("/notifications", { waitUntil: "domcontentloaded" });
       await expect(alice.getByText("Rien pour l'instant")).toBeVisible({ timeout: 30_000 });
 
       // Bob rejoint → insère une notif « member_joined » pour l'admin Alice.

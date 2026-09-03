@@ -60,6 +60,7 @@ describe("weekOutcome — classification métier", () => {
     it("manque de 2 → le joker (qui n'annule qu'1) ne suffit pas → fail", () => {
       const r = weekOutcome({ initialTarget: 3, validated: 1, jokerAvailable: true });
       expect(r.status).toBe("fail");
+      expect(r.jokerUsed).toBe(true);
     });
 
     it("sans joker disponible, manque de 1 → fail", () => {
@@ -150,5 +151,15 @@ describe("buildGroupStreak — semaine en cours", () => {
   it("bestStreak reflète la semaine en cours si elle dépasse le record clôturé", () => {
     const r = buildGroupStreak({ closedOutcomes: history, currentWeek: { initialTarget: 3, validated: 3 } });
     expect(r.bestStreak).toBe(6);
+  });
+
+  it("n'incrémente pas deux fois une semaine courante déjà clôturée", () => {
+    const currentWeekStart = "2026-08-17";
+    const r = buildGroupStreak({
+      closedOutcomes: [...history, wk(currentWeekStart, "success")],
+      currentWeekStart,
+      currentWeek: { initialTarget: 3, validated: 3 },
+    });
+    expect(r.currentStreak).toBe(6);
   });
 });

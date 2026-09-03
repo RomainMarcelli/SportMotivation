@@ -51,6 +51,10 @@ export function useNotificationsRealtime() {
           // Une seule action, quel que soit l'événement : refetch la liste. Le
           // compteur de non-lues en dérive (useUnreadCount), donc il suit tout seul.
           queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
+          // Un `badge_unlocked` est une notification et un nouvel enregistrement
+          // `user_badges`. Rafraîchir les trophées sur le même signal permet à la
+          // célébration racine de regrouper objectif + badge dans une seule modale.
+          queryClient.invalidateQueries({ queryKey: ["trophies", userId] });
         }
       )
       .subscribe();

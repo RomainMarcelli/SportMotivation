@@ -1471,6 +1471,10 @@ export type Database = {
         Args: { p_group_id: string; p_user_id: string; p_week_start: string }
         Returns: undefined
       }
+      close_group_week: {
+        Args: { p_group_id: string; p_week_start: string }
+        Returns: number
+      }
       complete_expired_challenges: { Args: never; Returns: number }
       daily_session_allowance: {
         Args: { p_day: string; p_group_id: string; p_user_id: string }

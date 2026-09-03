@@ -35,7 +35,7 @@ export async function declareRunSession(page: Page) {
  * vote de groupe / refus de sport / temps réel.
  */
 export async function declareUnlistedSport(page: Page, groupId: string, sport: string) {
-  await page.goto(`/group/${groupId}/declare`);
+  await page.goto(`/group/${groupId}/declare`, { waitUntil: "domcontentloaded" });
   // `exact` : le chip « Autre » (le texte d'aide contient aussi « Autre »).
   await expect(page.getByText("Autre", { exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByText("Autre", { exact: true }).click();

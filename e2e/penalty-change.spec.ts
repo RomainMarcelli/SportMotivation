@@ -40,7 +40,7 @@ test.describe("Pénalité par joueur", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Alice ouvre « Modifier le défi » et propose une nouvelle pénalité à Bob.
-      await alice.goto(`/group/${groupId}/edit`);
+      await alice.goto(`/group/${groupId}/edit`, { waitUntil: "domcontentloaded" });
       const bobCard = alice.getByTestId("penalty-row-Bob");
       await expect(bobCard).toBeVisible({ timeout: 30_000 });
       // +1 € sur le stepper de Bob → le bouton « Proposer … à Bob » apparaît.
@@ -51,7 +51,7 @@ test.describe("Pénalité par joueur", () => {
       await expect(alice.getByText(/Proposition envoyée à Bob/)).toBeVisible({ timeout: 20_000 });
 
       // Bob reçoit la proposition et ouvre l'écran de réponse.
-      await bob.goto("/notifications");
+      await bob.goto("/notifications", { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("Changement de pénalité proposé")).toBeVisible({ timeout: 30_000 });
       await bob.getByText("Répondre").click();
       // `exact` : la notif « Changement de pénalité proposé » contient le même début.

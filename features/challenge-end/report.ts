@@ -4,17 +4,19 @@
  * Tout se calcule côté client à partir de données déjà chargées ailleurs :
  *   • membres            → `useGroupMembers`  (objectif hebdo, profil)
  *   • séances du défi     → `useGroupSessions` (tout l'historique, pas juste la semaine)
+ *   • résultats hebdo     → `member_weekly_outcomes` (success/fail/neutral)
  *   • registre pénalités  → `usePotHistory`    (qui a payé quoi, et pourquoi)
  *
  * On ne crée donc AUCUNE RPC de reporting : le backend de l'étape 12 se limite au
  * déblocage de la cagnotte (SQL 049). Les écrans `fin-defi` / `cloture` consomment
  * ces fonctions pures — d'où leur testabilité sans réseau ni React Native.
  *
- * « Réussie » = séance **validée** (cohérent avec `lib/group-stats`). Une semaine est
- * « accomplie » quand le nombre de séances validées atteint l'objectif hebdo du membre.
+ * Le taux et la série utilisent la même source de vérité que la clôture, le profil et
+ * les badges : `member_weekly_outcomes`. Une semaine neutre (joker, excuse majeure ou
+ * suspension) ne compte ni comme réussite ni comme échec et ne casse pas la série.
  */
 
-import { formatDateRange, startOfWeekMonday, toDateOnly } from "@/lib/date";
+import { formatDateRange, startOfWeekMonday } from "@/lib/date";
 
 /* ------------------------------------------------------------------ entrées */
 
@@ -39,6 +41,13 @@ export type ReportSession = {
   status: string;
   /** Lundi de la semaine de la séance (YYYY-MM-DD). */
   weekStart: string;
+};
+
+/** Résultat figé d'une semaine, écrit par la clôture hebdomadaire. */
+export type ReportOutcome = {
+  userId: string;
+  weekStart: string;
+  status: "success" | "fail" | "neutral";
 };
 
 /** Une pénalité du registre (séance manquée / blâme atteint). */
@@ -68,19 +77,6 @@ export function challengeWeekCount(start: string, end: string): number {
   return Math.max(1, weeks);
 }
 
-/** Liste ordonnée des lundis (YYYY-MM-DD) du défi, du début à la fin (inclus). */
-function challengeWeeks(start: string, end: string): string[] {
-  const first = startOfWeekMonday(parseYMD(start));
-  const count = challengeWeekCount(start, end);
-  const weeks: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const d = new Date(first);
-    d.setDate(d.getDate() + i * 7);
-    weeks.push(toDateOnly(d));
-  }
-  return weeks;
-}
-
 /* ------------------------------------------------------------------ compteurs */
 
 /** Séances **validées** d'un membre sur tout le défi. */
@@ -103,32 +99,34 @@ export function successRate(validated: number, weeklyTarget: number, weeks: numb
   return Math.max(0, Math.min(100, Math.round((100 * validated) / expected)));
 }
 
+/** Taux métier : success / (success + fail), les semaines neutralisées sont exclues. */
+export function outcomeSuccessRate(outcomes: readonly ReportOutcome[], userId: string): number {
+  const decided = outcomes.filter(
+    (o) => o.userId === userId && (o.status === "success" || o.status === "fail")
+  );
+  if (decided.length === 0) return 0;
+  const successes = decided.filter((o) => o.status === "success").length;
+  return Math.round((100 * successes) / decided.length);
+}
+
 /**
- * Meilleure série : plus longue suite de semaines CONSÉCUTIVES où le membre a
- * atteint son objectif hebdo. Renvoyée en nombre de semaines (« 7 sem »).
- * Objectif ≤ 0 ⇒ 0 (aucune notion d'objectif atteint).
+ * Record du défi selon les résultats figés : success → +1, fail → 0, neutral →
+ * inchangé. C'est exactement la règle de `rebuild_member_group_progress`.
  */
 export function bestWeeklyStreak(
-  sessions: readonly ReportSession[],
-  userId: string,
-  weeklyTarget: number,
-  start: string,
-  end: string
+  outcomes: readonly ReportOutcome[],
+  userId: string
 ): number {
-  if (weeklyTarget <= 0) return 0;
-  // Validées par semaine pour ce membre (une passe, plutôt qu'un filtre par semaine).
-  const perWeek = new Map<string, number>();
-  for (const s of sessions) {
-    if (s.userId !== userId || s.status !== "validated") continue;
-    perWeek.set(s.weekStart, (perWeek.get(s.weekStart) ?? 0) + 1);
-  }
+  const rows = outcomes
+    .filter((o) => o.userId === userId)
+    .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
   let best = 0;
   let run = 0;
-  for (const week of challengeWeeks(start, end)) {
-    if ((perWeek.get(week) ?? 0) >= weeklyTarget) {
+  for (const row of rows) {
+    if (row.status === "success") {
       run += 1;
       if (run > best) best = run;
-    } else {
+    } else if (row.status === "fail") {
       run = 0;
     }
   }
@@ -165,7 +163,7 @@ export function finalRanking(
   members: readonly ReportMember[],
   sessions: readonly ReportSession[],
   penalties: readonly ReportPenalty[],
-  weeks: number
+  outcomes: readonly ReportOutcome[]
 ): RankedMember[] {
   const rows = members.map((member) => {
     const validated = validatedCount(sessions, member.userId);
@@ -173,7 +171,7 @@ export function finalRanking(
       member,
       rank: 0,
       validated,
-      rate: successRate(validated, member.weeklyTarget, weeks),
+      rate: outcomeSuccessRate(outcomes, member.userId),
       contributed: contributedByMember(penalties, member.userId),
     };
   });
@@ -201,15 +199,13 @@ export function myBilan(
   member: ReportMember,
   sessions: readonly ReportSession[],
   penalties: readonly ReportPenalty[],
-  start: string,
-  end: string,
-  weeks: number
+  outcomes: readonly ReportOutcome[]
 ): MyBilan {
   const validated = validatedCount(sessions, member.userId);
   return {
     validated,
-    bestStreak: bestWeeklyStreak(sessions, member.userId, member.weeklyTarget, start, end),
-    rate: successRate(validated, member.weeklyTarget, weeks),
+    bestStreak: bestWeeklyStreak(outcomes, member.userId),
+    rate: outcomeSuccessRate(outcomes, member.userId),
     paid: contributedByMember(penalties, member.userId),
   };
 }

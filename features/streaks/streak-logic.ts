@@ -78,9 +78,13 @@ export function weekOutcome(input: WeekOutcomeInput): WeekOutcome {
   const miss = Math.max(0, eff - validated);
   if (miss === 0) return { status: "success", effectiveTarget: eff, jokerUsed: false };
 
-  // Le joker annule 1 séance manquée : il ne neutralise que si le manque vaut 1.
-  if (jokerAvailable && miss === 1) {
-    return { status: "neutral", effectiveTarget: eff, neutralReason: "joker", jokerUsed: true };
+  // Le joker annule 1 séance manquée. Avec un manque de 1 il neutralise la semaine ;
+  // avec un manque supérieur il est bien consommé mais le résiduel reste un échec.
+  if (jokerAvailable) {
+    if (miss === 1) {
+      return { status: "neutral", effectiveTarget: eff, neutralReason: "joker", jokerUsed: true };
+    }
+    return { status: "fail", effectiveTarget: eff, jokerUsed: true };
   }
   return { status: "fail", effectiveTarget: eff, jokerUsed: false };
 }
@@ -137,11 +141,16 @@ export type GroupStreak = {
 export function buildGroupStreak(params: {
   closedOutcomes: WeeklyOutcomeRow[];
   currentWeek: WeekOutcomeInput;
+  /** Lundi courant : évite +1 si une clôture forcée l'a déjà mis dans l'historique. */
+  currentWeekStart?: string;
 }): GroupStreak {
   const { currentStreak: base, bestStreak } = computeStreak(params.closedOutcomes);
   const live = weekOutcome({ ...params.currentWeek, jokerAvailable: false });
   const completed = live.status === "success";
-  const currentStreak = base + (completed ? 1 : 0);
+  const alreadyClosed =
+    !!params.currentWeekStart &&
+    params.closedOutcomes.some((row) => row.weekStart === params.currentWeekStart);
+  const currentStreak = base + (completed && !alreadyClosed ? 1 : 0);
   return {
     currentStreak,
     bestStreak: Math.max(bestStreak, currentStreak),

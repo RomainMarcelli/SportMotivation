@@ -22,7 +22,7 @@ test.describe("Cagnotte", () => {
     // Seed : 42 € de pénalité imputés à l'admin → total de cagnotte = 42 €.
     await seedCagnottePenalty(groupId, 42);
 
-    await page.goto(`/group/${groupId}/cagnotte`);
+    await page.goto(`/group/${groupId}/cagnotte`, { waitUntil: "domcontentloaded" });
     // Le total (formatEuro(42) = « 42 € ») s'affiche, et le contributeur est « Toi ».
     await expect(page.getByText(/42\s*€/).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("Toi").first()).toBeVisible({ timeout: 20_000 });

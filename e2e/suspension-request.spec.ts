@@ -35,7 +35,7 @@ test.describe("Suspensions — demande joueur", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Bob demande une suspension.
-      await bob.goto(`/group/${groupId}/suspensions`);
+      await bob.goto(`/group/${groupId}/suspensions`, { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("Demander une suspension")).toBeVisible({ timeout: 30_000 });
       await setWebDate(bob, "Début", isoOffsetDays(1));
       await setWebDate(bob, "Fin", isoOffsetDays(3));
@@ -44,7 +44,7 @@ test.describe("Suspensions — demande joueur", () => {
       await expect(bob.getByText(/Demande envoyée/)).toBeVisible({ timeout: 20_000 });
 
       // Alice voit la demande en attente et l'accepte.
-      await alice.goto(`/group/${groupId}/suspensions`);
+      await alice.goto(`/group/${groupId}/suspensions`, { waitUntil: "domcontentloaded" });
       await expect(alice.getByText("Demandes en attente")).toBeVisible({ timeout: 30_000 });
       await alice.getByText("Accepter").click();
       await expect(alice.getByText(/Suspension accordée/)).toBeVisible({ timeout: 20_000 });

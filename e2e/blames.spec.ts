@@ -23,7 +23,7 @@ test.describe("Blâmes", () => {
     await seedBlame(groupId);
 
     // Rechargement à froid → cache vidé → la vue des blâmes est relue fraîche.
-    await page.goto(`/group/${groupId}`);
+    await page.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
     // `exact` : « Blâmes » (titre de section) sans matcher « Seuil de blâmes » / « 3 blâmes » des règles.
     await expect(page.getByText("Blâmes", { exact: true })).toBeVisible({ timeout: 30_000 });
     // Puce « Toi · 1 » (memberName(self) = « Toi », count = 1).

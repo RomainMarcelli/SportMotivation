@@ -14,7 +14,7 @@ test.describe("Modifier le défi", () => {
     await createGroup(page, uniqueGroupName());
     const groupId = currentGroupId(page);
 
-    await page.goto(`/group/${groupId}/edit`);
+    await page.goto(`/group/${groupId}/edit`, { waitUntil: "domcontentloaded" });
     // 1er champ texte = « Nom du défi » (2e = Description).
     const nameInput = page.getByRole("textbox").first();
     await expect(nameInput).toBeVisible({ timeout: 30_000 });
@@ -24,7 +24,7 @@ test.describe("Modifier le défi", () => {
     await expect(page.getByText("Réglages du groupe mis à jour.")).toBeVisible({ timeout: 20_000 });
 
     // Persistance : le nouveau nom s'affiche sur le dashboard.
-    await page.goto(`/group/${groupId}`);
+    await page.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByText(newName).first()).toBeVisible({ timeout: 30_000 });
 
     await deleteCurrentAccount(page);

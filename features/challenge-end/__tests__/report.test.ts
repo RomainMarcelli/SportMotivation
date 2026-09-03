@@ -7,11 +7,13 @@ import {
   contributionSubLabel,
   finalRanking,
   myBilan,
+  outcomeSuccessRate,
   reportName,
   successRate,
   totalValidated,
   validatedCount,
   type ReportMember,
+  type ReportOutcome,
   type ReportPenalty,
   type ReportSession,
 } from "../report";
@@ -73,6 +75,20 @@ const PENALTIES: ReportPenalty[] = [
   { userId: "bob", penaltyType: "missed_session", amount: 10 },
 ];
 
+const OUTCOMES: ReportOutcome[] = [
+  ...WEEKS.map((weekStart) => ({ userId: "alice", weekStart, status: "success" as const })),
+  { userId: "me", weekStart: WEEKS[0], status: "success" },
+  { userId: "me", weekStart: WEEKS[1], status: "success" },
+  { userId: "me", weekStart: WEEKS[2], status: "fail" },
+  { userId: "me", weekStart: WEEKS[3], status: "success" },
+  { userId: "bob", weekStart: WEEKS[0], status: "success" },
+  // Joker / excuse majeure / suspension : la semaine ne casse pas la série et
+  // n'entre pas dans le taux d'objectifs atteints.
+  { userId: "bob", weekStart: WEEKS[1], status: "neutral" },
+  { userId: "bob", weekStart: WEEKS[2], status: "success" },
+  { userId: "bob", weekStart: WEEKS[3], status: "success" },
+];
+
 /* -------------------------------------------------------------- semaines */
 
 describe("challengeWeekCount", () => {
@@ -115,17 +131,20 @@ describe("successRate", () => {
   });
 });
 
-describe("bestWeeklyStreak", () => {
-  it("plus longue suite de semaines à l'objectif", () => {
-    expect(bestWeeklyStreak(SESSIONS, "alice", 3, START, END)).toBe(4);
-    expect(bestWeeklyStreak(SESSIONS, "me", 4, START, END)).toBe(2);
-    expect(bestWeeklyStreak(SESSIONS, "bob", 2, START, END)).toBe(2);
+describe("outcomeSuccessRate / bestWeeklyStreak", () => {
+  it("calcule le taux sur success + fail uniquement", () => {
+    expect(outcomeSuccessRate(OUTCOMES, "alice")).toBe(100);
+    expect(outcomeSuccessRate(OUTCOMES, "me")).toBe(75);
+    expect(outcomeSuccessRate(OUTCOMES, "bob")).toBe(100);
   });
-  it("0 si objectif ≤ 0", () => {
-    expect(bestWeeklyStreak(SESSIONS, "me", 0, START, END)).toBe(0);
+  it("une semaine neutre conserve la série tandis qu'un échec la casse", () => {
+    expect(bestWeeklyStreak(OUTCOMES, "alice")).toBe(4);
+    expect(bestWeeklyStreak(OUTCOMES, "me")).toBe(2);
+    expect(bestWeeklyStreak(OUTCOMES, "bob")).toBe(3);
   });
-  it("0 si aucune semaine à l'objectif", () => {
-    expect(bestWeeklyStreak(done("x", WEEKS[0], 1), "x", 5, START, END)).toBe(0);
+  it("0 sans semaine décisive", () => {
+    expect(outcomeSuccessRate([{ userId: "x", weekStart: WEEKS[0], status: "neutral" }], "x")).toBe(0);
+    expect(bestWeeklyStreak([], "x")).toBe(0);
   });
 });
 
@@ -140,16 +159,16 @@ describe("contributedByMember", () => {
 /* -------------------------------------------------------- classement final */
 
 describe("finalRanking", () => {
-  const ranked = finalRanking(MEMBERS, SESSIONS, PENALTIES, 4);
+  const ranked = finalRanking(MEMBERS, SESSIONS, PENALTIES, OUTCOMES);
 
   it("classe par taux décroissant et attribue les rangs 1..N", () => {
-    expect(ranked.map((r) => r.member.userId)).toEqual(["alice", "me", "bob"]);
+    expect(ranked.map((r) => r.member.userId)).toEqual(["alice", "bob", "me"]);
     expect(ranked.map((r) => r.rank)).toEqual([1, 2, 3]);
   });
   it("porte les bons chiffres par membre", () => {
     const meRow = ranked.find((r) => r.member.userId === "me")!;
     expect(meRow.validated).toBe(14);
-    expect(meRow.rate).toBe(88);
+    expect(meRow.rate).toBe(75);
     expect(meRow.contributed).toBe(15);
   });
   it("départage deux taux égaux par le nombre de séances", () => {
@@ -157,7 +176,11 @@ describe("finalRanking", () => {
     const a = member("a", 2, "A"); // 2/sem → 100%
     const b = member("b", 4, "B"); // 4/sem → 100%
     const s = [...done("a", WEEKS[0], 2), ...done("b", WEEKS[0], 4)];
-    const r = finalRanking([a, b], s, [], 1);
+    const outcomes: ReportOutcome[] = [
+      { userId: "a", weekStart: WEEKS[0], status: "success" },
+      { userId: "b", weekStart: WEEKS[0], status: "success" },
+    ];
+    const r = finalRanking([a, b], s, [], outcomes);
     expect(r.map((x) => x.member.userId)).toEqual(["b", "a"]);
   });
 });
@@ -166,10 +189,10 @@ describe("finalRanking", () => {
 
 describe("myBilan", () => {
   it("agrège validées, meilleure série, taux et euros versés", () => {
-    expect(myBilan(me, SESSIONS, PENALTIES, START, END, 4)).toEqual({
+    expect(myBilan(me, SESSIONS, PENALTIES, OUTCOMES)).toEqual({
       validated: 14,
       bestStreak: 2,
-      rate: 88,
+      rate: 75,
       paid: 15,
     });
   });

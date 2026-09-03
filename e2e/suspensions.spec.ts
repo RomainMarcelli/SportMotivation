@@ -40,7 +40,7 @@ test.describe("Suspensions", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Alice ouvre l'écran Suspensions et suspend Bob.
-      await alice.goto(`/group/${groupId}/suspensions`);
+      await alice.goto(`/group/${groupId}/suspensions`, { waitUntil: "domcontentloaded" });
       await expect(alice.getByText("Suspendre un membre")).toBeVisible({ timeout: 30_000 });
 
       // Choisir le membre (seule puce « Bob » sélectionnable).

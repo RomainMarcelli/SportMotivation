@@ -24,7 +24,7 @@ test.describe("Compte — sécurité", () => {
     const newPassword = "Nouveaupass2@";
     await signUpAndLand(page, user);
 
-    await page.goto("/account/password");
+    await page.goto("/account/password", { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("Ton mot de passe").fill(user.password);
     await page.getByPlaceholder("8 caractères minimum").fill(newPassword);
     await page.getByPlaceholder("Saisis-le à nouveau").fill(newPassword);

@@ -36,6 +36,8 @@ export function mapUnlockError(message: string): string {
   if (/NOT_MEMBER/.test(message)) return "Tu n'es plus membre de ce groupe.";
   if (/NOT_ENDED|CHALLENGE_NOT_ENDED/.test(message))
     return "Le défi n'est pas encore terminé.";
+  if (/PENDING_VOTES/.test(message))
+    return "Des séances sont encore en cours de vote. Réessaie après leur échéance.";
   if (/NO_POT/.test(message)) return "Cagnotte introuvable pour ce défi.";
   return "Déblocage impossible pour le moment. Réessaie.";
 }

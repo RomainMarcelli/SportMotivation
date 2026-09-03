@@ -41,7 +41,7 @@ test.describe("Vote de groupe sur un sport", () => {
       await declareUnlistedSport(bob, groupId, "Escalade");
 
       // Alice ouvre un VOTE de groupe au lieu d'ajouter directement.
-      await alice.goto("/notifications");
+      await alice.goto("/notifications", { waitUntil: "domcontentloaded" });
       const startVoteBtn = alice.getByText("Lancer un vote");
       await expect(startVoteBtn).toBeVisible({ timeout: 30_000 });
       await startVoteBtn.click();
@@ -55,7 +55,7 @@ test.describe("Vote de groupe sur un sport", () => {
       await expect(alice.getByText("Ton vote : Pour")).toBeVisible({ timeout: 20_000 });
 
       // Bob vote « Pour » (2/2) → majorité atteinte → sport ajouté.
-      await bob.goto("/notifications");
+      await bob.goto("/notifications", { waitUntil: "domcontentloaded" });
       const bobPour = bob.getByText("Pour", { exact: true });
       await expect(bobPour).toBeVisible({ timeout: 30_000 });
       await bobPour.click();

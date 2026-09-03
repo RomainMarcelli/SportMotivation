@@ -35,11 +35,11 @@ test.describe("Vote — refus", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Alice déclare (Bob doit rejoindre AVANT — règle joined_at).
-      await alice.goto(`/group/${groupId}`);
+      await alice.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
       await declareRunSession(alice);
 
       // Bob ouvre le deck, ouvre la modale de refus, explique, puis refuse.
-      await bob.goto(`/group/${groupId}/vote`);
+      await bob.goto(`/group/${groupId}/vote`, { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("À valider")).toBeVisible({ timeout: 30_000 });
       await bob.getByLabel("Refuser", { exact: true }).click();
 

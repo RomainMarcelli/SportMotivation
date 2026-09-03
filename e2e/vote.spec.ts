@@ -48,11 +48,11 @@ test.describe("Vote", () => {
 
       // 3. Alice déclare une séance. On revient au tableau de bord pour fermer la
       //    feuille d'invitation restée ouverte, puis on déclare.
-      await alice.goto(`/group/${groupId}`);
+      await alice.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
       await declareRunSession(alice);
 
       // 4. Bob ouvre le deck de vote du groupe et valide la séance d'Alice.
-      await bob.goto(`/group/${groupId}/vote`);
+      await bob.goto(`/group/${groupId}/vote`, { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("À valider")).toBeVisible({ timeout: 30_000 });
       // La carte porte le prénom de l'auteur (les comptes de test s'appellent « Test »).
       await expect(bob.getByText("a déclaré une séance")).toBeVisible({ timeout: 30_000 });

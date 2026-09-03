@@ -34,7 +34,7 @@ test.describe("Invitations", () => {
       await signUpAndLand(bob, bobUser);
 
       // 3. Alice ouvre « Inviter », cherche Bob par pseudo et l'invite.
-      await alice.goto(`/group/${groupId}`);
+      await alice.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
       await alice.getByText("Inviter", { exact: true }).click();
       const search = alice.getByPlaceholder("Chercher un pseudo…");
       await expect(search).toBeVisible({ timeout: 30_000 });
@@ -47,7 +47,7 @@ test.describe("Invitations", () => {
       await expect(alice.getByText(/Invitation envoyée/)).toBeVisible({ timeout: 20_000 });
 
       // 4. Bob ouvre ses notifications, l'invitation y est → il l'accepte.
-      await bob.goto("/notifications");
+      await bob.goto("/notifications", { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("Voir l'invitation")).toBeVisible({ timeout: 30_000 });
       await bob.getByText("Voir l'invitation").click();
 

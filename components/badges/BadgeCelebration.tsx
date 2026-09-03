@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Flame, Target, Trophy } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Confetti } from "@/components/ui/Confetti";
 import { PopIn } from "@/components/ui/PopIn";
@@ -10,9 +10,9 @@ import { colors, gradients } from "@/constants/colors";
 import { useMarkBadgesSeen, useTrophies, type TrophyBadge } from "@/features/badges/queries";
 import { useMarkNotificationRead } from "@/features/notifications/mutations";
 import { useNotifications } from "@/features/notifications/queries";
-import { pickObjectiveCelebration, type ObjectiveCelebration } from "@/features/streaks/celebration";
+import { pickObjectiveCelebrations, type ObjectiveCelebration } from "@/features/streaks/celebration";
 
-type Batch = { badges: TrophyBadge[]; objective: ObjectiveCelebration | null };
+type Batch = { badges: TrophyBadge[]; objectives: ObjectiveCelebration[] };
 
 /** Retire les emoji d'un texte serveur (la célébration s'exprime en ICÔNES, pas en emoji). */
 function stripEmoji(text: string): string {
@@ -38,18 +38,32 @@ export function BadgeCelebration() {
   const markSeen = useMarkBadgesSeen();
   const markRead = useMarkNotificationRead();
   const [batch, setBatch] = useState<Batch | null>(null);
+  const batchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dispatchedBadges = useRef<Set<string>>(new Set());
   const dispatchedObjectives = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (batch) return;
     const badges = (data?.unseen ?? []).filter((b) => !dispatchedBadges.current.has(b.key));
-    const objective = pickObjectiveCelebration(notifications ?? [], dispatchedObjectives.current);
-    if (badges.length > 0 || objective) setBatch({ badges, objective });
+    const objectives = pickObjectiveCelebrations(
+      notifications ?? [],
+      dispatchedObjectives.current
+    );
+    if (badges.length === 0 && objectives.length === 0) return;
+
+    // Les notifications badge/objectifs sont insérées dans la même transaction mais
+    // Realtime peut les livrer séparément. Cette courte fenêtre rassemble le lot et
+    // laisse la requête trophées se rafraîchir avant d'ouvrir UNE seule modale.
+    if (batchTimer.current) clearTimeout(batchTimer.current);
+    batchTimer.current = setTimeout(() => setBatch({ badges, objectives }), 350);
+    return () => {
+      if (batchTimer.current) clearTimeout(batchTimer.current);
+      batchTimer.current = null;
+    };
   }, [data, notifications, batch]);
 
-  if (!batch || (batch.badges.length === 0 && !batch.objective)) return null;
-  const { badges, objective } = batch;
+  if (!batch || (batch.badges.length === 0 && batch.objectives.length === 0)) return null;
+  const { badges, objectives } = batch;
 
   const close = () => {
     if (badges.length > 0) {
@@ -57,7 +71,7 @@ export function BadgeCelebration() {
       keys.forEach((k) => dispatchedBadges.current.add(k));
       markSeen.mutate(keys);
     }
-    if (objective) {
+    for (const objective of objectives) {
       dispatchedObjectives.current.add(objective.notificationId);
       markRead.mutate(objective.notificationId);
     }
@@ -65,19 +79,20 @@ export function BadgeCelebration() {
   };
 
   const hasBadges = badges.length > 0;
+  const hasObjectives = objectives.length > 0;
   const multipleBadges = badges.length > 1;
 
   // Entête : icône + dégradé selon l'événement le plus fort du lot.
   const HeadIcon = hasBadges ? Trophy : Target;
   const headGradient = hasBadges ? gradients.brand : gradients.green;
-  const heading = objective
+  const heading = hasObjectives
     ? hasBadges
       ? "Bravo, tout s'enchaîne !"
       : "Objectif atteint !"
     : multipleBadges
       ? "Nouveaux trophées !"
       : "Nouveau trophée !";
-  const subheading = objective
+  const subheading = hasObjectives
     ? hasBadges
       ? "Objectif de la semaine validé, et de nouveaux trophées débloqués."
       : "Tu as validé ton objectif de la semaine."
@@ -117,10 +132,16 @@ export function BadgeCelebration() {
               {subheading}
             </Text>
 
-            <View className="mt-4 w-full gap-2.5">
+            <ScrollView
+              className="mt-4 w-full"
+              style={{ maxHeight: 400 }}
+              contentContainerStyle={{ gap: 10 }}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Objectif hebdo atteint (+ série) — en tête, teinte mint. */}
-              {objective ? (
+              {objectives.map((objective) => (
                 <View
+                  key={objective.notificationId}
                   className="flex-row items-center gap-3 rounded-[16px] border p-3"
                   style={{ backgroundColor: colors.surface2, borderColor: colors.line2 }}
                 >
@@ -150,7 +171,7 @@ export function BadgeCelebration() {
                     </View>
                   ) : null}
                 </View>
-              ) : null}
+              ))}
 
               {/* Badges fraîchement débloqués (icônes du catalogue). */}
               {badges.map((b) => {
@@ -182,7 +203,7 @@ export function BadgeCelebration() {
                   </View>
                 );
               })}
-            </View>
+            </ScrollView>
 
             <Pressable
               onPress={close}

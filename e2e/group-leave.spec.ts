@@ -32,7 +32,7 @@ test.describe("Quitter le défi", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Bob ouvre le menu ⋮ et quitte le défi.
-      await bob.goto(`/group/${groupId}`);
+      await bob.goto(`/group/${groupId}`, { waitUntil: "domcontentloaded" });
       await bob.getByLabel("Options du groupe").click();
       await bob.getByText("Quitter le groupe").click();
       // Dialog de confirmation → bouton « Quitter le groupe ».

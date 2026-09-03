@@ -12,7 +12,7 @@ export function uniqueGroupName(tag = "E2E Défi"): string {
  * sur le tableau de bord du groupe (le nom s'affiche dans l'entête).
  */
 export async function createGroup(page: Page, name: string) {
-  await page.goto("/group/create");
+  await page.goto("/group/create", { waitUntil: "domcontentloaded" });
   await expect(page.getByPlaceholder("Défi de l'été")).toBeVisible({ timeout: 60_000 });
   await page.getByPlaceholder("Défi de l'été").fill(name);
   // Case « ces règles seront figées au lancement » — obligatoire (schéma Zod).
@@ -54,7 +54,7 @@ export async function revealInviteCode(page: Page): Promise<string> {
  * tableau de bord (le nom du défi s'affiche).
  */
 export async function joinGroupByCode(page: Page, code: string, expectedName: string) {
-  await page.goto("/group/join");
+  await page.goto("/group/join", { waitUntil: "domcontentloaded" });
   const codeInput = page.getByPlaceholder("123456");
   await expect(codeInput).toBeVisible({ timeout: 60_000 });
   await codeInput.fill(code);

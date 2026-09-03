@@ -361,6 +361,47 @@ RESET ROLE;
 INSERT INTO _tap(line) SELECT is(current_setting('test.f_mise'), 'OUI',
   'T32 un membre ne peut pas baisser sa mise après adhésion (colonne verrouillée) [057]');
 
+-- T33 : CRITIQUE — impossible de s'attribuer un badge arbitraire [071].
+SELECT pg_temp._as('00000000-0000-0000-0000-00000000e302');
+SET LOCAL ROLE authenticated;
+DO $f6$
+BEGIN
+  PERFORM public.grant_badge(
+    '00000000-0000-0000-0000-00000000e302', 'badge_triche', 'Triche', 'Interdit'
+  );
+  PERFORM set_config('test.f_badge', 'NON', true);
+EXCEPTION WHEN insufficient_privilege THEN PERFORM set_config('test.f_badge', 'OUI', true);
+END $f6$;
+RESET ROLE;
+INSERT INTO _tap(line) SELECT is(current_setting('test.f_badge'), 'OUI',
+  'T33 CRITIQUE: grant_badge non appelable par authenticated [071]');
+
+-- T34 : le backfill est un job interne, pas une RPC client [071].
+SELECT pg_temp._as('00000000-0000-0000-0000-00000000e302');
+SET LOCAL ROLE authenticated;
+DO $f7$
+BEGIN
+  PERFORM public.backfill_weekly_outcomes(NULL);
+  PERFORM set_config('test.f_backfill', 'NON', true);
+EXCEPTION WHEN insufficient_privilege THEN PERFORM set_config('test.f_backfill', 'OUI', true);
+END $f7$;
+RESET ROLE;
+INSERT INTO _tap(line) SELECT is(current_setting('test.f_backfill'), 'OUI',
+  'T34 backfill_weekly_outcomes non appelable par authenticated [071]');
+
+-- T35 : un membre ne peut pas figer prématurément les badges d'un défi [071].
+SELECT pg_temp._as('00000000-0000-0000-0000-00000000e302');
+SET LOCAL ROLE authenticated;
+DO $f8$
+BEGIN
+  PERFORM public.finalize_challenge_badges('00000000-0000-0000-0000-0000000000a1');
+  PERFORM set_config('test.f_finalize', 'NON', true);
+EXCEPTION WHEN insufficient_privilege THEN PERFORM set_config('test.f_finalize', 'OUI', true);
+END $f8$;
+RESET ROLE;
+INSERT INTO _tap(line) SELECT is(current_setting('test.f_finalize'), 'OUI',
+  'T35 finalize_challenge_badges non appelable par authenticated [071]');
+
 -- ============================================================================
 -- RÉCAP + ROLLBACK : on lève une erreur volontaire contenant tout le TAP.
 -- → l'éditeur affiche le bloc ; l'erreur annule la transaction (rien n'est sauvegardé).

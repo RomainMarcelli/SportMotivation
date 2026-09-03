@@ -10,7 +10,7 @@ import { expect, test } from "@playwright/test";
  */
 test.describe("Onboarding", () => {
   test("parcourir le carrousel jusqu'à « C'est parti » mène à l'inscription", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     // Slide 1 + CTA « Suivant ».
     await expect(page.getByText("Bougez à plusieurs")).toBeVisible({ timeout: 60_000 });
     const cta = page.getByText("Suivant", { exact: true });
@@ -31,7 +31,7 @@ test.describe("Onboarding", () => {
   });
 
   test("« Se connecter » depuis l'onboarding mène à la connexion", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Bougez à plusieurs")).toBeVisible({ timeout: 60_000 });
     await page.getByText("Se connecter").click();
     await expect(page.getByText("Content de te revoir")).toBeVisible({ timeout: 30_000 });

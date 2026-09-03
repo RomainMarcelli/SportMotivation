@@ -36,16 +36,17 @@ import { colors, gradients } from "@/constants/colors";
 import { fontFamily } from "@/constants/fonts";
 import {
   challengeRangeLabel,
-  challengeWeekCount,
   finalRanking,
   myBilan,
   reportName,
   type RankedMember,
   type ReportMember,
+  type ReportOutcome,
   type ReportPenalty,
   type ReportSession,
 } from "@/features/challenge-end/report";
 import { mapUnlockError, useUnlockPot } from "@/features/challenge-end/mutations";
+import { useGroupWeeklyOutcomes } from "@/features/challenge-end/queries";
 import { usePotHistory } from "@/features/cagnotte/queries";
 import { useGroup, useGroupMembers, usePot, usePotStatus } from "@/features/groups/queries";
 import { useGroupSessions } from "@/features/sessions/queries";
@@ -73,6 +74,11 @@ export default function FinDefiScreen() {
   const { data: group } = useGroup(id);
   const { data: members } = useGroupMembers(id);
   const { data: sessions } = useGroupSessions(id);
+  const {
+    data: outcomes,
+    isError: outcomesError,
+    refetch: refetchOutcomes,
+  } = useGroupWeeklyOutcomes(id);
   const { data: history } = usePotHistory(id);
   const { data: potStatus } = usePotStatus(id);
   const { data: potAmount } = usePot(id);
@@ -82,7 +88,28 @@ export default function FinDefiScreen() {
     router.canGoBack() ? router.back() : router.navigate("/groups" as never);
 
   // Tant que l'essentiel n'est pas chargé, on affiche un loader (le bilan doit être complet).
-  if (!group || !members || !sessions) {
+  if (outcomesError) {
+    return (
+      <View className="flex-1">
+        <AppBackground />
+        <ScreenContainer transparent>
+          <View className="flex-1 items-center justify-center px-4">
+            <Text className="text-center font-body text-[13px] text-cream-dim">
+              Impossible de charger les résultats hebdomadaires du défi.
+            </Text>
+            <Pressable
+              onPress={() => void refetchOutcomes()}
+              className="mt-3 rounded-chip border border-line-2 bg-surface px-4 py-2.5 active:opacity-80"
+            >
+              <Text className="font-body-semibold text-[12px] text-cream">Réessayer</Text>
+            </Pressable>
+          </View>
+        </ScreenContainer>
+      </View>
+    );
+  }
+
+  if (!group || !members || !sessions || !outcomes) {
     return (
       <View className="flex-1">
         <AppBackground />
@@ -117,12 +144,12 @@ export default function FinDefiScreen() {
     penaltyType: h.penaltyType,
     amount: h.amount,
   }));
+  const reportOutcomes: ReportOutcome[] = outcomes;
 
-  const weeks = challengeWeekCount(group.challenge_start, group.challenge_end);
-  const ranking = finalRanking(reportMembers, reportSessions, reportPenalties, weeks);
+  const ranking = finalRanking(reportMembers, reportSessions, reportPenalties, reportOutcomes);
   const myReportMember = reportMembers.find((m) => m.userId === me?.id);
   const bilan = myReportMember
-    ? myBilan(myReportMember, reportSessions, reportPenalties, group.challenge_start, group.challenge_end, weeks)
+    ? myBilan(myReportMember, reportSessions, reportPenalties, reportOutcomes)
     : null;
 
   // Montant de la cagnotte : total de `pots` en priorité, repli sur la somme des pénalités.

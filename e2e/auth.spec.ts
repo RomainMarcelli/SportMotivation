@@ -17,7 +17,7 @@ test.describe("Connexion / Déconnexion", () => {
     await signOut(page);
 
     // Tentative avec un mauvais mot de passe → message d'erreur.
-    await page.goto("/sign-in");
+    await page.goto("/sign-in", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Content de te revoir")).toBeVisible({ timeout: 60_000 });
     await page.getByPlaceholder("ton@email.com").fill(u.email);
     await page.getByPlaceholder("Ton mot de passe").fill("MauvaisMdp9!");

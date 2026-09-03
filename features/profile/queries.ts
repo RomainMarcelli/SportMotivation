@@ -61,8 +61,9 @@ const EMPTY_STATS: ProfileStats = {
 /**
  * Statistiques de l'écran Profil (RPC `get_my_profile_stats`, SQL 030).
  *
- * Un profil neuf n'a pas de stats : plutôt que de casser l'écran, on renvoie des
- * zéros quand la RPC n'existe pas encore (SQL non exécuté) ou ne renvoie rien.
+ * Un profil neuf n'a pas de ligne utile : on renvoie alors des zéros. Une erreur
+ * réseau/RLS reste en revanche une vraie erreur afin que l'écran puisse l'expliquer
+ * et proposer un nouvel essai, au lieu d'afficher des statistiques mensongères.
  */
 export function useProfileStats() {
   const user = useCurrentUser();
@@ -71,7 +72,7 @@ export function useProfileStats() {
     enabled: !!user?.id,
     queryFn: async (): Promise<ProfileStats> => {
       const { data, error } = await supabase.rpc("get_my_profile_stats");
-      if (error) return EMPTY_STATS;
+      if (error) throw error;
       const row = ((data ?? []) as unknown as ProfileStatsRow[])[0];
       if (!row) return EMPTY_STATS;
       return {

@@ -9,7 +9,6 @@ import { GradientButton } from "@/components/ui/GradientButton";
 import { Reveal } from "@/components/ui/Reveal";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { colors } from "@/constants/colors";
-import { glow } from "@/lib/shadow";
 import { isValidInviteCode, normalizeInviteCode } from "@/lib/group-code";
 
 export default function JoinGroupScreen() {

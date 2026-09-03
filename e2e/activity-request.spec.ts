@@ -38,7 +38,7 @@ test.describe("Demande d'ajout de sport", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Bob déclare une séance avec un sport non listé (« Autre » → saisie custom).
-      await bob.goto(`/group/${groupId}/declare`);
+      await bob.goto(`/group/${groupId}/declare`, { waitUntil: "domcontentloaded" });
       // `exact` : le chip « Autre » (le texte d'aide contient aussi « Autre »).
       await expect(bob.getByText("Autre", { exact: true })).toBeVisible({ timeout: 30_000 });
       await bob.getByText("Autre", { exact: true }).click();
@@ -60,7 +60,7 @@ test.describe("Demande d'ajout de sport", () => {
       await expect(bob.getByText(/Demande envoyée à l'admin pour ajouter/)).toBeVisible({ timeout: 20_000 });
 
       // Alice reçoit la demande et ajoute le sport depuis ses notifications.
-      await alice.goto("/notifications");
+      await alice.goto("/notifications", { waitUntil: "domcontentloaded" });
       const addBtn = alice.getByText(/Ajouter « Escalade »/);
       await expect(addBtn).toBeVisible({ timeout: 30_000 });
       await addBtn.click();

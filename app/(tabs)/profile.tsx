@@ -157,7 +157,7 @@ function SettingRow({
 export default function ProfileScreen() {
   const router = useRouter();
   const { data: profile, isLoading } = useProfile();
-  const { data: stats } = useProfileStats();
+  const { data: stats, isError: statsError, refetch: refetchStats } = useProfileStats();
   const { data: groups = [] } = useProfileGroups();
   const signOut = useSignOut();
   const deleteAccount = useDeleteAccount();
@@ -331,10 +331,30 @@ export default function ProfileScreen() {
         {/* Stats */}
         <SectionHead
           title="Mes stats"
-          meta={`${stats?.challengesPlayed ?? 0} défi${(stats?.challengesPlayed ?? 0) > 1 ? "s" : ""} au total`}
+          meta={
+            statsError
+              ? "indisponibles"
+              : `${stats?.challengesPlayed ?? 0} défi${(stats?.challengesPlayed ?? 0) > 1 ? "s" : ""} au total`
+          }
         />
         <Reveal delay={140}>
-          <View className="gap-2.5">
+          {statsError ? (
+            <View
+              className="items-center rounded-card border p-4"
+              style={{ backgroundColor: colors.surface, borderColor: colors.line }}
+            >
+              <Text className="text-center font-body text-[13px] text-cream-dim">
+                Impossible de charger tes statistiques pour le moment.
+              </Text>
+              <Pressable
+                onPress={() => void refetchStats()}
+                className="mt-3 rounded-chip border border-line-2 bg-surface-2 px-4 py-2.5 active:opacity-80"
+              >
+                <Text className="font-body-semibold text-[12px] text-cream">Réessayer</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View className="gap-2.5">
             <View className="flex-row gap-2.5">
               <StatCard
                 icon={Activity}
@@ -443,7 +463,8 @@ export default function ProfileScreen() {
                 <ChevronDown size={15} color={colors.creamDim} strokeWidth={2.2} />
               )}
             </Pressable>
-          </View>
+            </View>
+          )}
         </Reveal>
 
         {/* Mes groupes */}

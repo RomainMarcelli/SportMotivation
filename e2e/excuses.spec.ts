@@ -35,7 +35,7 @@ test.describe("Excuses", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Alice demande une excuse (type standard par défaut, motif libre).
-      await alice.goto(`/group/${groupId}/excuse`);
+      await alice.goto(`/group/${groupId}/excuse`, { waitUntil: "domcontentloaded" });
       const reason = alice.getByPlaceholder(/Explique en quelques mots/);
       await expect(reason).toBeVisible({ timeout: 30_000 });
       await reason.fill("Blessure au genou cette semaine.");
@@ -43,7 +43,7 @@ test.describe("Excuses", () => {
       await expect(alice.getByText("Excuse soumise au vote du groupe.")).toBeVisible({ timeout: 20_000 });
 
       // Bob ouvre son deck de vote : l'excuse d'Alice s'y trouve → il l'accepte.
-      await bob.goto(`/group/${groupId}/vote`);
+      await bob.goto(`/group/${groupId}/vote`, { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("demande une excuse")).toBeVisible({ timeout: 30_000 });
       await bob.getByLabel("Accepter", { exact: true }).click();
       await expect(bob.getByText("Tu es à jour")).toBeVisible({ timeout: 20_000 });

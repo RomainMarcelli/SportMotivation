@@ -39,6 +39,18 @@ export function pickObjectiveCelebration(
   notifications: readonly CelebrationNotif[],
   dispatched?: ReadonlySet<string>
 ): ObjectiveCelebration | null {
+  return pickObjectiveCelebrations(notifications, dispatched)[0] ?? null;
+}
+
+/**
+ * Variante groupée : conserve toutes les réussites non lues arrivées ensemble afin
+ * que l'UI ouvre une seule célébration, y compris pour une séance multi-défis.
+ */
+export function pickObjectiveCelebrations(
+  notifications: readonly CelebrationNotif[],
+  dispatched?: ReadonlySet<string>
+): ObjectiveCelebration[] {
+  const celebrations: ObjectiveCelebration[] = [];
   for (const n of notifications) {
     if (n.type !== "objective_reached") continue;
     if (n.read) continue;
@@ -52,7 +64,7 @@ export function pickObjectiveCelebration(
       typeof rawStreak === "number" ? rawStreak : Number(rawStreak) || 0;
     const groupId = typeof data.group_id === "string" ? data.group_id : null;
 
-    return { notificationId: n.id, groupId, streak, body: n.body };
+    celebrations.push({ notificationId: n.id, groupId, streak, body: n.body });
   }
-  return null;
+  return celebrations;
 }

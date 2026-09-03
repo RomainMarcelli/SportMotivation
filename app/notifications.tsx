@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, SectionList, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, SectionList, Text, TextInput, View } from "react-native";
 import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler";
 import Animated, { FadeOutRight, LinearTransition } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -27,8 +27,6 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react-native";
-
-import { TextInput } from "react-native";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { useMyInvitationStatuses } from "@/features/groups/invitations";
@@ -161,7 +159,7 @@ export default function NotificationsScreen() {
   const deleteAll = useDeleteAllNotifications();
   const { confirm, toast } = useFeedback();
 
-  const now = useMemo(() => new Date(), [notifications]);
+  const now = useMemo(() => new Date(), []);
   const sections = useMemo(() => groupByDay(notifications ?? [], now), [notifications, now]);
   const unread = (notifications ?? []).filter((n) => !n.read).length;
 

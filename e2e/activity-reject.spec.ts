@@ -37,7 +37,7 @@ test.describe("Refus d'un sport", () => {
       await declareUnlistedSport(bob, groupId, "Escalade");
 
       // Alice refuse la demande, avec un mot d'explication.
-      await alice.goto("/notifications");
+      await alice.goto("/notifications", { waitUntil: "domcontentloaded" });
       const refuseBtn = alice.getByText("Refuser", { exact: true });
       await expect(refuseBtn).toBeVisible({ timeout: 30_000 });
       await refuseBtn.click();
@@ -49,7 +49,7 @@ test.describe("Refus d'un sport", () => {
       });
 
       // Bob reçoit le refus.
-      await bob.goto("/notifications");
+      await bob.goto("/notifications", { waitUntil: "domcontentloaded" });
       await expect(bob.getByText("Sport non ajouté")).toBeVisible({ timeout: 30_000 });
 
       await deleteCurrentAccount(bob);

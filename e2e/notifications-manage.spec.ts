@@ -33,7 +33,7 @@ test.describe("Gestion des notifications", () => {
       await joinGroupByCode(bob, code, groupName);
 
       // Alice a une notification non lue (« Nouveau membre »).
-      await alice.goto("/notifications");
+      await alice.goto("/notifications", { waitUntil: "domcontentloaded" });
       await expect(alice.getByText(/vient de rejoindre/)).toBeVisible({ timeout: 30_000 });
       const markAll = alice.getByText("Tout marquer lu");
       await expect(markAll).toBeVisible({ timeout: 15_000 });

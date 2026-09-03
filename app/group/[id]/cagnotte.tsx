@@ -81,7 +81,7 @@ export default function CagnotteScreen() {
   const myRole = groupMembers?.find((m) => m.user.id === me?.id)?.role;
   const isTreasurer = myRole === "admin" || myRole === "treasurer";
 
-  const list = members ?? [];
+  const list = useMemo(() => members ?? [], [members]);
   const totals = useMemo(() => cagnotteTotals(list), [list]);
   const unpaid = useMemo(() => unpaidMembers(list), [list]);
   const paidPct = totals.total > 0 ? Math.round(totals.paidRatio * 100) : 0;
