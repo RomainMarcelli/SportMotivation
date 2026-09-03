@@ -956,6 +956,7 @@ export type Database = {
         Row: {
           captured_at: string | null
           created_at: string
+          description: string | null
           external_url: string | null
           id: string
           latitude: number | null
@@ -968,6 +969,7 @@ export type Database = {
         Insert: {
           captured_at?: string | null
           created_at?: string
+          description?: string | null
           external_url?: string | null
           id?: string
           latitude?: number | null
@@ -980,6 +982,7 @@ export type Database = {
         Update: {
           captured_at?: string | null
           created_at?: string
+          description?: string | null
           external_url?: string | null
           id?: string
           latitude?: number | null
@@ -1003,6 +1006,7 @@ export type Database = {
         Row: {
           activity_type: string
           comment: string | null
+          distance_km: number | null
           duration_min: number
           group_id: string
           id: string
@@ -1017,6 +1021,7 @@ export type Database = {
         Insert: {
           activity_type: string
           comment?: string | null
+          distance_km?: number | null
           duration_min: number
           group_id: string
           id?: string
@@ -1031,6 +1036,7 @@ export type Database = {
         Update: {
           activity_type?: string
           comment?: string | null
+          distance_km?: number | null
           duration_min?: number
           group_id?: string
           id?: string
@@ -1488,6 +1494,7 @@ export type Database = {
         Args: {
           p_activity_type: string
           p_comment?: string
+          p_distance_km?: number
           p_duration_min: number
           p_group_id: string
           p_performed_at: string
@@ -1993,11 +2000,7 @@ export type Database = {
       penalty_type: "missed_session" | "blame_threshold"
       proof_type: "photo" | "strava" | "external_link"
       session_status: "pending_vote" | "validated" | "rejected" | "expired"
-      transaction_type:
-        | "penalty_added"
-        | "payment_received"
-        | "refund"
-        | "unlock"
+      transaction_type: "penalty_added" | "payment_received" | "refund" | "unlock"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2028,10 +2031,8 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -2168,12 +2169,7 @@ export const Constants = {
       penalty_type: ["missed_session", "blame_threshold"],
       proof_type: ["photo", "strava", "external_link"],
       session_status: ["pending_vote", "validated", "rejected", "expired"],
-      transaction_type: [
-        "penalty_added",
-        "payment_received",
-        "refund",
-        "unlock",
-      ],
+      transaction_type: ["penalty_added", "payment_received", "refund", "unlock"],
     },
   },
 } as const

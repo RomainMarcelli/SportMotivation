@@ -33,6 +33,31 @@ describe("buildDeclareSessionSchema", () => {
     expect(r.success).toBe(false);
   });
 
+  it("accepte une durée longue jusqu'à 1440 min et refuse au-delà", () => {
+    expect(schema.safeParse({ ...base, durationMin: 1440 }).success).toBe(true);
+    expect(schema.safeParse({ ...base, durationMin: 1441 }).success).toBe(false);
+  });
+
+  it("accepte une distance absente ou valide", () => {
+    expect(schema.safeParse({ ...base, distanceKm: null }).success).toBe(true);
+    expect(schema.safeParse({ ...base, distanceKm: 8.2 }).success).toBe(true);
+  });
+
+  it("refuse une distance nulle, négative ou irréaliste", () => {
+    expect(schema.safeParse({ ...base, distanceKm: 0 }).success).toBe(false);
+    expect(schema.safeParse({ ...base, distanceKm: -1 }).success).toBe(false);
+    expect(schema.safeParse({ ...base, distanceKm: 5001 }).success).toBe(false);
+  });
+
+  it("exige au moins une minute même si le groupe n'impose aucun minimum", () => {
+    const noGroupMinimum = buildDeclareSessionSchema({
+      minDuration: 0,
+      acceptedActivities: ["Course"],
+    });
+    expect(noGroupMinimum.safeParse({ ...base, durationMin: 0 }).success).toBe(false);
+    expect(noGroupMinimum.safeParse({ ...base, durationMin: 1 }).success).toBe(true);
+  });
+
   it("refuse une date dans le futur", () => {
     const r = schema.safeParse({
       ...base,

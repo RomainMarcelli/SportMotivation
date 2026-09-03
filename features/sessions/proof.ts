@@ -10,6 +10,24 @@ export function getProofTypeLabel(type: ProofType): string {
   return PROOF_TYPE_LABELS[type] ?? type;
 }
 
+export type ProofPresentation = {
+  dataSource: "Saisie manuelle" | "Strava";
+  proofType: "Photo" | "Strava" | "Lien externe" | "Non renseignée";
+};
+
+/**
+ * La source est dérivée de la preuve : aucune colonne redondante dans `sessions`.
+ * Une séance historique sans preuve reste une saisie manuelle non renseignée.
+ */
+export function proofPresentation(type: ProofType | null | undefined): ProofPresentation {
+  if (type === "strava") return { dataSource: "Strava", proofType: "Strava" };
+  if (type === "photo") return { dataSource: "Saisie manuelle", proofType: "Photo" };
+  if (type === "external_link") {
+    return { dataSource: "Saisie manuelle", proofType: "Lien externe" };
+  }
+  return { dataSource: "Saisie manuelle", proofType: "Non renseignée" };
+}
+
 const SESSION_ERROR_MESSAGES: Record<string, string> = {
   NOT_MEMBER: "Tu n'es pas membre de ce groupe.",
   GROUP_NOT_FOUND: "Groupe introuvable.",
@@ -17,6 +35,9 @@ const SESSION_ERROR_MESSAGES: Record<string, string> = {
   ACTIVITY_NOT_ALLOWED: "Cette activité n'est pas autorisée par le groupe.",
   ACTIVITY_REQUIRED: "Précise l'activité de ta séance.",
   DURATION_TOO_SHORT: "La durée est inférieure au minimum du groupe.",
+  DURATION_TOO_LONG: "La durée ne peut pas dépasser 1440 minutes.",
+  DISTANCE_INVALID: "La distance doit être supérieure à 0 et ne pas dépasser 5000 km.",
+  DATE_REQUIRED: "Choisis la date de ta séance.",
   DATE_IN_FUTURE: "La séance ne peut pas être dans le futur.",
   PUBLICATION_TOO_LATE: "Ce groupe n'accepte les séances que le jour même.",
   DAILY_LIMIT_REACHED: "Tu as atteint la limite de séances pour ce jour.",

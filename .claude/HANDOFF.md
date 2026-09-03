@@ -11,11 +11,13 @@
 > guides Strava/Google/Storage), [`maquette/V3/*.html`](../maquette/V3/) (les maquettes,
 > **source de vérité UI**).
 >
-> Dernière mise à jour : audit de stabilisation streaks/badges/stats du 3 septembre 2026.
+> Dernière mise à jour : détails sportifs et preuve de séance du 3 septembre 2026.
 > État SQL constaté côté Supabase : **jusqu'à `070_group_interests_location.sql`**.
 > Correctif forward-only **`071_stabilize_gamification.sql` à exécuter** après revue ; ne pas rejouer 060–070.
 > Après 071, exécuter aussi `security_abuse.test.sql` (35 assertions) puis
 > `gamification_stabilization.test.sql` (12 assertions), tous deux transactionnels avec rollback.
+> Ensuite, relire puis exécuter **`072_session_details_proof.sql`**, et enfin
+> `session_details_proof.test.sql` (13 assertions, rollback volontaire).
 
 ---
 
@@ -42,24 +44,24 @@ Spécification complète : [`docs/SPECIFICATIONS_MVP.md`](../docs/SPECIFICATIONS
 
 ## 2. Stack technique (versions réelles — cf. `package.json`)
 
-| Domaine | Choix |
-|---|---|
-| Framework | **Expo ~54** (SDK 54) + **Expo Router v6** (routing par fichiers) |
-| Runtime | **React Native 0.81**, **React 19** |
-| Cible | iOS + Android + **Web** (`react-native-web ~0.21`) |
-| Styles | **NativeWind v4** + **Tailwind CSS v3** (`darkMode: "class"`, **dark-first**) |
-| Backend | **Supabase** (Postgres + Auth + Storage + RLS) — `@supabase/supabase-js ^2` |
-| Data serveur | **TanStack Query v5** (`@tanstack/react-query`) |
-| État client | **Zustand v5** |
-| Formulaires | **react-hook-form** + **Zod v4** (`@hookform/resolvers`) |
-| Icônes | **lucide-react-native** (⚠ **zéro emoji**, uniquement lucide) |
-| Animations | **react-native-reanimated v4** (+ `react-native-worklets`) |
-| Dégradés | **expo-linear-gradient** · SVG : **react-native-svg** · QR : **react-native-qrcode-svg** |
-| Polices | **Bricolage Grotesque** (display) + **Plus Jakarta Sans** (body) via `@expo-google-fonts/*` |
-| Auth tierce | Google OAuth (optionnel) · **Strava** OAuth (`expo-auth-session`, `expo-web-browser`) |
-| Média | `expo-camera`, `expo-image-picker`, `expo-image`, `expo-location`, `expo-file-system` |
-| Tests | **Jest** (`jest-expo`) + `@testing-library/react-native` |
-| Langage | **TypeScript strict, aucun `any`** |
+| Domaine      | Choix                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| Framework    | **Expo ~54** (SDK 54) + **Expo Router v6** (routing par fichiers)                           |
+| Runtime      | **React Native 0.81**, **React 19**                                                         |
+| Cible        | iOS + Android + **Web** (`react-native-web ~0.21`)                                          |
+| Styles       | **NativeWind v4** + **Tailwind CSS v3** (`darkMode: "class"`, **dark-first**)               |
+| Backend      | **Supabase** (Postgres + Auth + Storage + RLS) — `@supabase/supabase-js ^2`                 |
+| Data serveur | **TanStack Query v5** (`@tanstack/react-query`)                                             |
+| État client  | **Zustand v5**                                                                              |
+| Formulaires  | **react-hook-form** + **Zod v4** (`@hookform/resolvers`)                                    |
+| Icônes       | **lucide-react-native** (⚠ **zéro emoji**, uniquement lucide)                               |
+| Animations   | **react-native-reanimated v4** (+ `react-native-worklets`)                                  |
+| Dégradés     | **expo-linear-gradient** · SVG : **react-native-svg** · QR : **react-native-qrcode-svg**    |
+| Polices      | **Bricolage Grotesque** (display) + **Plus Jakarta Sans** (body) via `@expo-google-fonts/*` |
+| Auth tierce  | Google OAuth (optionnel) · **Strava** OAuth (`expo-auth-session`, `expo-web-browser`)       |
+| Média        | `expo-camera`, `expo-image-picker`, `expo-image`, `expo-location`, `expo-file-system`       |
+| Tests        | **Jest** (`jest-expo`) + `@testing-library/react-native`                                    |
+| Langage      | **TypeScript strict, aucun `any`**                                                          |
 
 > ⚠ **Expo a beaucoup changé** : lire la doc versionnée exacte
 > <https://docs.expo.dev/versions/v54.0.0/> avant d'écrire du natif (rappel de `AGENTS.md`).
@@ -101,30 +103,33 @@ typographiques dans [`.claude/DA.md`](DA.md). Source de vérité code : `constan
 `constants/fonts.ts`, `tailwind.config.js`.
 
 ### Couleurs (tokens)
-| Token | Valeur | Usage |
-|---|---|---|
-| `ink` | `#15100C` | fond d'écran |
-| `ink2` | `#1B140E` | tab bar / dégradés de pied |
-| `surface` | `#231A12` | cartes, inputs, boutons icône |
-| `surface2` | `#2D2218` | surface surélevée / état actif |
-| `line` / `line2` | `rgba(255,238,221,.08)` / `.13` | séparateurs |
-| `coral` | `#FF6A45` | **accent principal** |
-| `amber` | `#FFB23E` | accent 2 / argent / warning |
-| `mint` | `#5FE0A8` | succès / validé |
-| `red` | `#F2554A` | danger / refusé / suppression |
-| `cream` / `creamDim` | `#FBEEDD` / `#B7A18B` | texte principal / secondaire |
+
+| Token                                   | Valeur                                  | Usage                            |
+| --------------------------------------- | --------------------------------------- | -------------------------------- |
+| `ink`                                   | `#15100C`                               | fond d'écran                     |
+| `ink2`                                  | `#1B140E`                               | tab bar / dégradés de pied       |
+| `surface`                               | `#231A12`                               | cartes, inputs, boutons icône    |
+| `surface2`                              | `#2D2218`                               | surface surélevée / état actif   |
+| `line` / `line2`                        | `rgba(255,238,221,.08)` / `.13`         | séparateurs                      |
+| `coral`                                 | `#FF6A45`                               | **accent principal**             |
+| `amber`                                 | `#FFB23E`                               | accent 2 / argent / warning      |
+| `mint`                                  | `#5FE0A8`                               | succès / validé                  |
+| `red`                                   | `#F2554A`                               | danger / refusé / suppression    |
+| `cream` / `creamDim`                    | `#FBEEDD` / `#B7A18B`                   | texte principal / secondaire     |
 | `onCoral` `onMint` `onAmber` `onAvatar` | `#23120A` `#0C2C20` `#3A2406` `#1A1006` | texte/icône **sur aplat coloré** |
 
 Chaque accent a sa version `…Soft` (~15 % d'opacité) pour les fonds de pastille. Dégradés :
 **brand** (coral→amber, CTA/marques), **green** (validation), **amber** (cagnotte).
 
 ### Typographie
+
 - **Display** = Bricolage Grotesque (titres, chiffres/stats, libellés de boutons).
 - **Body** = Plus Jakarta Sans (paragraphes, champs, labels, chips).
 - Gestion **par graisse** (familles dédiées, **jamais** `fontWeight` → évite le faux-gras
   Android). Classes : `font-display*`, `font-body*`. Tracking : `tracking-tighter/-tight/-label/-eyebrow`.
 
 ### Rayons / espacement / animations
+
 - Rayons : inputs **14**, chips **13**, cartes **18**, héro/vote **24**, sheets **~28–36**, pills/avatars pleins.
 - Padding horizontal écran **18**, gap listes **16**, CTA hauteur **56**, bas de page **96** (tab bar).
 - Animations : entrées staggerées (`Reveal`, ~16 px, 450–600 ms, délai 40–80 ms/pas), **count-up**
@@ -165,7 +170,7 @@ Chaque accent a sa version `…Soft` (~15 % d'opacité) pour les fonds de pastil
    défaut) → **pénalité** (montant du membre) + on solde `seuil` blâmes (cascade : 7 = 2 pénalités) +
    **notif à l'admin**. L'**excuse ne dispense PAS** de voter ; seule la **suspension** exonère.
    Libellé cagnotte : **« Vote manqué »**.
-6bis. **Suspension** (Chantier 4, SQL 052/053) : un membre **suspendu** (période à date de fin) est
+   6bis. **Suspension** (Chantier 4, SQL 052/053) : un membre **suspendu** (période à date de fin) est
    **exonéré de tout** (blâmes ET pénalités « séance manquée »). L'**admin** suspend directement, ou
    un **joueur demande** (motif obligatoire) → l'admin **accepte / refuse**. Notifs à chaque étape.
    Table `suspensions` + helper `is_suspended`. (UI DA : en cours.)
@@ -194,20 +199,20 @@ Chaque accent a sa version `…Soft` (~15 % d'opacité) pour les fonds de pastil
     chercher quelqu'un par pseudo et l'inviter (l'invité accepte ensuite). Cohérent avec le
     code/QR déjà partageable par tous. Seule la **gestion** des invitations envoyées
     (renvoyer/annuler, vue d'ensemble) reste réservée à l'admin.
-15. **Limite de séances par jour** (`groups.max_sessions_per_day`, **défaut 3**, `NULL` = illimité) :
+14. **Limite de séances par jour** (`groups.max_sessions_per_day`, **défaut 3**, `NULL` = illimité) :
     contrôlée côté serveur dans `declare_session` (`DAILY_LIMIT_REACHED`). Au-delà, le joueur
     demande à l'admin (`request_session_limit`), qui accorde **+1 pour ce jour précis**
     (`grant_session_limit` → table `session_day_grants`). Les copies vers d'autres défis
     (`publish_session_to_my_groups`) ne repassent pas ce contrôle.
-16. **Ajout d'un sport hors liste** — trois issues côté admin depuis la notification : **ajouter**
+15. **Ajout d'un sport hors liste** — trois issues côté admin depuis la notification : **ajouter**
     (1 tap, prévient tout le groupe), **refuser** (commentaire facultatif → notif au demandeur), ou
     **lancer un vote** de groupe (`start_activity_vote` → chacun vote oui/non depuis sa notif,
     **majorité stricte des membres, égalité = pas ajouté** ; tables `activity_proposals` /
     `activity_proposal_votes`).
-17. **Résultat d'une séance** : l'auteur est prévenu à **chaque refus d'un membre**
+16. **Résultat d'une séance** : l'auteur est prévenu à **chaque refus d'un membre**
     (`session_refused_by_member`, avec l'explication) et du **verdict final**
     (`session_validated` / `session_rejected`, à la résolution). **Pas** de notification par vote « oui ».
-18. **Demande d'assouplissement de règle** : gêné par « le jour même » ou une autre règle, un membre
+17. **Demande d'assouplissement de règle** : gêné par « le jour même » ou une autre règle, un membre
     peut **demander un assouplissement** (`request_rule_change` → la notif de l'admin ouvre
     « Modifier le défi », car une règle vaut pour tout le monde). Le sport hors liste, lui, part par
     la voie de l'item 16.
@@ -296,6 +301,7 @@ app/profile-edit.tsx            Modifier le profil (avatar, prénom, pseudo)
 ## 8. Données & backend (Supabase)
 
 ### Tables (schéma déjà en place)
+
 `users`, `groups`, `group_members`, `rule_acceptances`, `sessions`, `session_proofs`, `votes`,
 `excuses`, `penalties`, `blames`, `pots`, `pot_transactions`, `weekly_plans`, `notifications`,
 `group_invitations`, `member_penalty_changes`, `activity_proposals`, `activity_proposal_votes`,
@@ -307,6 +313,7 @@ membre), `users.avatar_color` / `avatar_icon` (avatar bulle), `users.notificatio
 `users.is_searchable` (confidentialité), `sessions.shared_id` (séances partagées).
 
 ### Types de notification (`notification_type`)
+
 `session_reminder`, `weekly_recap`, `vote_pending_session`, `vote_pending_excuse`,
 `excuse_accepted`, `excuse_rejected`, `blame_received`, `penalty_applied`, `member_joined`,
 `member_left`, `admin_transferred`, `challenge_ending_soon`, `challenge_completed`,
@@ -317,6 +324,7 @@ membre), `users.avatar_color` / `avatar_icon` (avatar bulle), `users.notificatio
 > (voir §11, question ouverte).
 
 ### Fonctions RPC clés (SECURITY DEFINER, contournent la RLS proprement)
+
 Adhésion : `join_group_by_code`, `accept_invitation`, `invite_user_to_group`,
 `get_group_preview_by_id`, `search_users_by_username`, `cancel_invitation`,
 `notify_join_from_invitation`. Groupe : `get_my_groups`, `delete_group`, `transfer_admin`,
@@ -336,6 +344,7 @@ préférences). Demandes : `request_group_activity`, `add_group_activity`, `requ
 > autre `SELECT`.
 
 ### Stockage & setup externe (à faire côté Supabase par Romain)
+
 - Buckets : `avatars` (public), `session-proofs` (privé), `excuse-justifications` (privé).
   Policies : [`docs/guides/STORAGE_POLICIES.md`](../docs/guides/STORAGE_POLICIES.md).
 - **Strava** : Edge Function `strava-token` déployée avec `STRAVA_CLIENT_ID` /
@@ -410,6 +419,7 @@ Détails supplémentaires : [`docs/KNOWN_ISSUES.md`](../docs/KNOWN_ISSUES.md).
 Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.claude/reports/`](reports/).
 
 ### ✅ Fait
+
 - **0** Design system (DA, tokens, composants) · **1** Auth (onboarding, sign-in, **inscription en
   un écran** avec avatar + confidentialité). L'ancienne « Setup profil » est **fusionnée** dans
   l'inscription (le groupe `(setup)` a été supprimé).
@@ -447,7 +457,7 @@ Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.c
   (règle « je clique, rien ne se passe ») + section **« À valider »** sur l'accueil ; (5) **animation
   « switch »** (reanimated `LinearTransition`) dans Organiser l'accueil — vrai glisser-déposer = lib à évaluer.
 - **10** Gestion des invitations (statuts, renvoyer/annuler).
-- **11** Notifications in-app (liste DA, actions inline). *(Temps réel / push : à faire.)*
+- **11** Notifications in-app (liste DA, actions inline). _(Temps réel / push : à faire.)_
 - **12** Fin de défi / Clôture : écrans `fin-defi` (podium, classement, « ton bilan ») et `cloture`
   (confettis, grand montant dégradé, « qui a rempli la cagnotte »). **Déblocage** `unlock_pot`
   (admin/trésorier, idempotent) + **auto-complétion** des défis échus (SQL 049, cron
@@ -467,6 +477,7 @@ Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.c
   d'invitation** (remplace l'ancienne page hors DA), durées en `1h10`, anneau tracé.
 
 ### ⬜ Reste à faire
+
 - ~~**UI DA — Suspension**~~ **FAIT (9f)** : écran `app/group/[id]/suspensions.tsx` (admin : suspendre
   un membre = picker + dates + motif, + Accepter/Refuser les demandes, + Lever ; joueur : demander +
   retirer). Accès via le **menu ⋮** du dashboard ; les notifs `suspension_*` ouvrent l'écran au tap.
@@ -490,6 +501,7 @@ Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.c
   cadence dans le temps, etc.
 
 ### ❓ Questions ouvertes (Romain décide)
+
 - ~~Notifier l'auteur quand sa séance est validée/refusée ?~~ **TRANCHÉ + FAIT (043)** : notif au
   résultat final (`session_validated`/`session_rejected`) + notif à chaque refus
   (`session_refused_by_member`). C'était le retour **#6**.
@@ -500,6 +512,7 @@ Suivi vivant : [`.claude/PROGRESS.md`](PROGRESS.md). Rapports détaillés : [`.c
   groupe, on pourra ré-autoriser la majorité anticipée (mais ça rouvre une petite faille anti-blâme).
 
 ### Maquettes → écran
+
 **Toutes les maquettes V3 ont désormais leur écran** (les 2 dernières, `sport-motiv-fin-defi.html`
 et `sport-motiv-cloture.html`, faites à l'Étape 12). `sport-motiv-maquettes.html` est l'index, pas
 un écran.
@@ -516,7 +529,7 @@ un écran.
 4. **Vérifier** : `npx tsc --noEmit` ✅ **et** `npx jest` ✅ (ajouter des tests pour toute logique
    nouvelle).
 5. **Documenter** : rapport `.claude/reports/etape-NN-*.md` + mise à jour `.claude/PROGRESS.md`.
-6. **Livrer** un message clair à Romain (bugs corrigés + *pourquoi*, SQL à exécuter et dans quel
+6. **Livrer** un message clair à Romain (bugs corrigés + _pourquoi_, SQL à exécuter et dans quel
    ordre, points à vérifier de son côté). **Ne pas commiter** — Romain s'en charge.
 
 Le style des rapports et messages : direct, explique la **cause racine** d'un bug (pas seulement le
@@ -526,26 +539,26 @@ correctif), signale honnêtement ce qui reste fragile ou reporté.
 
 ## 13. Index des fichiers à connaître en priorité
 
-| Besoin | Fichier |
-|---|---|
-| Tokens couleur / dégradés | `constants/colors.ts` · design complet `.claude/DA.md` |
-| Polices | `constants/fonts.ts` |
-| Client Supabase (garde SSR/web) | `lib/supabase.ts` |
-| Auth (store, session) | `lib/auth-store.ts` · `features/auth/` |
-| React Query (défauts) | `lib/query-client.ts` |
-| Dates / semaine lundi-dimanche | `lib/date.ts` · durées `lib/duration.ts` |
-| Anneau de progression | `features/home/ring.ts` · `components/home/ChallengeHero.tsx` |
-| Strava (OAuth + endpoints web/natif) | `lib/strava.ts` · `features/sessions/strava.ts` |
-| Confidentialité public/privé | `features/settings/privacy.ts` · `components/profile/PrivacyToggleCard.tsx` |
-| Préférences notifications | `features/settings/notification-prefs.ts` (+ SQL `035`) |
-| Demandes à l'admin (sport/règle) | `features/groups/requests.ts` |
-| Popup d'invitation | `components/groups/GroupInviteSheet.tsx` · `components/ui/BottomSheet.tsx` |
-| Fiche séance (lecture seule) | `components/sessions/SessionDetailSheet.tsx` |
-| Types Supabase | `types/database.types.ts` |
-| Suivi projet | `.claude/PROGRESS.md` · rapports `.claude/reports/etape-16-*.md` (le plus récent) |
+| Besoin                               | Fichier                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------- |
+| Tokens couleur / dégradés            | `constants/colors.ts` · design complet `.claude/DA.md`                            |
+| Polices                              | `constants/fonts.ts`                                                              |
+| Client Supabase (garde SSR/web)      | `lib/supabase.ts`                                                                 |
+| Auth (store, session)                | `lib/auth-store.ts` · `features/auth/`                                            |
+| React Query (défauts)                | `lib/query-client.ts`                                                             |
+| Dates / semaine lundi-dimanche       | `lib/date.ts` · durées `lib/duration.ts`                                          |
+| Anneau de progression                | `features/home/ring.ts` · `components/home/ChallengeHero.tsx`                     |
+| Strava (OAuth + endpoints web/natif) | `lib/strava.ts` · `features/sessions/strava.ts`                                   |
+| Confidentialité public/privé         | `features/settings/privacy.ts` · `components/profile/PrivacyToggleCard.tsx`       |
+| Préférences notifications            | `features/settings/notification-prefs.ts` (+ SQL `035`)                           |
+| Demandes à l'admin (sport/règle)     | `features/groups/requests.ts`                                                     |
+| Popup d'invitation                   | `components/groups/GroupInviteSheet.tsx` · `components/ui/BottomSheet.tsx`        |
+| Fiche séance (lecture seule)         | `components/sessions/SessionDetailSheet.tsx`                                      |
+| Types Supabase                       | `types/database.types.ts`                                                         |
+| Suivi projet                         | `.claude/PROGRESS.md` · rapports `.claude/reports/etape-16-*.md` (le plus récent) |
 
 ---
 
-*Fin du handoff. Si un point manque, la vérité est dans le code et dans les maquettes
-`maquette/V3/*.html` ; ce document doit être mis à jour à chaque étape pour rester le point
-d'entrée unique.*
+_Fin du handoff. Si un point manque, la vérité est dans le code et dans les maquettes
+`maquette/V3/_.html` ; ce document doit être mis à jour à chaque étape pour rester le point
+d'entrée unique.\*

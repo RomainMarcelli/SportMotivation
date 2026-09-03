@@ -3,43 +3,52 @@
 Statut : ✅ fait · 🔄 en cours · ⬜ à faire
 Rapports détaillés par étape dans `.claude/reports/`.
 
-| # | Étape | Statut | Rapport |
-|---|-------|--------|---------|
-| 0 | Design system | ✅ | [etape-00-setup-da.md](reports/etape-00-setup-da.md) |
-| 1 | Auth (onboarding, sign-in, **inscription en un écran** : photo/prénom/pseudo/e-mail/mdp) | ✅ | [etape-01-auth.md](reports/etape-01-auth.md) |
-| 2 | ~~Setup profil post-inscription~~ → **fusionné dans l'inscription (Étape 1)**, `(setup)` supprimé | ✅ | [etape-02-setup.md](reports/etape-02-setup.md) *(superseded)* |
-| 3 | Home (accueil = salutation + **Ma semaine**) + onglet **Groupes** adaptatif (0/1/2+) | ✅ | [etape-03-accueil.md](reports/etape-03-accueil.md) |
-| 4 | Création & adhésion (create, join, join-confirm, scan, accept-invite) | ✅ | [etape-04-creation-adhesion.md](reports/etape-04-creation-adhesion.md) |
-| 5 | Groupe dashboard (Infos/Séances, membres, classement, blâmes) | ✅ | [etape-05-groupe.md](reports/etape-05-groupe.md) |
-| 6 | Déclarer une séance | ✅ | [etape-06-declarer.md](reports/etape-06-declarer.md) |
-| 7 | Voter (scrutin séances : deck, vote, résolution) | ✅ | [etape-07-voter.md](reports/etape-07-voter.md) |
-| 8 | Excuses (déclaration au vote du groupe + joker mensuel) | ✅ | [etape-08-excuses.md](reports/etape-08-excuses.md) |
-| 9 | Cagnotte (vue trésorier) : détail par membre, historique, trésorier coche, relance | ✅ | [etape-09-cagnotte.md](reports/etape-09-cagnotte.md) |
-| 10 | Gestion des invitations (statuts, renvoyer/annuler) | ✅ | [etape-08c-notifications-quitter-filtres.md](reports/etape-08c-notifications-quitter-filtres.md) |
-| 11 | Notifications in-app (liste à la DA) ✅ · temps réel / push ⬜ | 🔄 | [etape-08i-carrousel-notifs-regles.md](reports/etape-08i-carrousel-notifs-regles.md) |
-| 12 | Fin de défi / Clôture (bilan podium + déblocage cagnotte) | ✅ | [etape-12-fin-defi-cloture.md](reports/etape-12-fin-defi-cloture.md) |
-| 13 | Profil (avatars, stats, mes groupes) · **Paramètres** (notifs, mot de passe, e-mail, Strava, légal) | ✅ | [etape-13-parametres.md](reports/etape-13-parametres.md) |
-| 14 | Séances partagées entre défis · Strava · Aide & légal · Groupes | ✅ | [etape-14-seances-partagees.md](reports/etape-14-seances-partagees.md) |
-| 15 | Navigation, vote, Strava, invitations par pseudo, pénalités | ✅ | [etape-15-corrections-groupes.md](reports/etape-15-corrections-groupes.md) |
-| 16 | Adhésion (fix), confidentialité, fiche séance, demandes admin, popup invit. | ✅ | [etape-16-adhesion-confidentialite.md](reports/etape-16-adhesion-confidentialite.md) |
-| 17 | Sports (refus/vote), limite séances/jour, notifs de résultat, édition groupe DA | ✅ | [etape-17-sports-limite-notifs.md](reports/etape-17-sports-limite-notifs.md) |
-| 18 | **Système d'amis** (ajouter en ami, inviter ses amis) | ⬜ | — |
-| 19 | **Thème clair** — palette à valider (aucune maquette claire n'existe) | ⬜ | — |
-| 20 | **Écran Statistiques** (séances/semaine, sport favori, cadence…) | ⬜ | — |
+| #   | Étape                                                                                               | Statut | Rapport                                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------- |
+| 0   | Design system                                                                                       | ✅     | [etape-00-setup-da.md](reports/etape-00-setup-da.md)                                                          |
+| 1   | Auth (onboarding, sign-in, **inscription en un écran** : photo/prénom/pseudo/e-mail/mdp)            | ✅     | [etape-01-auth.md](reports/etape-01-auth.md)                                                                  |
+| 2   | ~~Setup profil post-inscription~~ → **fusionné dans l'inscription (Étape 1)**, `(setup)` supprimé   | ✅     | [etape-02-setup.md](reports/etape-02-setup.md) _(superseded)_                                                 |
+| 3   | Home (accueil = salutation + **Ma semaine**) + onglet **Groupes** adaptatif (0/1/2+)                | ✅     | [etape-03-accueil.md](reports/etape-03-accueil.md)                                                            |
+| 4   | Création & adhésion (create, join, join-confirm, scan, accept-invite)                               | ✅     | [etape-04-creation-adhesion.md](reports/etape-04-creation-adhesion.md)                                        |
+| 5   | Groupe dashboard (Infos/Séances, membres, classement, blâmes)                                       | ✅     | [etape-05-groupe.md](reports/etape-05-groupe.md)                                                              |
+| 6   | Déclarer une séance                                                                                 | ✅     | [etape-06-declarer.md](reports/etape-06-declarer.md)                                                          |
+| 7   | Voter (scrutin séances : deck, vote, résolution)                                                    | ✅     | [etape-07-voter.md](reports/etape-07-voter.md)                                                                |
+| 8   | Excuses (déclaration au vote du groupe + joker mensuel)                                             | ✅     | [etape-08-excuses.md](reports/etape-08-excuses.md)                                                            |
+| 9   | Cagnotte (vue trésorier) : détail par membre, historique, trésorier coche, relance                  | ✅     | [etape-09-cagnotte.md](reports/etape-09-cagnotte.md)                                                          |
+| 10  | Gestion des invitations (statuts, renvoyer/annuler)                                                 | ✅     | [etape-08c-notifications-quitter-filtres.md](reports/etape-08c-notifications-quitter-filtres.md)              |
+| 11  | Notifications in-app (liste à la DA) ✅ · temps réel / push ⬜                                      | 🔄     | [etape-08i-carrousel-notifs-regles.md](reports/etape-08i-carrousel-notifs-regles.md)                          |
+| 12  | Fin de défi / Clôture (bilan podium + déblocage cagnotte)                                           | ✅     | [etape-12-fin-defi-cloture.md](reports/etape-12-fin-defi-cloture.md)                                          |
+| 13  | Profil (avatars, stats, mes groupes) · **Paramètres** (notifs, mot de passe, e-mail, Strava, légal) | ✅     | [etape-13-parametres.md](reports/etape-13-parametres.md)                                                      |
+| 14  | Séances partagées entre défis · Strava · Aide & légal · Groupes                                     | ✅     | [etape-14-seances-partagees.md](reports/etape-14-seances-partagees.md)                                        |
+| 15  | Navigation, vote, Strava, invitations par pseudo, pénalités                                         | ✅     | [etape-15-corrections-groupes.md](reports/etape-15-corrections-groupes.md)                                    |
+| 16  | Adhésion (fix), confidentialité, fiche séance, demandes admin, popup invit.                         | ✅     | [etape-16-adhesion-confidentialite.md](reports/etape-16-adhesion-confidentialite.md)                          |
+| 17  | Sports (refus/vote), limite séances/jour, notifs de résultat, édition groupe DA                     | ✅     | [etape-17-sports-limite-notifs.md](reports/etape-17-sports-limite-notifs.md)                                  |
+| 18  | **Système d'amis** (ajouter en ami, inviter ses amis)                                               | ⬜     | —                                                                                                             |
+| 19  | **Thème clair** — palette à valider (aucune maquette claire n'existe)                               | ⬜     | —                                                                                                             |
+| 20  | **Écran Statistiques** (séances/semaine, sport favori, cadence…)                                    | ⬜     | —                                                                                                             |
+| 21  | **Détails sportifs des séances** (distance, allure/vitesse, preuve distincte, Strava)               | 🔄     | [etape-21-details-seance-preuve.md](reports/etape-21-details-seance-preuve.md) — code prêt, SQL 072 à valider |
 
 ## Écrans restants (maquettes `maquette/V3/`)
 
-| Maquette | Écran | État |
-|---|---|---|
-| `sport-motiv-cagnotte.html` | Cagnotte / vue trésorier | ✅ fait (Étape 9) |
-| `sport-motiv-cloture.html` | Clôture du défi | ✅ fait (Étape 12) |
-| `sport-motiv-fin-defi.html` | Bilan de fin de défi | ✅ fait (Étape 12) |
-| `sport-motiv-parametres.html` | `app/settings.tsx` | ✅ fait |
+| Maquette                      | Écran                    | État               |
+| ----------------------------- | ------------------------ | ------------------ |
+| `sport-motiv-cagnotte.html`   | Cagnotte / vue trésorier | ✅ fait (Étape 9)  |
+| `sport-motiv-cloture.html`    | Clôture du défi          | ✅ fait (Étape 12) |
+| `sport-motiv-fin-defi.html`   | Bilan de fin de défi     | ✅ fait (Étape 12) |
+| `sport-motiv-parametres.html` | `app/settings.tsx`       | ✅ fait            |
 
 Les autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'index, pas un écran).
 **Toutes les maquettes V3 ont désormais leur écran.**
 
 ## Notes transverses
+
+- **Détails sportifs / preuve (03/09/2026)** : `sessions.distance_km` nullable, durée 1–1440 min,
+  calculs client allure/vitesse, Strava aligné sur le modèle commun, commentaire de séance séparé
+  de la description de preuve externe, copie multi-défis complète. Migration
+  **`072_session_details_proof.sql` à exécuter après 071**, puis 13 tests pgTAP. Contrôles locaux :
+  TypeScript/lint verts, Jest **69 suites / 642 tests**, Playwright pré-migration sans distance 1/1.
+  Les scénarios distance et multi-défis seront exécutables après déploiement de 072. Rapport
+  [etape-21-details-seance-preuve.md](reports/etape-21-details-seance-preuve.md).
 - **Audit stabilisation streaks/badges/stats (03/09/2026)** : audit Git en lecture seule, SQL
   060–070, streaks/badges/stats/notifs/clôture/fin de défi, TypeScript, lint, Jest et Playwright.
   Corrections critiques forward-only dans **071** : restaure `resolve_session` 054 écrasée par 069,
@@ -131,8 +140,8 @@ Les autres maquettes ont leur écran (`sport-motiv-maquettes.html` est l'index, 
   rien ») + section **« À valider »** sur l'accueil ; (5) Organiser l'accueil : **glisser-déposer**
   (voir 9g).
 - **Lot 9g** : **glisser-déposer réel** dans « Organiser l'accueil » (`SortableGroups`, rangs absolus
-  + reanimated + gesture-handler, web/iOS/Android, scroll coupé pendant le drag ; remplace les flèches)
-  + **badge « Suspendu »** sur les lignes membres du dashboard (`useGroupSuspensions` + `isSuspendedOn`).
+  - reanimated + gesture-handler, web/iOS/Android, scroll coupé pendant le drag ; remplace les flèches)
+  - **badge « Suspendu »** sur les lignes membres du dashboard (`useGroupSuspensions` + `isSuspendedOn`).
 - **Cycle de vie d'un défi** : un défi est `active` dès sa création — **plus d'étape « lancer »**.
   L'affichage (à venir / en cours / terminé) et les pénalités dérivent des **dates**
   (`challenge_start`/`challenge_end`), via `features/groups/challenge-phase.ts` (pur, testé).

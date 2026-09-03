@@ -9,11 +9,15 @@ const PROOF_FILE = "e2e/fixtures/proof.png";
  * PHOTO via l'upload d'un fichier (l'ImagePicker web ouvre un `<input type=file>`
  * que Playwright intercepte). Termine sur « Valider la séance ».
  */
-export async function declareRunSession(page: Page) {
+export async function declareRunSession(page: Page, options: { distanceKm?: string } = {}) {
   // Le bouton du dashboard ouvre l'écran de déclaration.
   await page.getByText("Déclarer une séance").click();
   await expect(page.getByText("Course", { exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByText("Course", { exact: true }).click();
+
+  if (options.distanceKm) {
+    await page.getByPlaceholder("Ex. 8,2 km").fill(options.distanceKm);
+  }
 
   // Preuve photo : l'ImagePicker web ouvre un sélecteur de fichier. On l'intercepte
   // via l'event `filechooser` et on fournit l'image (méthode `setFiles` du FileChooser,

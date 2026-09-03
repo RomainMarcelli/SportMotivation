@@ -13,6 +13,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  Route,
   TriangleAlert,
   Users,
   X,
@@ -43,9 +44,15 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Stepper } from "@/components/ui/Stepper";
 import { TextField } from "@/components/ui/TextField";
 import { colors } from "@/constants/colors";
-import { getActivityLabel } from "@/constants/activities";
 import { useGroup, useMyGroups } from "@/features/groups/queries";
 import { checkProofDate, declarableDateRange, parseExifDate } from "@/features/sessions/dates";
+import {
+  formatDistanceKm,
+  isDistanceFirstClassSport,
+  MAX_SESSION_DURATION_MIN,
+  parseDistanceKm,
+  sessionMetric,
+} from "@/features/sessions/metrics";
 import { SessionScopePicker } from "@/components/sessions/SessionScopePicker";
 import { useDeclareSession } from "@/features/sessions/mutations";
 import {
@@ -58,8 +65,7 @@ import { isDailyLimitError, mapSessionError } from "@/features/sessions/proof";
 import { buildDeclareSessionSchema, type DeclareSessionInput } from "@/features/sessions/schemas";
 import {
   stravaActivityDate,
-  stravaDurationToMinutes,
-  stravaTypeToActivityId,
+  toStravaSessionDetails,
   toStravaProofData,
   type StravaActivity,
 } from "@/features/sessions/strava";
@@ -128,9 +134,12 @@ export default function DeclareSessionScreen() {
   const [customDraft, setCustomDraft] = useState("");
   const [customActivities, setCustomActivities] = useState<string[]>([]);
   const [warnData, setWarnData] = useState<DeclareSessionInput | null>(null);
+  const [distanceDraft, setDistanceDraft] = useState("");
+  const [distanceRevealed, setDistanceRevealed] = useState(false);
 
   const acceptedActivities = useMemo(
-    () => (Array.isArray(group?.accepted_activities) ? (group!.accepted_activities as string[]) : []),
+    () =>
+      Array.isArray(group?.accepted_activities) ? (group!.accepted_activities as string[]) : [],
     [group]
   );
   const minDuration = group?.min_duration_min ?? 0;
@@ -163,6 +172,7 @@ export default function DeclareSessionScreen() {
     defaultValues: {
       activityType: "",
       durationMin: Math.max(minDuration, 30),
+      distanceKm: null,
       performedAt: new Date(),
       comment: "",
       proofType: "photo",
@@ -173,6 +183,12 @@ export default function DeclareSessionScreen() {
 
   const proofType = watch("proofType");
   const performedAtValue = watch("performedAt");
+  const activityType = watch("activityType");
+  const durationMinValue = watch("durationMin");
+  const distanceKmValue = watch("distanceKm");
+  const distanceFirstClass = isDistanceFirstClassSport(activityType);
+  const showDistance = distanceFirstClass || distanceRevealed || distanceDraft.trim().length > 0;
+  const metricPreview = sessionMetric(activityType, durationMinValue, distanceKmValue);
   // « Jour même » n'est un problème que si on déclare pour un AUTRE jour :
   // respecter la règle ne mérite aucun avertissement.
   const declaringPastDay =
@@ -205,7 +221,11 @@ export default function DeclareSessionScreen() {
         }
       }
       const result = useCamera
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6, base64: true })
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            quality: 0.6,
+            base64: true,
+          })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ["images"],
             quality: 0.6,
@@ -268,14 +288,24 @@ export default function DeclareSessionScreen() {
     setValue("stravaActivityId", String(activity.id), { shouldValidate: true });
     setValue("stravaData", data);
     setValue("stravaActivityDate", activityDate, { shouldValidate: true });
-    const mappedName = getActivityLabel(stravaTypeToActivityId(activity.sport_type ?? activity.type));
-    if (acceptedActivities.includes(mappedName)) {
-      setValue("activityType", mappedName, { shouldValidate: true });
-      setCustomMode(false);
+    const details = toStravaSessionDetails(activity);
+    // Toujours reprendre le sport réel. S'il est hors liste, le mécanisme
+    // d'avertissement existant proposera de prévenir l'admin au moment de valider.
+    if (!acceptedActivities.includes(details.activityType)) {
+      setCustomActivities((current) =>
+        current.includes(details.activityType) ? current : [...current, details.activityType]
+      );
     }
-    setValue("durationMin", Math.max(minDuration, stravaDurationToMinutes(activity.moving_time)), {
+    setValue("activityType", details.activityType, { shouldValidate: true });
+    setCustomMode(false);
+    setValue("durationMin", details.durationMin, {
       shouldValidate: true,
     });
+    setValue("distanceKm", details.distanceKm, { shouldValidate: true });
+    setDistanceDraft(
+      details.distanceKm === null ? "" : String(details.distanceKm).replace(".", ",")
+    );
+    if (details.distanceKm !== null) setDistanceRevealed(true);
   };
 
   const doDeclare = (data: DeclareSessionInput) => {
@@ -284,6 +314,7 @@ export default function DeclareSessionScreen() {
         groupId: id!,
         activityType: data.activityType,
         durationMin: data.durationMin,
+        distanceKm: data.distanceKm ?? null,
         performedAt: data.performedAt,
         comment: data.comment,
         proofType: data.proofType,
@@ -451,8 +482,8 @@ export default function DeclareSessionScreen() {
                   <Stepper
                     value={value}
                     onChange={onChange}
-                    min={minDuration}
-                    max={600}
+                    min={Math.max(1, minDuration)}
+                    max={MAX_SESSION_DURATION_MIN}
                     step={5}
                     unit="minutes"
                   />
@@ -485,12 +516,67 @@ export default function DeclareSessionScreen() {
                 </>
               )}
             />
-            <Hint>{minDuration > 0 ? `Minimum ${minDuration} min pour ce groupe` : "Aucun minimum"}</Hint>
+            <Hint>
+              {minDuration > 1
+                ? `Minimum ${minDuration} min pour ce groupe · maximum ${MAX_SESSION_DURATION_MIN} min`
+                : `Entre 1 et ${MAX_SESSION_DURATION_MIN} minutes`}
+            </Hint>
             {errors.durationMin ? (
               <Text className="mt-1.5 font-body text-[12px] text-red">
                 {errors.durationMin.message}
               </Text>
             ) : null}
+          </Reveal>
+
+          {/* Distance — immédiate pour les sports d'endurance, révélable sinon. */}
+          <Reveal delay={130}>
+            {showDistance ? (
+              <>
+                <FieldLabel>Distance (optionnelle)</FieldLabel>
+                <Controller
+                  control={control}
+                  name="distanceKm"
+                  render={({ field: { onBlur, onChange } }) => (
+                    <TextField
+                      icon={Route}
+                      value={distanceDraft}
+                      onBlur={onBlur}
+                      onChangeText={(value) => {
+                        setDistanceDraft(value);
+                        onChange(parseDistanceKm(value));
+                      }}
+                      placeholder="Ex. 8,2 km"
+                      keyboardType="decimal-pad"
+                      inputMode="decimal"
+                      error={errors.distanceKm?.message}
+                    />
+                  )}
+                />
+                {metricPreview ? (
+                  <View
+                    className="mt-2.5 self-start rounded-full px-3 py-1.5"
+                    style={{ backgroundColor: colors.mintSoft }}
+                  >
+                    <Text className="font-body-semibold text-[11.5px] text-mint">
+                      {metricPreview.label} moyenne · {metricPreview.value}
+                    </Text>
+                  </View>
+                ) : distanceKmValue ? (
+                  <Hint>{formatDistanceKm(distanceKmValue) ?? "Distance invalide"}</Hint>
+                ) : null}
+              </>
+            ) : (
+              <Pressable
+                onPress={() => setDistanceRevealed(true)}
+                className="flex-row items-center gap-2 self-start rounded-full border px-3.5 py-2.5 active:opacity-80"
+                style={{ backgroundColor: colors.surface, borderColor: colors.line }}
+              >
+                <Plus size={15} color={colors.coral} strokeWidth={2.5} />
+                <Text className="font-body-semibold text-[12px] text-coral">
+                  Ajouter une distance si pertinent
+                </Text>
+              </Pressable>
+            )}
           </Reveal>
 
           {/* Date */}
@@ -749,7 +835,11 @@ function SameDayNote({ onRequest, pending }: { onRequest: () => void; pending: b
         onPress={onRequest}
         disabled={pending}
         className="flex-row items-center justify-center gap-2 rounded-input border py-2.5 active:opacity-80"
-        style={{ backgroundColor: colors.surface, borderColor: colors.line2, opacity: pending ? 0.6 : 1 }}
+        style={{
+          backgroundColor: colors.surface,
+          borderColor: colors.line2,
+          opacity: pending ? 0.6 : 1,
+        }}
       >
         <BellRing size={14} color={colors.amber} />
         <Text className="font-body-semibold text-[12.5px] text-cream">
@@ -978,7 +1068,12 @@ function PhotoCapture({
         {error ? <Text className="mt-1.5 font-body text-[12px] text-red">{error}</Text> : null}
 
         {/* Aperçu plein écran */}
-        <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)}>
+        <Modal
+          visible={zoom}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setZoom(false)}
+        >
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.94)" }}>
             <Image
               source={{ uri: photo.uri }}

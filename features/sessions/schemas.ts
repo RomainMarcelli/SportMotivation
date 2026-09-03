@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import { isDeclarableDate, isSameLocalDay } from "./dates";
+import {
+  MAX_SESSION_DISTANCE_KM,
+  MAX_SESSION_DURATION_MIN,
+  MIN_SESSION_DURATION_MIN,
+} from "./metrics";
 
 export const PROOF_TYPE_VALUES = ["photo", "strava", "external_link"] as const;
 export type ProofType = (typeof PROOF_TYPE_VALUES)[number];
@@ -27,14 +32,27 @@ export function buildDeclareSessionSchema({
   challengeStart,
   challengeEnd,
 }: DeclareSessionSchemaOptions) {
+  const effectiveMinDuration = Math.max(MIN_SESSION_DURATION_MIN, minDuration);
+
   return z
     .object({
       activityType: z.string().min(1, "Choisis une activité"),
       durationMin: z
         .number({ message: "Durée requise" })
         .int("Nombre entier")
-        .min(minDuration, `Au moins ${minDuration} minutes`)
-        .max(600, "600 minutes max"),
+        .min(
+          effectiveMinDuration,
+          effectiveMinDuration === 1
+            ? "Au moins 1 minute"
+            : `Au moins ${effectiveMinDuration} minutes`
+        )
+        .max(MAX_SESSION_DURATION_MIN, `${MAX_SESSION_DURATION_MIN} minutes max`),
+      distanceKm: z
+        .number({ message: "Distance invalide" })
+        .positive("La distance doit être supérieure à 0")
+        .max(MAX_SESSION_DISTANCE_KM, `${MAX_SESSION_DISTANCE_KM} km max`)
+        .nullable()
+        .optional(),
       performedAt: z.date({ message: "Date requise" }),
       comment: z.string().max(500, "500 caractères max").optional(),
       proofType: z.enum(PROOF_TYPE_VALUES),

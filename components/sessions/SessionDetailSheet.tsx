@@ -6,9 +6,12 @@ import {
   Check,
   Clock,
   ExternalLink,
+  Gauge,
   Layers,
   MapPin,
   MessageSquare,
+  Route,
+  ShieldCheck,
   Timer,
   Vote,
   X as XIcon,
@@ -20,6 +23,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { colors } from "@/constants/colors";
 import { useGroupMembers } from "@/features/groups/queries";
+import { formatDistanceKm, sessionMetric } from "@/features/sessions/metrics";
+import { proofPresentation } from "@/features/sessions/proof";
 import {
   useProofSignedUrl,
   useSessionVotes,
@@ -105,6 +110,9 @@ function Body({
   };
 
   const proof = session.proofs[0];
+  const proofMeta = proofPresentation(proof?.proof_type);
+  const distance = formatDistanceKm(session.distance_km);
+  const metric = sessionMetric(session.activity_type, session.duration_min, session.distance_km);
   const authorName = session.author.first_name || session.author.username || "Membre";
 
   // Les autres défis où la même séance a été publiée (elle est dupliquée par
@@ -148,6 +156,36 @@ function Body({
       <View className="flex-row gap-2.5">
         <Stat icon={Clock} label="Durée" value={formatDuration(session.duration_min)} />
         <Stat icon={CalendarDays} label="Réalisée le" value={formatDbDate(session.performed_at)} />
+      </View>
+
+      {distance ? (
+        <View className="flex-row gap-2.5">
+          <Stat icon={Route} label="Distance" value={distance} />
+          {metric ? <Stat icon={Gauge} label={metric.label} value={metric.value} /> : null}
+        </View>
+      ) : null}
+
+      <View
+        className="flex-row items-center gap-2.5 rounded-[14px] border px-3 py-2.5"
+        style={{ backgroundColor: colors.ink2, borderColor: colors.line }}
+      >
+        <ShieldCheck size={15} color={colors.coral} />
+        <View className="flex-1">
+          <Text className="font-body text-[10px] uppercase tracking-eyebrow text-cream-dim">
+            Source des données
+          </Text>
+          <Text className="mt-0.5 font-body-semibold text-[12px] text-cream">
+            {proofMeta.dataSource}
+          </Text>
+        </View>
+        <View className="flex-1 border-l pl-3" style={{ borderLeftColor: colors.line }}>
+          <Text className="font-body text-[10px] uppercase tracking-eyebrow text-cream-dim">
+            Preuve
+          </Text>
+          <Text className="mt-0.5 font-body-semibold text-[12px] text-cream">
+            {proofMeta.proofType}
+          </Text>
+        </View>
       </View>
 
       {session.comment ? (
@@ -299,18 +337,22 @@ function Proof({ proof }: { proof: SessionWithAuthor["proofs"][number] | undefin
           Preuve Strava
         </Text>
         <View className="mt-2 flex-row gap-6">
-          <View>
-            <Text className="font-display text-[18px] tracking-tight text-cream">
-              {strava.distance_m ? `${(strava.distance_m / 1000).toFixed(1)} km` : "—"}
-            </Text>
-            <Text className="font-body text-[10.5px] text-cream-dim">distance</Text>
-          </View>
-          <View>
-            <Text className="font-display text-[18px] tracking-tight text-cream">
-              {strava.moving_time_s ? formatDuration(strava.moving_time_s / 60) : "—"}
-            </Text>
-            <Text className="font-body text-[10.5px] text-cream-dim">durée</Text>
-          </View>
+          {strava.distance_m && strava.distance_m > 0 ? (
+            <View>
+              <Text className="font-display text-[18px] tracking-tight text-cream">
+                {(strava.distance_m / 1000).toFixed(1)} km
+              </Text>
+              <Text className="font-body text-[10.5px] text-cream-dim">distance</Text>
+            </View>
+          ) : null}
+          {strava.moving_time_s && strava.moving_time_s > 0 ? (
+            <View>
+              <Text className="font-display text-[18px] tracking-tight text-cream">
+                {formatDuration(strava.moving_time_s / 60)}
+              </Text>
+              <Text className="font-body text-[10.5px] text-cream-dim">durée</Text>
+            </View>
+          ) : null}
         </View>
       </LinearGradient>
     );
@@ -402,17 +444,34 @@ function Proof({ proof }: { proof: SessionWithAuthor["proofs"][number] | undefin
     );
   }
 
+  if (proof.proof_type === "external_link") {
+    return (
+      <View
+        className="gap-2.5 rounded-[14px] border p-3.5"
+        style={{ backgroundColor: colors.surface2, borderColor: colors.line }}
+      >
+        {proof.description ? (
+          <Text className="font-body text-[12.5px] leading-[18px] text-cream">
+            {proof.description}
+          </Text>
+        ) : null}
+        <Pressable
+          onPress={() => proof.external_url && Linking.openURL(proof.external_url)}
+          disabled={!proof.external_url}
+          className="flex-row items-center gap-2.5 active:opacity-80"
+        >
+          <ExternalLink size={16} color={colors.coral} />
+          <Text className="flex-1 font-body-semibold text-[12.5px] text-cream">
+            {proof.external_url ? "Ouvrir la preuve" : "Preuve externe (lien manquant)"}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
-    <Pressable
-      onPress={() => proof.external_url && Linking.openURL(proof.external_url)}
-      disabled={!proof.external_url}
-      className="flex-row items-center gap-2.5 rounded-[14px] border p-3.5 active:opacity-80"
-      style={{ backgroundColor: colors.surface2, borderColor: colors.line }}
-    >
-      <ExternalLink size={16} color={colors.coral} />
-      <Text className="flex-1 font-body-semibold text-[12.5px] text-cream">
-        {proof.external_url ? "Ouvrir la preuve" : "Preuve externe (lien manquant)"}
-      </Text>
-    </Pressable>
+    <Text className="px-0.5 font-body text-[11.5px] text-cream-dim">
+      Photo indisponible pour cette séance.
+    </Text>
   );
 }

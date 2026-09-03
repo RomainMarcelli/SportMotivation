@@ -49,13 +49,18 @@ import {
   type GroupMemberWithUser,
 } from "@/features/groups/queries";
 import { useGroupSessions, type SessionWithAuthor } from "@/features/sessions/queries";
+import { formatDistanceKm, sessionMetric } from "@/features/sessions/metrics";
 import { useVotableSessions } from "@/features/votes/queries";
 import { useGroupSuspensions } from "@/features/suspensions/queries";
 import { isSuspendedOn } from "@/features/suspensions/suspension";
 import { useMyWeekExcuse } from "@/features/excuses/queries";
 import { mapLeaveError, useLeaveGroup } from "@/features/groups/leave";
 import { useDeleteGroup } from "@/features/groups/penalty-mutations";
-import { canTransferAdmin, eligibleNewAdmins, mapTransferAdminError } from "@/features/groups/admin-transfer";
+import {
+  canTransferAdmin,
+  eligibleNewAdmins,
+  mapTransferAdminError,
+} from "@/features/groups/admin-transfer";
 import { useTransferAdmin } from "@/features/groups/transfer-mutations";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { useCurrentUser } from "@/lib/auth-store";
@@ -127,8 +132,7 @@ export default function GroupDashboardScreen() {
   }, [openSession, sessions]);
 
   // Retour : on revient à l'écran précédent (liste des groupes), sinon repli sur l'onglet Groupes.
-  const goBack = () =>
-    router.canGoBack() ? router.back() : router.navigate("/groups" as never);
+  const goBack = () => (router.canGoBack() ? router.back() : router.navigate("/groups" as never));
 
   if (isLoading) {
     return (
@@ -160,10 +164,7 @@ export default function GroupDashboardScreen() {
               <GradientButton onPress={() => refetch()} loading={isRefetching || isLoading}>
                 Réessayer
               </GradientButton>
-              <Button
-                variant="secondary"
-                onPress={() => router.navigate("/groups" as never)}
-              >
+              <Button variant="secondary" onPress={() => router.navigate("/groups" as never)}>
                 Retour aux groupes
               </Button>
             </View>
@@ -195,8 +196,7 @@ export default function GroupDashboardScreen() {
   const isOver = phase === "ended";
   const goFinDefi = () =>
     router.push({ pathname: "/group/[id]/fin-defi", params: { id: id! } } as never);
-  const goVote = () =>
-    router.push({ pathname: "/group/[id]/vote", params: { id: id! } } as never);
+  const goVote = () => router.push({ pathname: "/group/[id]/vote", params: { id: id! } } as never);
 
   // Onglet « À voter » = séances des AUTRES en attente de mon vote. Il n'apparaît
   // que s'il y en a ; s'il disparaît alors qu'on y était, on retombe sur « Séances ».
@@ -387,10 +387,7 @@ export default function GroupDashboardScreen() {
           <Reveal delay={isOver ? 60 : 0}>
             <Card variant="hero">
               <View className="flex-row items-center justify-between">
-                <Badge
-                  label={challengePhaseLabel(phase)}
-                  variant={isActive ? "coral" : "amber"}
-                />
+                <Badge label={challengePhaseLabel(phase)} variant={isActive ? "coral" : "amber"} />
                 <View className="items-end">
                   <Text className="font-display text-[19px] text-amber">
                     {isOver
@@ -429,7 +426,9 @@ export default function GroupDashboardScreen() {
                     className="mt-1 font-display text-[34px] tracking-tighter text-cream"
                   />
                 ) : (
-                  <Text className="mt-1 font-display text-[34px] tracking-tighter text-cream">—</Text>
+                  <Text className="mt-1 font-display text-[34px] tracking-tighter text-cream">
+                    —
+                  </Text>
                 )}
                 <Text className="mt-1 font-body text-[10.5px] text-cream-dim">
                   débloquée à la fin du défi
@@ -449,7 +448,9 @@ export default function GroupDashboardScreen() {
                       <Text className="text-[12px] text-cream-dim">/{groupProg.target}</Text>
                     </Text>
                   </View>
-                  <ProgressBar ratio={groupProg.target > 0 ? groupProg.done / groupProg.target : 0} />
+                  <ProgressBar
+                    ratio={groupProg.target > 0 ? groupProg.done / groupProg.target : 0}
+                  />
                 </View>
               ) : null}
 
@@ -575,7 +576,9 @@ export default function GroupDashboardScreen() {
           ) : (
             <GradientButton
               icon={Plus}
-              onPress={() => router.push({ pathname: "/group/[id]/declare", params: { id: id! } } as never)}
+              onPress={() =>
+                router.push({ pathname: "/group/[id]/declare", params: { id: id! } } as never)
+              }
             >
               Déclarer une séance
             </GradientButton>
@@ -584,7 +587,12 @@ export default function GroupDashboardScreen() {
       </ScreenContainer>
 
       {/* Menu ⋮ : actions contextuelles (admin : modifier/inviter ; tous : quitter) */}
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
         <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
           <Pressable className="flex-1" onPress={() => setMenuOpen(false)} />
           <View
@@ -595,7 +603,10 @@ export default function GroupDashboardScreen() {
               className="mb-4 h-1 w-10 self-center rounded-full"
               style={{ backgroundColor: colors.line2 }}
             />
-            <Text numberOfLines={1} className="mb-3 font-display text-[17px] tracking-tight text-cream">
+            <Text
+              numberOfLines={1}
+              className="mb-3 font-display text-[17px] tracking-tight text-cream"
+            >
               {group.name}
             </Text>
 
@@ -615,7 +626,10 @@ export default function GroupDashboardScreen() {
                 label={isAdmin ? "Suspensions" : "Demander une suspension"}
                 onPress={() => {
                   setMenuOpen(false);
-                  router.push({ pathname: "/group/[id]/suspensions", params: { id: id! } } as never);
+                  router.push({
+                    pathname: "/group/[id]/suspensions",
+                    params: { id: id! },
+                  } as never);
                 }}
               />
               {isAdmin ? (
@@ -937,6 +951,14 @@ function SessionRow({
   const isMe = session.author.id === meId;
   const name = isMe ? "Toi" : session.author.first_name || session.author.username || "Membre";
   const badge = STATUS_BADGE[session.status] ?? STATUS_BADGE.expired;
+  const distance = formatDistanceKm(session.distance_km);
+  const metric = sessionMetric(session.activity_type, session.duration_min, session.distance_km);
+  const details = [
+    formatDuration(session.duration_min),
+    distance,
+    metric?.value,
+    formatDbDate(session.performed_at),
+  ].filter(Boolean);
   return (
     <Pressable
       onPress={onPress}
@@ -955,9 +977,7 @@ function SessionRow({
         <Text className="font-body-bold text-[13.5px] text-cream">
           {name} · {getActivityLabel(session.activity_type)}
         </Text>
-        <Text className="mt-0.5 font-body text-[11px] text-cream-dim">
-          {formatDuration(session.duration_min)} · {formatDbDate(session.performed_at)}
-        </Text>
+        <Text className="mt-0.5 font-body text-[11px] text-cream-dim">{details.join(" · ")}</Text>
       </View>
       {/* Le Badge porte `alignSelf: flex-start` (pour ne pas s'étirer en colonne) ;
           l'envelopper le recentre verticalement face à l'avatar et à la flèche. */}
@@ -1073,7 +1093,13 @@ function SeancesPanel({
   // Le bandeau « à valider » a été retiré d'ici : l'onglet dédié « À voter » est le
   // seul point d'entrée du vote (évite le doublon dans l'onglet Séances).
   const weekNav = (
-    <WeekNav label={weekLabel} canPrev={canPrev} canNext={canNext} onPrev={onPrev} onNext={onNext} />
+    <WeekNav
+      label={weekLabel}
+      canPrev={canPrev}
+      canNext={canNext}
+      onPrev={onPrev}
+      onNext={onNext}
+    />
   );
 
   if (pending.length === 0 && recent.length === 0) {

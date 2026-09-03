@@ -2,9 +2,11 @@ import {
   describeStravaError,
   formatStravaActivity,
   stravaActivityDate,
+  stravaDistanceToKm,
   stravaDurationToMinutes,
   stravaTypeToActivityId,
   toStravaProofData,
+  toStravaSessionDetails,
   type StravaActivity,
 } from "../strava";
 import { isSameLocalDay } from "../dates";
@@ -36,6 +38,31 @@ describe("stravaDurationToMinutes", () => {
   it("convertit les secondes en minutes arrondies", () => {
     expect(stravaDurationToMinutes(3120)).toBe(52);
     expect(stravaDurationToMinutes(29)).toBe(1); // minimum 1
+    expect(stravaDurationToMinutes(0)).toBe(0);
+  });
+});
+
+describe("mapping Strava vers la séance canonique", () => {
+  it("reprend le sport, la durée réelle et la distance", () => {
+    expect(toStravaSessionDetails(activity)).toEqual({
+      activityType: "Course",
+      durationMin: 52,
+      distanceKm: 10.25,
+    });
+  });
+
+  it("conserve un type Strava inconnu au lieu de l'aplatir en Autre", () => {
+    expect(
+      toStravaSessionDetails({ ...activity, type: "KiteSurf", sport_type: undefined }).activityType
+    ).toBe("KiteSurf");
+  });
+
+  it("ignore une distance absente, invalide ou hors plage", () => {
+    expect(stravaDistanceToKm(0)).toBeNull();
+    expect(stravaDistanceToKm(-10)).toBeNull();
+    expect(stravaDistanceToKm(Number.NaN)).toBeNull();
+    expect(stravaDistanceToKm(5_000_001)).toBeNull();
+    expect(stravaDistanceToKm(10_250)).toBe(10.25);
   });
 });
 

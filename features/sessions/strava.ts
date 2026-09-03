@@ -4,6 +4,8 @@
  */
 
 import { formatDuration } from "@/lib/duration";
+import { getActivityLabel } from "@/constants/activities";
+import { validDistanceKm } from "./metrics";
 
 export type StravaActivity = {
   id: number;
@@ -23,6 +25,12 @@ export type StravaProofData = {
   distance_m: number;
   moving_time_s: number;
   start_date_local: string;
+};
+
+export type StravaSessionDetails = {
+  activityType: string;
+  durationMin: number;
+  distanceKm: number | null;
 };
 
 /** Mappe un type d'activité Strava vers l'un de nos identifiants d'activité internes. */
@@ -55,7 +63,28 @@ export function stravaTypeToActivityId(stravaType: string): string {
 
 /** Durée Strava (secondes) → minutes entières. */
 export function stravaDurationToMinutes(movingTimeSeconds: number): number {
+  if (!Number.isFinite(movingTimeSeconds) || movingTimeSeconds <= 0) return 0;
   return Math.max(1, Math.round(movingTimeSeconds / 60));
+}
+
+/** Distance Strava (mètres) vers notre valeur canonique en kilomètres. */
+export function stravaDistanceToKm(distanceMetres: number): number | null {
+  if (!Number.isFinite(distanceMetres) || distanceMetres <= 0) return null;
+  const distanceKm = Math.round(distanceMetres) / 1000;
+  return validDistanceKm(distanceKm) ? distanceKm : null;
+}
+
+/** Données Strava recopiées dans le modèle commun de `sessions`. */
+export function toStravaSessionDetails(activity: StravaActivity): StravaSessionDetails {
+  const rawType = activity.sport_type ?? activity.type;
+  const mappedId = stravaTypeToActivityId(rawType);
+  return {
+    // Un type inconnu reste informatif (ex. « Kitesurf ») et passera par le
+    // warning « sport hors liste », au lieu d'être aplati en « Autre ».
+    activityType: mappedId === "other" ? rawType : getActivityLabel(mappedId),
+    durationMin: stravaDurationToMinutes(activity.moving_time),
+    distanceKm: stravaDistanceToKm(activity.distance),
+  };
 }
 
 /** Extrait les données condensées à stocker dans la preuve. */
@@ -84,9 +113,10 @@ export function stravaActivityDate(activity: StravaActivity): Date | null {
 
 /** Libellé court pour afficher une activité Strava dans une liste. */
 export function formatStravaActivity(activity: StravaActivity): string {
-  const km = (activity.distance / 1000).toFixed(1);
+  const distanceKm = stravaDistanceToKm(activity.distance);
   const min = stravaDurationToMinutes(activity.moving_time);
-  return `${activity.name} — ${km} km · ${formatDuration(min)}`;
+  const details = [distanceKm === null ? null : `${distanceKm.toFixed(1)} km`, formatDuration(min)];
+  return `${activity.name} — ${details.filter(Boolean).join(" · ")}`;
 }
 
 /**

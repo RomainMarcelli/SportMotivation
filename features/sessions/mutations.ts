@@ -11,6 +11,7 @@ export type DeclareSessionArgs = {
   groupId: string;
   activityType: string;
   durationMin: number;
+  distanceKm?: number | null;
   performedAt: Date;
   comment?: string | null;
   proofType: ProofType;
@@ -54,27 +55,23 @@ export function useDeclareSession() {
       const userId = userData.user?.id;
       if (!userId) throw new Error("Utilisateur non connecté");
 
-      // Pour un lien externe, la description obligatoire est stockée dans le commentaire.
-      // `undefined` (pas `null`) : `p_comment` a un défaut NULL côté RPC (typé
-      // `string | undefined`) → l'omettre revient au même.
-      const comment =
-        args.proofType === "external_link"
-          ? (args.externalDescription ?? args.comment ?? undefined)
-          : (args.comment ?? undefined);
-
       const { data: sessionId, error: rpcError } = await supabase.rpc("declare_session", {
         p_group_id: args.groupId,
         p_activity_type: args.activityType,
         p_duration_min: args.durationMin,
         p_performed_at: toDateOnly(args.performedAt),
-        p_comment: comment,
+        p_comment: args.comment ?? undefined,
+        // `undefined` est omis du JSON : un client déployé avant 072 continue ainsi
+        // à appeler sans ambiguïté l'ancienne RPC tant que la migration n'est pas posée.
+        p_distance_km: args.distanceKm ?? undefined,
       });
       if (rpcError) throw rpcError;
       const id = sessionId as unknown as string;
 
       // Upload de la photo / capture si présente
       let mediaPath: string | null = null;
-      if (args.photoBase64) {
+      const hasImageProof = args.proofType === "photo" || args.proofType === "external_link";
+      if (hasImageProof && args.photoBase64) {
         const mime = args.photoMime ?? "image/jpeg";
         const ext = mime.split("/")[1] ?? "jpg";
         mediaPath = `${userId}/${id}.${ext}`;
@@ -91,11 +88,16 @@ export function useDeclareSession() {
         session_id: id,
         proof_type: args.proofType,
         media_url: mediaPath,
-        external_url: args.externalUrl ?? null,
-        latitude: args.latitude ?? null,
-        longitude: args.longitude ?? null,
-        captured_at: args.capturedAt ?? null,
-        strava_data: args.stravaData ?? null,
+        external_url: args.proofType === "external_link" ? (args.externalUrl ?? null) : null,
+        // Tant que 072 n'est pas déployée, les preuves photo/Strava n'envoient
+        // pas cette nouvelle clé et restent testables sur le schéma précédent.
+        ...(args.proofType === "external_link"
+          ? { description: args.externalDescription ?? null }
+          : {}),
+        latitude: hasImageProof ? (args.latitude ?? null) : null,
+        longitude: hasImageProof ? (args.longitude ?? null) : null,
+        captured_at: hasImageProof ? (args.capturedAt ?? null) : null,
+        strava_data: args.proofType === "strava" ? (args.stravaData ?? null) : null,
       });
       if (proofError) throw proofError;
 

@@ -4,6 +4,7 @@ import { Pressable, Text, View } from "react-native";
 import { Card } from "@/components/ui/Card";
 import { colors } from "@/constants/colors";
 import { relativeDay } from "@/features/home/home-stats";
+import { formatDistanceKm, sessionMetric } from "@/features/sessions/metrics";
 import type { SessionWithAuthor } from "@/features/sessions/queries";
 import { formatDuration } from "@/lib/duration";
 import { getSportIcon } from "@/lib/sports";
@@ -88,6 +89,19 @@ export function RecentSessions({ sessions, meId, onSeeAll, onOpenSession }: Prop
           const who = isMe
             ? "Toi"
             : session.author.first_name || session.author.username || "Membre";
+          const distance = formatDistanceKm(session.distance_km);
+          const metric = sessionMetric(
+            session.activity_type,
+            session.duration_min,
+            session.distance_km
+          );
+          const details = [
+            who,
+            formatDuration(session.duration_min),
+            distance,
+            metric?.value,
+            relativeDay(session.performed_at, now),
+          ].filter(Boolean);
           return (
             <Pressable
               key={session.id}
@@ -105,8 +119,7 @@ export function RecentSessions({ sessions, meId, onSeeAll, onOpenSession }: Prop
                   {session.activity_type}
                 </Text>
                 <Text numberOfLines={1} className="mt-0.5 font-body text-[11.5px] text-cream-dim">
-                  {who} · {formatDuration(session.duration_min)} ·{" "}
-                  {relativeDay(session.performed_at, now)}
+                  {details.join(" · ")}
                 </Text>
               </View>
               <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: tag.soft }}>

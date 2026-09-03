@@ -25,7 +25,7 @@ test.describe("Déclaration multi-défis", () => {
 
     // Déclaration depuis le défi A ; la portée coche A + B par défaut.
     await page.goto(`/group/${groupAId}`, { waitUntil: "domcontentloaded" });
-    await declareRunSession(page);
+    await declareRunSession(page, { distanceKm: "8,2" });
 
     // Le toast confirme la publication dans les DEUX défis (count = 2).
     await expect(page.getByText("Séance envoyée au vote dans 2 défis")).toBeVisible({
@@ -35,7 +35,9 @@ test.describe("Déclaration multi-défis", () => {
     // Et la séance figure bien dans l'onglet Séances du défi B.
     await page.goto(`/group/${groupBId}`, { waitUntil: "domcontentloaded" });
     await page.getByText("Séances", { exact: true }).click();
-    await expect(page.getByText("Course").first()).toBeVisible({ timeout: 20_000 });
+    const copiedSession = page.getByLabel("Voir la séance Course").first();
+    await expect(copiedSession).toBeVisible({ timeout: 20_000 });
+    await expect(copiedSession).toContainText("8,2 km");
 
     await deleteCurrentAccount(page);
   });

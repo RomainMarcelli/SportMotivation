@@ -1,4 +1,10 @@
-import { getProofTypeLabel, isDailyLimitError, mapSessionError, PROOF_TYPE_LABELS } from "../proof";
+import {
+  getProofTypeLabel,
+  isDailyLimitError,
+  mapSessionError,
+  proofPresentation,
+  PROOF_TYPE_LABELS,
+} from "../proof";
 
 describe("mapSessionError", () => {
   it("traduit les codes connus", () => {
@@ -37,5 +43,29 @@ describe("getProofTypeLabel", () => {
     expect(getProofTypeLabel("photo")).toBe(PROOF_TYPE_LABELS.photo);
     expect(getProofTypeLabel("strava")).toBe("Strava");
     expect(getProofTypeLabel("external_link")).toBe("Lien externe");
+  });
+});
+
+describe("proofPresentation", () => {
+  it("dérive la source et le type sans colonne sessions.source", () => {
+    expect(proofPresentation("photo")).toEqual({
+      dataSource: "Saisie manuelle",
+      proofType: "Photo",
+    });
+    expect(proofPresentation("strava")).toEqual({
+      dataSource: "Strava",
+      proofType: "Strava",
+    });
+    expect(proofPresentation("external_link")).toEqual({
+      dataSource: "Saisie manuelle",
+      proofType: "Lien externe",
+    });
+  });
+
+  it("reste explicite pour une ancienne séance sans preuve", () => {
+    expect(proofPresentation(undefined)).toEqual({
+      dataSource: "Saisie manuelle",
+      proofType: "Non renseignée",
+    });
   });
 });
